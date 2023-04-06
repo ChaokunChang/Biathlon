@@ -24,4 +24,4 @@ select trip_id,
 from trips WINDOW w AS (
         PARTITION BY passenger_count
         ORDER BY pickup_datetime RANGE BETWEEN (60 * 60 * 24) PRECEDING AND CURRENT ROW
-    ) INTO OUTFILE '/home/ckchang/dataset/nyc_taxi/features/trips_features_qcs1-day.csv' FORMAT CSVWithNames;
+    ) INTO OUTFILE '/home/ckchang/ApproxInfer/data/nyc_taxi_2015-07-01_2015-09-30/features/trips_features_qcs1-day.csv' FORMAT CSVWithNames;

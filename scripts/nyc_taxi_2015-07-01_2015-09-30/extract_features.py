@@ -108,8 +108,16 @@ def run_extraction(running_df, fn=extract_features_0, **kwargs):
 # %%
 # extract features and save to csv
 agg_feas_1 = run_extraction(df, fn=extract_features_1)
-agg_feas_2 = run_extraction(df, fn=extract_features_1, interval_hour=24)
-agg_feas_3 = run_extraction(df, fn=extract_features_1, interval_hour=24*7)
+agg_feas_1.to_csv(os.path.join(
+    feature_dir, 'requests_08-01_08-15.agg_feas_1.csv'), index=False)
+
+agg_feas_2 = run_extraction(df, fn=extract_features_1, interval_hours=24)
+agg_feas_2.to_csv(os.path.join(
+    feature_dir, 'requests_08-01_08-15.agg_feas_2.csv'), index=False)
+
+agg_feas_3 = run_extraction(df, fn=extract_features_1, interval_hours=24*7)
+agg_feas_3.to_csv(os.path.join(
+    feature_dir, 'requests_08-01_08-15.agg_feas_3.csv'), index=False)
 
 # %%
 # merge three agg features on trip_id

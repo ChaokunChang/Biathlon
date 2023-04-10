@@ -23,13 +23,12 @@ pandarallel.initialize(progress_bar=True)
 # %%
 HOME_DIR = '/home/ckchang/ApproxInfer'
 data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
-feature_dir = os.path.join(data_dir, 'features')
+feature_dir = os.path.join(data_dir, 'ext_features')
 if not os.path.exists(feature_dir):
     os.makedirs(feature_dir)
-
 # %%
 sql_template_example = """
-select {aggs} from trips 
+select {aggs} from trips_w_samples 
 where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour({hours}))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
 AND (passenger_count = {passenger_count})
 """
@@ -92,7 +91,7 @@ df.head()
 
 # %%
 # extract features and save to csv
-# df = df.iloc[:10000]
+df = df.iloc[:100]
 extractor_1 = FeatureExtractor(interval_hours=1)
 agg_feas_1 = extractor_1.apply_on(df)
 agg_feas_1.to_csv(os.path.join(

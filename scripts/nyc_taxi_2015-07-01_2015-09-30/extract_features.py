@@ -27,7 +27,7 @@ HOME_DIR = '/home/ckchang/ApproxInfer'
 data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
 feature_dir = os.path.join(data_dir, 'features')
 # %%
-df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-08.csv'))
+df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-15.csv'))
 df.head()
 # %%
 
@@ -98,7 +98,7 @@ def extract_features_1(x, interval_hours=1, aggcols=['trip_distance', 'fare_amou
 # %%
 
 
-def run_extraction(running_df=df.iloc[:1000], fn=extract_features_0, **kwargs):
+def run_extraction(running_df, fn=extract_features_0, **kwargs):
     st = time.time()
     feas = running_df.parallel_apply(fn, axis=1, **kwargs)
     print(f'Elapsed time: {time.time() - st}')
@@ -116,4 +116,4 @@ agg_feas_3 = run_extraction(df, fn=extract_features_1, interval_hour=24*7)
 all_feas = df.merge(agg_feas_1, on='trip_id').merge(
     agg_feas_2, on='trip_id').merge(agg_feas_3, on='trip_id')
 all_feas.to_csv(os.path.join(
-    feature_dir, 'requests_08-01_08-08.feas.csv'), index=False)
+    feature_dir, 'requests_08-01_08-15.feas.csv'), index=False)

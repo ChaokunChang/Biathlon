@@ -32,15 +32,16 @@ df.head()
 # %%
 
 
-def extract_features_0(x, aggcols=['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']):
+def extract_features_0(x, interval_hours=1, aggcols=['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']):
     sql_template = """
     select {aggcols} from trips 
-    where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour(1))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
+    where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour({hours}))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
     AND (passenger_count = {passenger_count})
     """
 
     sql = sql_template.format(aggcols=','.join(
-        aggcols), pickup_datetime=x['pickup_datetime'], passenger_count=x['passenger_count'])
+        aggcols), pickup_datetime=x['pickup_datetime'],
+        hours=interval_hours, passenger_count=x['passenger_count'])
     # print(f'sql={sql}')
     # rows_df = client.query_df(sql)
     clt = clickhouse_connect.get_client(
@@ -65,20 +66,22 @@ def extract_features_0(x, aggcols=['trip_distance', 'fare_amount', 'tip_amount',
 # %%
 
 
-def extract_features_1(x, aggcols=['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']):
+def extract_features_1(x, interval_hours=1, aggcols=['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']):
     sql_template = """
     select {aggs} from trips 
-    where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour(1))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
+    where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour({hours}))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
     AND (passenger_count = {passenger_count})
     """
     aggops = ['count', 'avg', 'sum', 'stddevPop',
               'varPop', 'min', 'max', 'median']
     agg_prefixs = ['count', 'mean', 'sum',
                    'std', 'var', 'min', 'max', 'median']
+    agg_prefixs = [f'{x}_{interval_hours}h' for x in agg_prefixs]
     aggs = [f'{op}({col}) as {agg_prefixs[i]}_{col}' for i,
             op in enumerate(aggops) for col in aggcols]
     sql = sql_template.format(aggs=', '.join(
-        aggs), pickup_datetime=x['pickup_datetime'], passenger_count=x['passenger_count'])
+        aggs), pickup_datetime=x['pickup_datetime'],
+        hours=interval_hours, passenger_count=x['passenger_count'])
     # print(f'sql={sql}')
     # rows_df = client.query_df(sql)
     clt = clickhouse_connect.get_client(
@@ -86,7 +89,8 @@ def extract_features_1(x, aggcols=['trip_distance', 'fare_amount', 'tip_amount',
     # print(f'clt.session_id: {clt.params["session_id"]}')
     rows_df = clt.query_df(sql)
     # compute aggregation on rows
-    aggregations = rows_df
+    rows_df['trip_id'] = x['trip_id']
+    aggregations = rows_df.iloc[0]
     # print(f'aggregations={aggregations}')
     clt.close()
     return aggregations
@@ -94,17 +98,22 @@ def extract_features_1(x, aggcols=['trip_distance', 'fare_amount', 'tip_amount',
 # %%
 
 
-def run_extraction(running_df=df.iloc[:1000], fn=extract_features_0):
+def run_extraction(running_df=df.iloc[:1000], fn=extract_features_0, **kwargs):
     st = time.time()
-    feas = running_df.parallel_apply(fn, axis=1)
-    feas = pd.concat([running_df, feas], axis=1)
+    feas = running_df.parallel_apply(fn, axis=1, **kwargs)
     print(f'Elapsed time: {time.time() - st}')
     return feas
 
 
 # %%
-all_feas = run_extraction(df, fn=extract_features_1)
-# save to csv
+# extract features and save to csv
+agg_feas_1 = run_extraction(df, fn=extract_features_1)
+agg_feas_2 = run_extraction(df, fn=extract_features_1, interval_hour=24)
+agg_feas_3 = run_extraction(df, fn=extract_features_1, interval_hour=24*7)
+
+# %%
+# merge three agg features on trip_id
+all_feas = df.merge(agg_feas_1, on='trip_id').merge(
+    agg_feas_2, on='trip_id').merge(agg_feas_3, on='trip_id')
 all_feas.to_csv(os.path.join(
     feature_dir, 'requests_08-01_08-08.feas.csv'), index=False)
-# %%

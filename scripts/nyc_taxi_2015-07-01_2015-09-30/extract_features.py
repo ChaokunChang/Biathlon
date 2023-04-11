@@ -23,14 +23,12 @@ pandarallel.initialize(progress_bar=True)
 # %%
 HOME_DIR = '/home/ckchang/ApproxInfer'
 data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
-feature_dir = os.path.join(data_dir, 'features')
-if not os.path.exists(feature_dir):
-    os.makedirs(feature_dir)
 
 # %%
 sql_template_example = """
 select {aggs} from trips 
-where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour({hours}))) AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
+where (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour({hours}))) 
+AND (pickup_datetime < '{pickup_datetime}') AND (dropoff_datetime <= '{pickup_datetime}') 
 AND (passenger_count = {passenger_count})
 """
 
@@ -51,7 +49,7 @@ class FeatureExtractor:
         self.aggops = aggops
         self.agg_prefixs = agg_prefixs
         self.agg_prefixs = [f'{x}_{interval_hours}h' for x in self.agg_prefixs]
-        self.aggs = [f'{op}({col}) as {agg_prefixs[i]}_{col}' for i,
+        self.aggs = [f'{op}({col}) as {self.agg_prefixs[i]}_{col}' for i,
                      op in enumerate(aggops) for col in aggcols]
         self.sql_template = self.sql_template.replace(
             "{aggs}", ", ".join(self.aggs))
@@ -87,30 +85,32 @@ def run_extraction(running_df, fn, **kwargs):
 
 
 # %%
-df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-15.csv'))
-df.head()
+if __name__ == '__main__':
+    feature_dir = os.path.join(data_dir, 'features')
+    if not os.path.exists(feature_dir):
+        os.makedirs(feature_dir)
+    df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-15.csv'))
+    df.head()
 
-# %%
-# extract features and save to csv
-# df = df.iloc[:10000]
-extractor_1 = FeatureExtractor(interval_hours=1)
-agg_feas_1 = extractor_1.apply_on(df)
-agg_feas_1.to_csv(os.path.join(
-    feature_dir, 'requests_08-01_08-15.agg_feas_1.csv'), index=False)
+    # extract features and save to csv
+    # df = df.iloc[:10000]
+    extractor_1 = FeatureExtractor(interval_hours=1)
+    agg_feas_1 = extractor_1.apply_on(df)
+    agg_feas_1.to_csv(os.path.join(
+        feature_dir, 'requests_08-01_08-15.agg_feas_1.csv'), index=False)
 
-extractor_2 = FeatureExtractor(interval_hours=24)
-agg_feas_2 = extractor_2.apply_on(df)
-agg_feas_2.to_csv(os.path.join(
-    feature_dir, 'requests_08-01_08-15.agg_feas_2.csv'), index=False)
+    extractor_2 = FeatureExtractor(interval_hours=24)
+    agg_feas_2 = extractor_2.apply_on(df)
+    agg_feas_2.to_csv(os.path.join(
+        feature_dir, 'requests_08-01_08-15.agg_feas_2.csv'), index=False)
 
-extractor_3 = FeatureExtractor(interval_hours=24*7)
-agg_feas_3 = extractor_3.apply_on(df)
-agg_feas_3.to_csv(os.path.join(
-    feature_dir, 'requests_08-01_08-15.agg_feas_3.csv'), index=False)
+    extractor_3 = FeatureExtractor(interval_hours=24*7)
+    agg_feas_3 = extractor_3.apply_on(df)
+    agg_feas_3.to_csv(os.path.join(
+        feature_dir, 'requests_08-01_08-15.agg_feas_3.csv'), index=False)
 
-# %%
-# merge three agg features on trip_id
-all_feas = df.merge(agg_feas_1, on='trip_id').merge(
-    agg_feas_2, on='trip_id').merge(agg_feas_3, on='trip_id')
-all_feas.to_csv(os.path.join(
-    feature_dir, 'requests_08-01_08-15.feas.csv'), index=False)
+    # merge three agg features on trip_id
+    all_feas = df.merge(agg_feas_1, on='trip_id').merge(
+        agg_feas_2, on='trip_id').merge(agg_feas_3, on='trip_id')
+    all_feas.to_csv(os.path.join(
+        feature_dir, 'requests_08-01_08-15.feas.csv'), index=False)

@@ -12,6 +12,7 @@ import time
 import math
 import pickle
 from rich import inspect
+from tap import Tap
 import clickhouse_connect
 
 from tqdm import tqdm

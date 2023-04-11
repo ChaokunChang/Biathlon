@@ -1,8 +1,13 @@
 from extract_features import *
 
 
+class SimpleParser(Tap):
+    sampling_rate: float = 0.1
+
+
 if __name__ == '__main__':
-    sampling_rate = 0.1
+    args = SimpleParser().parse_args()
+    sampling_rate = args.sampling_rate
     feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)

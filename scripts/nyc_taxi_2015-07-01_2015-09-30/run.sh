@@ -1,6 +1,13 @@
-clickhouse client --queries-file=sql/create_trips.sql
-clickhouse client --queries-file=sql/clean_trips.sql
-clickhouse client --queries-file=sql/create_trips_w_samples.sql
-clickhouse client --queries-file=sql/trips_features_qcs1-hour.sql
-clickhouse client --queries-file=sql/trips_features_qcs1-day.sql
-clickhouse client --queries-file=sql/trips_features_qcs1-week.sql
+python extract_apx_features.py --sampling_rate 0.001
+python extract_apx_features.py --sampling_rate 0.01
+python extract_apx_features.py --sampling_rate 0.05
+python extract_apx_features.py --sampling_rate 0.1
+python extract_apx_features.py --sampling_rate 0.2
+python extract_apx_features.py --sampling_rate 0.3
+python extract_apx_features.py --sampling_rate 0.4
+python extract_apx_features.py --sampling_rate 0.5
+python extract_apx_features.py --sampling_rate 0.6
+python extract_apx_features.py --sampling_rate 0.7
+python extract_apx_features.py --sampling_rate 0.8
+python extract_apx_features.py --sampling_rate 0.9
+python extract_apx_features.py --sampling_rate 1.0

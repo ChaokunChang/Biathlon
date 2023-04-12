@@ -94,7 +94,8 @@ if __name__ == '__main__':
     df.head()
 
     # extract features and save to csv
-    # df = df.iloc[:10000]
+    # sample 10000 from df
+    # df = df.sample(n=10000, random_state=0)
     extractor_1 = FeatureExtractor(interval_hours=1)
     agg_feas_1 = extractor_1.apply_on(df)
     agg_feas_1.to_csv(os.path.join(

@@ -32,17 +32,24 @@ data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
 
 
 class SimpleArgs(Tap):
-    sampling_rate: float = 0.5
+    sampling_rate: float = 0.1  # sample rate of sql query. default 0.1 means 10% of data
+    num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
 
 
 args = SimpleArgs().parse_args()
 sampling_rate = args.sampling_rate
+num_reqs = args.num_reqs
 
-feature_dir = os.path.join(data_dir, 'features')
-apx_feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
+if num_reqs > 0:
+    feature_dir = os.path.join(data_dir, f'sample_x{num_reqs}', 'features')
+    apx_feature_dir = os.path.join(
+        data_dir, f'sample_x{num_reqs}', f'apx_features_{sampling_rate}')
+else:
+    feature_dir = os.path.join(data_dir, 'features')
+    apx_feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
 
 # %%
-df_labels = pd.read_csv(os.path.join(feature_dir, 'trips_labels.csv'))
+df_labels = pd.read_csv(os.path.join(data_dir, 'trips_labels.csv'))
 df = pd.read_csv(os.path.join(feature_dir, 'requests_08-01_08-15.feas.csv'))
 apx_df = pd.read_csv(os.path.join(
     apx_feature_dir, 'requests_08-01_08-15.feas.csv'))
@@ -136,7 +143,8 @@ target_label = 'is_long_trip'
 selected_w_corr = corr[target_label].sort_values(
     ascending=False).drop(target_feature_names)
 print(f'corrs to {target_label}: {selected_w_corr}')
-print(pd.Series(df[target_label]).value_counts(normalize=True))
+print("prediction value counts: ", pd.Series(
+    df[target_label]).value_counts(normalize=True))
 
 # %%
 selected_fnames = selected_w_corr.index.tolist()
@@ -214,13 +222,15 @@ evaluate_model(model, X_test, y_test)
 # %%
 y_predicted = model.predict(X_test)
 # show percentage of different values
-print(pd.Series(y_predicted).value_counts(normalize=True))
+print("prediction value counts: ", pd.Series(
+    y_predicted).value_counts(normalize=True))
 
 # %% [markdown]
 # ## Train model with feature with non-zero importance
 
 # %%
-# important_fnames = [fname for fname in important_fnames if fname in agg_feature_names]
+important_fnames = [
+    fname for fname in important_fnames if fname in agg_feature_names]
 new_X_train = X_train[important_fnames]
 new_X_test = X_test[important_fnames]
 
@@ -247,7 +257,8 @@ print("The model performance for testing set")
 evaluate_model(new_model, new_X_test, y_test)
 
 # show percentage of different values
-print(pd.Series(new_model.predict(new_X_test)).value_counts(normalize=True))
+print("prediction value counts: ", pd.Series(
+    new_model.predict(new_X_test)).value_counts(normalize=True))
 
 # %%
 apx_df_raw_features = apx_df[selected_nonagg_features]
@@ -271,7 +282,8 @@ print("The model performance for testing set to exact")
 evaluate_model(new_model, apx_X_test, new_model.predict(new_X_test))
 
 # show percentage of different values
-print(pd.Series(new_model.predict(apx_X_test)).value_counts(normalize=True))
+print("prediction value counts: ", pd.Series(
+    new_model.predict(apx_X_test)).value_counts(normalize=True))
 
 # %%
 # train set
@@ -317,6 +329,7 @@ tmp_node_test = new_model.apply(tmp_X_test)
 print(metrics.classification_report(
     tmp_node_test, node_test, digits=5, zero_division=1))
 
-print(pd.Series(new_model.predict(tmp_X_train)).value_counts(normalize=True))
+print("prediction value counts: ", pd.Series(
+    new_model.predict(tmp_X_train)).value_counts(normalize=True))
 
 # %%

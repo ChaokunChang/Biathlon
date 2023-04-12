@@ -85,17 +85,28 @@ def run_extraction(running_df, fn, **kwargs):
     return feas
 
 
+class SimpleParser(Tap):
+    num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
+
+
 # %%
 if __name__ == '__main__':
-    feature_dir = os.path.join(data_dir, 'features')
+    args = SimpleParser().parse_args()
+    num_reqs = args.num_reqs
+
+    if num_reqs > 0:
+        feature_dir = os.path.join(data_dir, f'sample_x{num_reqs}', 'features')
+    else:
+        feature_dir = os.path.join(data_dir, 'features')
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
+
     df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-15.csv'))
     df.head()
-
     # extract features and save to csv
     # sample 10000 from df
-    # df = df.sample(n=10000, random_state=0)
+    if num_reqs > 0:
+        df = df.sample(n=num_reqs, random_state=0)
     extractor_1 = FeatureExtractor(interval_hours=1)
     agg_feas_1 = extractor_1.apply_on(df)
     agg_feas_1.to_csv(os.path.join(

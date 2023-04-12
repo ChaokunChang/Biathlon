@@ -2,13 +2,21 @@ from extract_features import *
 
 
 class SimpleParser(Tap):
-    sampling_rate: float = 0.1
+    sampling_rate: float = 0.1  # sample rate of sql query. default 0.1 means 10% of data
+    num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
 
 
 if __name__ == '__main__':
     args = SimpleParser().parse_args()
     sampling_rate = args.sampling_rate
-    feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
+    num_reqs = args.num_reqs
+    if num_reqs > 0:
+        print(
+            f'Warning: num_reqs={num_reqs} is set. This is for testing only!')
+        feature_dir = os.path.join(
+            data_dir, f'sample_x{num_reqs}', f'apx_features_{sampling_rate}')
+    else:
+        feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
     df = pd.read_csv(os.path.join(data_dir, 'requests_08-01_08-15.csv'))
@@ -18,8 +26,8 @@ if __name__ == '__main__':
         'trips', f'trips_w_samples SAMPLE {sampling_rate}')
 
     # extract features and save to csv
-    # sample 10000 from df
-    # df = df.sample(n=10000, random_state=0)
+    if num_reqs > 0:
+        df = df.sample(n=10000, random_state=0)
     extractor_1 = FeatureExtractor(sql_template=sql_template, interval_hours=1)
     agg_feas_1 = extractor_1.apply_on(df)
     agg_feas_1.to_csv(os.path.join(

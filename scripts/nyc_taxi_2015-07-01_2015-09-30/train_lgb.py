@@ -19,6 +19,8 @@ from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+import lightgbm as lgb
+from lightgbm import LGBMClassifier, LGBMRegressor
 import pickle
 import clickhouse_connect
 from rich import inspect
@@ -34,11 +36,15 @@ data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
 class SimpleArgs(Tap):
     sampling_rate: float = 0.1  # sample rate of sql query. default 0.1 means 10% of data
     num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
+    random_state: int = 42  # random state for train_test_split
+    test_size: float = 0.3  # test size for train_test_split
 
 
 args = SimpleArgs().parse_args()
 sampling_rate = args.sampling_rate
 num_reqs = args.num_reqs
+random_state = args.random_state
+test_size = args.test_size
 
 if num_reqs > 0:
     feature_dir = os.path.join(data_dir, f'sample_x{num_reqs}', 'features')
@@ -103,13 +109,12 @@ def df_preprocessing(df, apx_df):
         lambda x: x/sampling_rate, axis=0)
 
     df['is_long_trip'] = df['trip_distance'].apply(lambda x: 1 if x > 5 else 0)
-    df['is_high_fare'] = df['fare_amount'].apply(lambda x: 1 if x > 20 else 0)
-    df['is_high_tip'] = df['tip_amount'].apply(lambda x: 1 if x > 2.5 else 0)
+    df['is_high_fare'] = df['fare_amount'].apply(lambda x: 1 if x > 10 else 0)
+    df['is_high_tip'] = df['tip_amount'].apply(lambda x: 1 if x > 0 else 0)
     return df, apx_df
 
 
 df, apx_df = df_preprocessing(df, apx_df)
-
 
 # %%
 corr = df.corr()
@@ -132,12 +137,14 @@ feature_names = nonagg_feature_names + agg_feature_names + target_feature_names
 assert set(feature_names).issubset(set(df.columns)), 'feature_names are not in df, difference is {}'.format(
     set(feature_names) - set(df.columns))
 
-
+print(df[target_feature_names].describe())
 # %%
-target_label = 'fare_amount'
 target_label = 'trip_distance'
+target_label = 'fare_amount'
+target_label = 'tip_amount'
+target_label = 'total_amount'
 target_label = 'is_long_trip'
-# target_label = 'is_high_fare'
+target_label = 'is_high_fare'
 # target_label = 'is_high_tip'
 # show correlation of target_label in order, expect target_feature_names
 selected_w_corr = corr[target_label].sort_values(
@@ -164,32 +171,85 @@ df_target = df[target_label]
 
 # %%
 # split data into train and test sets
-# X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, test_size=0.3, random_state=42)
+# X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, test_size=test_size, random_state=random_state)
 X_train, X_test, y_train, y_test = train_test_split(
-    df_features, df_target, test_size=0.3, shuffle=False)
+    df_features, df_target, test_size=test_size, shuffle=False)
 
 # %%
-# model = DecisionTreeClassifier(max_leaf_nodes=10, random_state=77)
-model = DecisionTreeClassifier(min_samples_leaf=300, random_state=77)
-model.fit(X_train, y_train)
-
-
-# %%
-print(
-    f'tree depth = {model.get_depth()}, number of leaf nodes = {model.get_n_leaves()}, params: {model.get_params()}')
-print(f'feature_importance: {model.feature_importances_}')
-# print name of feature with non-zero importance
-important_fnames = []
-for i, imp in enumerate(model.feature_importances_):
-    if imp > 0:
-        print(f'feature {i} {X_train.columns[i]} importance: {imp}')
-        important_fnames.append(X_train.columns[i])
-
-
-plt.figure(figsize=(20, 20))
-plot_tree(model, filled=True)
-plt.title("Decision tree trained on all the iris features")
+# model = DecisionTreeClassifier(max_leaf_nodes=10, random_state=random_state)
+# model = DecisionTreeClassifier(min_samples_leaf=300, random_state=random_state)
+# model.fit(X_train, y_train)
+# print(
+#     f'tree depth = {model.get_depth()}, number of leaf nodes = {model.get_n_leaves()}, params: {model.get_params()}')
+# plt.figure(figsize=(20, 20))
+# plot_tree(model, filled=True)
+# plt.title("Decision tree trained on all the iris features")
 # plt.savefig('tree.pdf')
+
+# %%
+# build lightgbm model
+# lgb_params = {
+#     'boosting_type': 'gbdt',
+#     'objective': 'binary',
+#     'metric': 'binary_logloss',
+#     'num_leaves': 31,
+#     'learning_rate': 0.01,
+#     'n_estimators': 100,
+#     'subsample_for_bin': 200000,
+#     'class_weight': None,
+#     'min_split_gain': 0.0,
+#     'min_child_weight': 0.001,
+#     'min_child_samples': 20,
+#     'subsample': 1.0,
+#     'subsample_freq': 0,
+#     'colsample_bytree': 1.0,
+#     'reg_alpha': 0.0,
+#     'reg_lambda': 0.0,
+#     'random_state': random_state,
+#     'n_jobs': -1,
+#     'verbose': 2,
+#     'importance_type': 'split',
+# }
+lgb_params = {
+    'objective': 'binary',
+    'num_leaves': 10,
+    'learning_rate': 0.01,
+    'random_state': random_state,
+    'verbose': 2,
+
+}
+# train_data = lgb.Dataset(X_train, label=y_train)
+# test_data = lgb.Dataset(X_test, label=y_test)
+# model = lgb.train(lgb_params, train_data, valid_sets=[test_data], num_boost_round=1000)
+# print(f'feature_importance: {model.feature_importance()}')
+model = lgb.LGBMClassifier(**lgb_params)
+model.fit(X_train, y_train)
+print(f'feature_importance: {model.feature_importances_}')
+
+# %%
+
+
+def get_importance_features(model, thr=0, topk=0):
+    # print name of feature with non-zero importance
+    important_fnames = []
+    important_fid = []
+    important_fimps = []
+    # for i, imp in enumerate(model.feature_importance()):
+    for i, imp in enumerate(model.feature_importances_):
+        important_fid.append(i)
+        important_fnames.append(X_train.columns[i])
+        important_fimps.append(imp)
+    topfnames = []
+    for fid, fname, fimp in sorted(zip(important_fid, important_fnames, important_fimps), key=lambda x: x[2], reverse=True):
+        print(f'f{fid}({fname}) importance: {fimp}')
+        if topk > 0 and len(topfnames) >= topk:
+            break
+        if fimp > thr:
+            topfnames.append(fname)
+    return topfnames
+
+
+important_fnames = get_importance_features(model, topk=10)
 
 # %%
 
@@ -197,6 +257,7 @@ plt.title("Decision tree trained on all the iris features")
 def evaluate_model(model, xs, ys):
     y_predicted = model.predict(xs)
 
+    # print(f'y_predicted:{y_predicted}, ys:{ys}')
     accuracy = metrics.accuracy_score(ys, y_predicted)
     precision = metrics.precision_score(ys, y_predicted, zero_division=1)
     recall = metrics.recall_score(ys, y_predicted, zero_division=1)
@@ -220,35 +281,42 @@ print("The model performance for testing set")
 evaluate_model(model, X_test, y_test)
 
 # %%
+print("target value counts on test: ", pd.Series(
+    y_test).value_counts(normalize=True))
 y_predicted = model.predict(X_test)
 # show percentage of different values
 print("prediction value counts: ", pd.Series(
     y_predicted).value_counts(normalize=True))
 
+
 # %% [markdown]
 # ## Train model with feature with non-zero importance
 
 # %%
-important_fnames = [
-    fname for fname in important_fnames if fname in agg_feature_names]
+# important_fnames = [
+#     fname for fname in important_fnames if fname in agg_feature_names]
 new_X_train = X_train[important_fnames]
 new_X_test = X_test[important_fnames]
 
-# new_model = DecisionTreeClassifier(max_leaf_nodes=20, random_state=77)
-new_model = DecisionTreeClassifier(min_samples_leaf=300, random_state=77)
+# new_model = DecisionTreeClassifier(max_leaf_nodes=20, random_state=random_state)
+# new_model = DecisionTreeClassifier(min_samples_leaf=300, random_state=random_state)
+# new_model.fit(new_X_train, y_train)
+# print(f'tree depth = {new_model.get_depth()}, number of leaf nodes = {new_model.get_n_leaves()}, params: {new_model.get_params()}')
+# plt.figure(figsize=(20, 20))
+# plot_tree(new_model, filled=True)
+# plt.title("Decision tree trained on all the iris features")
+# plt.savefig('tree.pdf')
+# train_data = lgb.Dataset(new_X_train, label=y_train)
+# test_data = lgb.Dataset(new_X_test, label=y_test)
+# new_model = lgb.train(lgb_params, train_data, valid_sets=[test_data], num_boost_round=1000)
+# print(f'feature_importance: {new_model.feature_importance()}')
+
+new_model = lgb.LGBMClassifier(**lgb_params)
 new_model.fit(new_X_train, y_train)
-
-print(f'tree depth = {new_model.get_depth()}, number of leaf nodes = {new_model.get_n_leaves()}, params: {new_model.get_params()}')
 print(f'feature_importance: {new_model.feature_importances_}')
-# print name of feature with non-zero importance
-for i, imp in enumerate(new_model.feature_importances_):
-    if imp > 0:
-        print(f'feature {i} {new_X_train.columns[i]} importance: {imp}')
 
-plt.figure(figsize=(20, 20))
-plot_tree(new_model, filled=True)
-plt.title("Decision tree trained on all the iris features")
-plt.savefig('tree.pdf')
+_ = get_importance_features(new_model)
+
 
 # %%
 print("The model performance for training set")
@@ -265,7 +333,7 @@ apx_df_raw_features = apx_df[selected_nonagg_features]
 apx_df_agg_features = apx_df[selected_agg_features]
 apx_df_features = apx_df_raw_features.join(apx_df_agg_features)
 apx_X_train, apx_X_test, apx_y_train, apx_y_test = train_test_split(
-    apx_df_features, df_target, test_size=0.3, shuffle=False)
+    apx_df_features, df_target, test_size=test_size, shuffle=False)
 apx_X_train = apx_X_train[important_fnames]
 apx_X_test = apx_X_test[important_fnames]
 
@@ -287,16 +355,16 @@ print("prediction value counts: ", pd.Series(
 
 # %%
 # train set
-node_train = new_model.apply(new_X_train)
-apx_node_train = new_model.apply(apx_X_train)
-print(metrics.classification_report(
-    apx_node_train, node_train, digits=5, zero_division=1))
+# node_train = new_model.apply(new_X_train)
+# apx_node_train = new_model.apply(apx_X_train)
+# print(metrics.classification_report(
+#     apx_node_train, node_train, digits=5, zero_division=1))
 
 # test set
-node_test = new_model.apply(new_X_test)
-apx_node_test = new_model.apply(apx_X_test)
-print(metrics.classification_report(
-    apx_node_test, node_test, digits=5, zero_division=1))
+# node_test = new_model.apply(new_X_test)
+# apx_node_test = new_model.apply(apx_X_test)
+# print(metrics.classification_report(
+#     apx_node_test, node_test, digits=5, zero_division=1))
 
 # %%
 tmp_X_train = new_X_train.copy()
@@ -319,15 +387,15 @@ print("The model performance for testing set to exact")
 evaluate_model(new_model, tmp_X_test, new_model.predict(new_X_test))
 
 
-# train set
-tmp_node_train = new_model.apply(tmp_X_train)
-print(metrics.classification_report(
-    tmp_node_train, node_train, digits=5, zero_division=1))
+# # train set
+# tmp_node_train = new_model.apply(tmp_X_train)
+# print(metrics.classification_report(
+#     tmp_node_train, node_train, digits=5, zero_division=1))
 
-# test set
-tmp_node_test = new_model.apply(tmp_X_test)
-print(metrics.classification_report(
-    tmp_node_test, node_test, digits=5, zero_division=1))
+# # test set
+# tmp_node_test = new_model.apply(tmp_X_test)
+# print(metrics.classification_report(
+#     tmp_node_test, node_test, digits=5, zero_division=1))
 
 print("prediction value counts: ", pd.Series(
     new_model.predict(tmp_X_train)).value_counts(normalize=True))

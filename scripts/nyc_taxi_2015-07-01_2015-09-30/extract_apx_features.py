@@ -14,7 +14,7 @@ if __name__ == '__main__':
         print(
             f'Warning: num_reqs={num_reqs} is set. This is for testing only!')
         feature_dir = os.path.join(
-            data_dir, f'sample_x{num_reqs}', f'apx_features_{sampling_rate}')
+            data_dir, f'test_{num_reqs}xReqs', f'apx_features_{sampling_rate}')
     else:
         feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
     if not os.path.exists(feature_dir):

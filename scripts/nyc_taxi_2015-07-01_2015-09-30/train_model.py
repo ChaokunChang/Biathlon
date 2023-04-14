@@ -41,9 +41,9 @@ sampling_rate = args.sampling_rate
 num_reqs = args.num_reqs
 
 if num_reqs > 0:
-    feature_dir = os.path.join(data_dir, f'sample_x{num_reqs}', 'features')
+    feature_dir = os.path.join(data_dir, f'test_{num_reqs}xReqs', 'features')
     apx_feature_dir = os.path.join(
-        data_dir, f'sample_x{num_reqs}', f'apx_features_{sampling_rate}')
+        data_dir, f'test_{num_reqs}xReqs', f'apx_features_{sampling_rate}')
 else:
     feature_dir = os.path.join(data_dir, 'features')
     apx_feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')

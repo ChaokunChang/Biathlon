@@ -95,7 +95,7 @@ if __name__ == '__main__':
     num_reqs = args.num_reqs
 
     if num_reqs > 0:
-        feature_dir = os.path.join(data_dir, f'sample_x{num_reqs}', 'features')
+        feature_dir = os.path.join(data_dir, f'test_{num_reqs}xReqs', 'features')
     else:
         feature_dir = os.path.join(data_dir, 'features')
     if not os.path.exists(feature_dir):

@@ -1,6 +1,6 @@
 # User-specific stuff
 data/
-outputs/
+results/
 logs/
 
 # Byte-compiled / optimized / DLL files

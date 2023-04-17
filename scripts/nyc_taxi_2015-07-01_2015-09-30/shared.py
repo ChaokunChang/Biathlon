@@ -97,10 +97,12 @@ def approximation_rewrite(sql_template: str, sample: float):
 
 
 class SimpleParser(Tap):
-    data_name: str = 'nyc_taxi_2015-07-01_2015-09-30'  # data name
+    data_dir: str = os.path.join(
+        DATA_HOME, 'nyc_taxi_2015-07-01_2015-09-30')  # data dir
     req_src: str = 'requests_08-01_08-15_sample10000.csv'  # request source
     label_src: str = 'labels_08-01_08-15.csv'  # label source
     task: str = 'fare_prediction'  # task name
+    outdir: str = os.path.join(HOME_DIR, 'results')  # output directory
 
     sql_template: str = sql_template_example  # sql template
     sql_templates_file: str = None  # sql templates file
@@ -114,7 +116,6 @@ class SimpleParser(Tap):
     model_test_size: int = 0.3  # train split for model training
 
     def process_args(self) -> None:
-        self.data_dir = os.path.join(DATA_HOME, self.data_name)
         self.task_dir = os.path.join(self.data_dir, self.task)
         # check existence of request source and label source file
         self.req_src = os.path.join(self.data_dir, self.req_src)
@@ -130,6 +131,7 @@ class SimpleParser(Tap):
             self.sql_templates = [self.sql_template]
 
         self.feature_dir = os.path.join(self.task_dir, 'features')
+        self.outdir = os.path.join(self.outdir, self.task)
         if self.sample > 0:
             # args.sample means run query apprximately with args.sample rate
             # we need to rewrite the query to make it an approximate query
@@ -137,6 +139,9 @@ class SimpleParser(Tap):
                 sql_template, self.sample) for sql_template in self.sql_templates]
             self.feature_dir = os.path.join(
                 self.feature_dir, f'sample_{self.sample}')
+            self.outdir = os.path.join(self.outdir, f'sample_{self.sample}')
 
         if not os.path.exists(self.feature_dir):
             os.makedirs(self.feature_dir)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)

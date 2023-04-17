@@ -44,7 +44,8 @@ WHERE (
     AND (pickup_datetime < '{pickup_datetime}')
     AND (dropoff_datetime <= '{pickup_datetime}')
     AND (passenger_count = {passenger_count})
-    AND (pickup_ntaname = '{pickup_ntaname}');
+    AND (pickup_ntaname = '{pickup_ntaname}')
+    AND (dropoff_ntaname = '{dropoff_ntaname}');
 
 --- 24h  window
 SELECT count(*) as count_24h,
@@ -92,7 +93,8 @@ WHERE (
     AND (pickup_datetime < '{pickup_datetime}')
     AND (dropoff_datetime <= '{pickup_datetime}')
     AND (passenger_count = {passenger_count})
-    AND (pickup_ntaname = '{pickup_ntaname}');
+    AND (pickup_ntaname = '{pickup_ntaname}')
+    AND (dropoff_ntaname = '{dropoff_ntaname}');
 
 --- 168h  window
 SELECT count(*) as count_168h,
@@ -140,4 +142,5 @@ WHERE (
     AND (pickup_datetime < '{pickup_datetime}')
     AND (dropoff_datetime <= '{pickup_datetime}')
     AND (passenger_count = {passenger_count})
-    AND (pickup_ntaname = '{pickup_ntaname}');
+    AND (pickup_ntaname = '{pickup_ntaname}')
+    AND (dropoff_ntaname = '{dropoff_ntaname}');

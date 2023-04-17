@@ -1,14 +1,10 @@
 # %%
 from shared import *
-args = SimpleParser()
-args.from_dict({'sample': 0})
-args.process_args()
 
-sampling_rate = 0.1
-apx_args = SimpleParser()
-apx_args.from_dict({'sample': sampling_rate})
-apx_args.process_args()
+args = SimpleParser().parse_args()
+print(f'args={args}')
 
+sampling_rate = args.sample
 random_state = args.random_state
 test_size = args.model_test_size
 # %%
@@ -16,7 +12,7 @@ df_labels = pd.read_csv(args.label_src)
 df_request = pd.read_csv(args.req_src)
 ffilename = 'features'
 df = pd.read_csv(os.path.join(args.feature_dir, f'{ffilename}.csv'))
-apx_df = pd.read_csv(os.path.join(apx_args.feature_dir, f'{ffilename}.csv'))
+apx_df = pd.read_csv(os.path.join(args.feature_dir, '../', f'{ffilename}.csv'))
 # %%
 df = df.merge(df_labels, on='trip_id').merge(df_request, on='trip_id')
 apx_df = apx_df.merge(df_labels, on='trip_id').merge(df_request, on='trip_id')
@@ -37,20 +33,22 @@ def df_preprocessing(df, apx_df):
     assert df.isna().sum().sum() == 0 and apx_df.isna().sum(
     ).sum() == 0 and df['trip_id'].equals(apx_df['trip_id'])
 
-    def encode_datetime_features(df):
-        df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
-        df['pickup_year'] = df['pickup_datetime'].dt.year
-        df['pickup_month'] = df['pickup_datetime'].dt.month
-        df['pickup_day'] = df['pickup_datetime'].dt.day
-        df['pickup_hour'] = df['pickup_datetime'].dt.hour
-        df['pickup_weekday'] = df['pickup_datetime'].dt.weekday
-        df['pickup_is_weekend'] = df['pickup_weekday'].apply(
+    def encode_datetime_features(df: pd.DataFrame):
+        new_df = df.copy(deep=True)
+        # convert pickup_datetime to datetime, and extract year, month, day, hour, weekday, weekend
+        new_df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+        new_df['pickup_year'] = new_df['pickup_datetime'].dt.year
+        new_df['pickup_month'] = new_df['pickup_datetime'].dt.month
+        new_df['pickup_day'] = new_df['pickup_datetime'].dt.day
+        new_df['pickup_hour'] = new_df['pickup_datetime'].dt.hour
+        new_df['pickup_weekday'] = new_df['pickup_datetime'].dt.weekday
+        new_df['pickup_is_weekend'] = new_df['pickup_weekday'].apply(
             lambda x: 1 if x in [5, 6] else 0)
-        return df
+        return new_df
 
     def encode_cat_features(df):
         df['pickup_ntaname'] = df['pickup_ntaname'].astype('category')
-        # df['dropoff_ntaname'] = df['dropoff_ntaname'].astype('category')
+        df['dropoff_ntaname'] = df['dropoff_ntaname'].astype('category')
         return df
 
     df = encode_datetime_features(df)
@@ -66,8 +64,8 @@ def df_preprocessing(df, apx_df):
         lambda x: x/sampling_rate, axis=0)
 
     def add_class_labels(df):
-        df['is_long_trip'] = df['trip_distance'].apply(
-            lambda x: 1 if x > 5 else 0)
+        df['is_long_trip'] = df['trip_duration'].apply(
+            lambda x: 1 if x > 3600 else 0)
         df['is_high_fare'] = df['fare_amount'].apply(
             lambda x: 1 if x > 10 else 0)
         df['is_high_tip'] = df['tip_amount'].apply(lambda x: 1 if x > 0 else 0)
@@ -82,19 +80,22 @@ def df_preprocessing(df, apx_df):
 df, apx_df = df_preprocessing(df, apx_df)
 
 # %%
-corr = df.corr()
+corr = df.corr(numeric_only=True)
 corr
 
 # %%
-nonagg_feature_names = ['pickup_year', 'pickup_month', 'pickup_day', 'pickup_hour',
-                        'pickup_weekday', 'pickup_is_weekend', 'pickup_ntaname',
-                        'passenger_count', 'pickup_latitude', 'pickup_longitude']
+nonagg_feature_names = ['trip_distance', 'passenger_count',
+                        'pickup_year', 'pickup_month', 'pickup_day',
+                        'pickup_weekday', 'pickup_is_weekend', 'pickup_hour',
+                        'pickup_latitude', 'pickup_longitude', 'pickup_ntaname',
+                        'dropoff_latitude', 'dropoff_longitude', 'dropoff_ntaname']
 aggops = ['avg', 'sum', 'std', 'var', 'min', 'max', 'median']
-aggcols = ['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']
+aggcols = ['trip_duration', 'trip_distance',
+           'fare_amount', 'tip_amount', 'total_amount']
 winhours = ['1h', '24h', '168h']
 agg_feature_names = [f'count_{win}' for win in winhours] + [
     f'{op}_{col}_{win}' for op in aggops for col in aggcols for win in winhours]
-target_feature_names = ['trip_distance',
+target_feature_names = ['trip_duration',
                         'fare_amount', 'tip_amount', 'total_amount',
                         'is_long_trip', 'is_high_fare', 'is_high_tip']
 feature_names = nonagg_feature_names + agg_feature_names + target_feature_names
@@ -104,7 +105,7 @@ assert set(feature_names).issubset(set(df.columns)), 'feature_names are not in d
 
 print(df[target_feature_names].describe())
 # %%
-target_label = 'trip_distance'
+target_label = 'trip_duration'
 target_label = 'fare_amount'
 # target_label = 'tip_amount'
 # target_label = 'total_amount'
@@ -114,9 +115,8 @@ target_label = 'fare_amount'
 # show correlation of target_label in order, expect target_feature_names
 selected_w_corr = corr[target_label].sort_values(
     ascending=False).drop(target_feature_names)
-print(f'corrs to {target_label}: {selected_w_corr}')
-print("prediction value counts: ", pd.Series(
-    df[target_label]).value_counts(normalize=True))
+print(f'corrs to {target_label}: \n{selected_w_corr}')
+print("prediction value distribution: ", df[target_label].describe())
 
 # %%
 selected_fnames = selected_w_corr.index.tolist()
@@ -177,7 +177,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # }
 lgb_params = {
     'objective': 'regression',
-    'num_leaves': 16,
+    'num_leaves': 31,
     'learning_rate': 0.1,
     'random_state': random_state,
     'verbose': 1,
@@ -193,7 +193,7 @@ print(f'feature_importance: {model.feature_importances_}')
 # %%
 
 
-def get_importance_features(model, thr=0, topk=0):
+def get_importance_features(model, fnames, thr=0, topk=0):
     # print name of feature with non-zero importance
     important_fnames = []
     important_fid = []
@@ -201,7 +201,7 @@ def get_importance_features(model, thr=0, topk=0):
     # for i, imp in enumerate(model.feature_importance()):
     for i, imp in enumerate(model.feature_importances_):
         important_fid.append(i)
-        important_fnames.append(X_train.columns[i])
+        important_fnames.append(fnames[i])
         important_fimps.append(imp)
     topfnames = []
     for fid, fname, fimp in sorted(zip(important_fid, important_fnames, important_fimps), key=lambda x: x[2], reverse=True):
@@ -213,8 +213,8 @@ def get_importance_features(model, thr=0, topk=0):
     return topfnames
 
 
-important_fnames = get_importance_features(model, topk=100)
-
+important_fnames = get_importance_features(model, X_train.columns, topk=100)
+print(f'important features: {important_fnames}')
 # %%
 
 
@@ -244,7 +244,7 @@ plt.scatter(y_test, y_pred)
 plt.xlabel('y_test')
 plt.ylabel('y_pred')
 plt.title('y_test vs y_pred')
-plt.savefig('y_test_vs_y_pred.pdf')
+plt.savefig(os.path.join(args.outdir, 'y_test_vs_y_pred.pdf'))
 
 
 # %% [markdown]
@@ -272,7 +272,7 @@ new_model = lgb.LGBMRegressor(**lgb_params)
 new_model.fit(new_X_train, y_train)
 print(f'feature_importance: {new_model.feature_importances_}')
 
-_ = get_importance_features(new_model)
+_ = get_importance_features(new_model, new_X_train.columns)
 
 
 # %%
@@ -288,7 +288,7 @@ plt.scatter(y_test, new_y_pred)
 plt.xlabel('y_test')
 plt.ylabel('new_y_pred')
 plt.title('y_test vs new_y_pred')
-plt.savefig('y_test_vs_new_y_pred.pdf')
+plt.savefig(os.path.join(args.outdir, 'y_test_vs_new_y_pred.pdf'))
 
 # %%
 apx_df_raw_features = apx_df[selected_nonagg_features]
@@ -306,11 +306,6 @@ evaluate_model(new_model, apx_X_train, apx_y_train)
 print("The model performance for testing set")
 evaluate_model(new_model, apx_X_test, apx_y_test)
 
-print("The model performance for training set to exact")
-evaluate_model(new_model, apx_X_train, new_model.predict(new_X_train))
-print("The model performance for testing set to exact")
-evaluate_model(new_model, apx_X_test, new_model.predict(new_X_test))
-
 # show distribution of apx_y_test and apx_y_pred
 apx_y_pred = new_model.predict(apx_X_test)
 plt.figure(figsize=(10, 10))
@@ -318,7 +313,21 @@ plt.scatter(apx_y_test, apx_y_pred)
 plt.xlabel('apx_y_test')
 plt.ylabel('apx_y_pred')
 plt.title('apx_y_test vs apx_y_pred')
-plt.savefig('apx_y_test_vs_apx_y_pred.pdf')
+plt.savefig(os.path.join(args.outdir, 'apx_y_test_vs_apx_y_pred.pdf'))
+
+print("The model performance for training set to exact")
+evaluate_model(new_model, apx_X_train, new_model.predict(new_X_train))
+print("The model performance for testing set to exact")
+evaluate_model(new_model, apx_X_test, new_model.predict(new_X_test))
+# show distribution of apx_y_pred and apx_y_pred_exact
+apx_y_pred_exact = new_model.predict(new_X_test)
+plt.figure(figsize=(10, 10))
+plt.scatter(apx_y_pred_exact, apx_y_pred)
+plt.xlabel('apx_y_pred_exact')
+plt.ylabel('apx_y_pred')
+plt.title('apx_y_pred_exact vs apx_y_pred')
+plt.savefig(os.path.join(args.outdir, 'apx_y_pred_exact_vs_apx_y_pred.pdf'))
+
 
 # %%
 tmp_X_train = new_X_train.copy()
@@ -358,7 +367,6 @@ plt.scatter(y_test, tmp_y_pred)
 plt.xlabel('y_test')
 plt.ylabel('tmp_y_pred')
 plt.title('y_test vs tmp_y_pred')
-plt.savefig('y_test_vs_tmp_y_pred.pdf')
-
+plt.savefig(os.path.join(args.outdir, 'y_test_vs_tmp_y_pred.pdf'))
 
 # %%

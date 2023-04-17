@@ -1,16 +1,12 @@
 select trip_id,
     trip_duration,
-    trip_distance,
     fare_amount,
     extra,
     tip_amount,
     tolls_amount,
     total_amount,
     payment_type,
-    dropoff_datetime,
-    dropoff_longitude,
-    dropoff_latitude,
-    dropoff_ntaname
+    dropoff_datetime
 from trips
 where pickup_datetime >= '2015-08-01 00:00:00'
     and pickup_datetime < '2015-08-15 00:00:00'

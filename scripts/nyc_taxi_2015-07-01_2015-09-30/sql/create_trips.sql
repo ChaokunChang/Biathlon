@@ -27,7 +27,7 @@ CREATE TABLE trips (
 ORDER BY (pickup_datetime, dropoff_datetime);
 -- insert data into trips from lcoal files (20m records)
 INSERT INTO trips
-FROM INFILE '/home/ckchang/ApproxInfer/data/nyc_taxi_2015-07-01_2015-09-30/data_src/trips_{0..19}.gz' FORMAT TSVWithNames;
+FROM INFILE '/home/ckchang/ApproxInfer/data/nyc_taxi_2015-07-01_2015-09-30/db_src/trips_{0..19}.gz' FORMAT TSVWithNames;
 -- add new column trip_duration as (dropoff_datetime - pickup_datetime)
 ALTER TABLE trips
 ADD COLUMN trip_duration Float32;

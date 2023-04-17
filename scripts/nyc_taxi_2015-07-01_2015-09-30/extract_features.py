@@ -58,7 +58,7 @@ class FeatureExtractor:
 
     def extract(self, x):
         sql = self.sql_template.format(
-            pickup_datetime=x['pickup_datetime'], hours=self.interval_hours, passenger_count=x['passenger_count'])
+            hours=self.interval_hours, **x.to_dict())
         clt = clickhouse_connect.get_client(
             host='localhost', username='default', password='', session_id=f'session_{self.hashid}_{x["trip_id"]}')
         rows_df = clt.query_df(sql)
@@ -86,7 +86,15 @@ def run_extraction(running_df, fn, **kwargs):
 
 
 class SimpleParser(Tap):
+    data_dir: str = data_dir  # data directory
+    req_src: str = 'requests_08-01_08-15.csv'  # request source
+    label_src: str = 'labels_08-01_08-15.csv'  # label source
+    feature_dir: str = 'features'  # feature directory
+    sql_template: str = sql_template_example  # sql template
+    sql_templates_file: str = None  # sql templates file
+    config: str = None  # config file
     num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
+    sampling_rate: float = 0  # sample rate of sql query. default 0.1 means 10% of data
 
 
 # %%
@@ -94,10 +102,19 @@ if __name__ == '__main__':
     args = SimpleParser().parse_args()
     num_reqs = args.num_reqs
 
+    output_name = 'features'
+
+    sql_template = sql_template_example
+    if args.sampling_rate > 0 and args.sampling_rate < 1.0:
+        sql_template = sql_template_example.replace(
+            'trips', f'trips_w_samples SAMPLE {args.sampling_rate}')
+        output_name = f'features_apx_{args.sampling_rate}'
+
     if num_reqs > 0:
-        feature_dir = os.path.join(data_dir, f'test_{num_reqs}xReqs', 'features')
+        feature_dir = os.path.join(
+            data_dir, f'test_{num_reqs}xReqs', output_name)
     else:
-        feature_dir = os.path.join(data_dir, 'features')
+        feature_dir = os.path.join(data_dir, output_name)
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
 
@@ -107,17 +124,18 @@ if __name__ == '__main__':
     # sample 10000 from df
     if num_reqs > 0:
         df = df.sample(n=num_reqs, random_state=0)
-    extractor_1 = FeatureExtractor(interval_hours=1)
+
+    extractor_1 = FeatureExtractor(sql_template, interval_hours=1)
     agg_feas_1 = extractor_1.apply_on(df)
     agg_feas_1.to_csv(os.path.join(
         feature_dir, 'requests_08-01_08-15.agg_feas_1.csv'), index=False)
 
-    extractor_2 = FeatureExtractor(interval_hours=24)
+    extractor_2 = FeatureExtractor(sql_template, interval_hours=24)
     agg_feas_2 = extractor_2.apply_on(df)
     agg_feas_2.to_csv(os.path.join(
         feature_dir, 'requests_08-01_08-15.agg_feas_2.csv'), index=False)
 
-    extractor_3 = FeatureExtractor(interval_hours=24*7)
+    extractor_3 = FeatureExtractor(sql_template, interval_hours=24*7)
     agg_feas_3 = extractor_3.apply_on(df)
     agg_feas_3.to_csv(os.path.join(
         feature_dir, 'requests_08-01_08-15.agg_feas_3.csv'), index=False)

@@ -1,73 +1,30 @@
 # %%
-from pandarallel import pandarallel
-import json
-import sys
-import os
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import datetime
-import time
-import math
-import sklearn
-from sklearn.preprocessing import StandardScaler
-from sklearn import tree
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.tree import plot_tree
-from sklearn.inspection import DecisionBoundaryDisplay
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
-import lightgbm as lgb
-from lightgbm import LGBMClassifier, LGBMRegressor
-import pickle
-import clickhouse_connect
-from rich import inspect
-from tap import Tap
-from tqdm import tqdm
-tqdm.pandas()
-pandarallel.initialize(progress_bar=True)
+from shared import *
+args = SimpleParser()
+args.from_dict({'sample': 0})
+args.process_args()
 
-HOME_DIR = '/home/ckchang/ApproxInfer'
-data_dir = os.path.join(HOME_DIR, 'data/nyc_taxi_2015-07-01_2015-09-30')
+sampling_rate = 0.1
+apx_args = SimpleParser()
+apx_args.from_dict({'sample': sampling_rate})
+apx_args.process_args()
 
-
-class SimpleArgs(Tap):
-    sampling_rate: float = 0.1  # sample rate of sql query. default 0.1 means 10% of data
-    num_reqs: int = 0  # number of requests sampled for testing. default 0 means no sampling
-    random_state: int = 42  # random state for train_test_split
-    test_size: float = 0.3  # test size for train_test_split
-
-
-args = SimpleArgs().parse_args()
-sampling_rate = args.sampling_rate
-num_reqs = args.num_reqs
 random_state = args.random_state
-test_size = args.test_size
-
-if num_reqs > 0:
-    feature_dir = os.path.join(data_dir, f'test_{num_reqs}xReqs', 'features')
-    apx_feature_dir = os.path.join(
-        data_dir, f'test_{num_reqs}xReqs', f'apx_features_{sampling_rate}')
-else:
-    feature_dir = os.path.join(data_dir, 'features')
-    apx_feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
-
+test_size = args.model_test_size
 # %%
-df_labels = pd.read_csv(os.path.join(data_dir, 'trips_labels.csv'))
-df = pd.read_csv(os.path.join(feature_dir, 'requests_08-01_08-15.feas.csv'))
-apx_df = pd.read_csv(os.path.join(
-    apx_feature_dir, 'requests_08-01_08-15.feas.csv'))
-
+df_labels = pd.read_csv(args.label_src)
+df_request = pd.read_csv(args.req_src)
+ffilename = 'features'
+df = pd.read_csv(os.path.join(args.feature_dir, f'{ffilename}.csv'))
+apx_df = pd.read_csv(os.path.join(apx_args.feature_dir, f'{ffilename}.csv'))
+# %%
+df = df.merge(df_labels, on='trip_id').merge(df_request, on='trip_id')
+apx_df = apx_df.merge(df_labels, on='trip_id').merge(df_request, on='trip_id')
+assert df['trip_id'].equals(apx_df['trip_id'])
 # %%
 
 
 def df_preprocessing(df, apx_df):
-    df = df.merge(df_labels, on='trip_id')
-    apx_df = apx_df.merge(df_labels, on='trip_id')
-
-    assert df['trip_id'].equals(apx_df['trip_id'])
     # assert df.isna().equals(apx_df.isna())
 
     # if the row in df contains NaN, remove that row from both df and apx_df
@@ -108,9 +65,17 @@ def df_preprocessing(df, apx_df):
     apx_df[sum_names] = apx_df[sum_names].apply(
         lambda x: x/sampling_rate, axis=0)
 
-    df['is_long_trip'] = df['trip_distance'].apply(lambda x: 1 if x > 5 else 0)
-    df['is_high_fare'] = df['fare_amount'].apply(lambda x: 1 if x > 10 else 0)
-    df['is_high_tip'] = df['tip_amount'].apply(lambda x: 1 if x > 0 else 0)
+    def add_class_labels(df):
+        df['is_long_trip'] = df['trip_distance'].apply(
+            lambda x: 1 if x > 5 else 0)
+        df['is_high_fare'] = df['fare_amount'].apply(
+            lambda x: 1 if x > 10 else 0)
+        df['is_high_tip'] = df['tip_amount'].apply(lambda x: 1 if x > 0 else 0)
+        return df
+
+    df = add_class_labels(df)
+    apx_df = add_class_labels(apx_df)
+
     return df, apx_df
 
 
@@ -124,11 +89,11 @@ corr
 nonagg_feature_names = ['pickup_year', 'pickup_month', 'pickup_day', 'pickup_hour',
                         'pickup_weekday', 'pickup_is_weekend', 'pickup_ntaname',
                         'passenger_count', 'pickup_latitude', 'pickup_longitude']
-aggops = ['count', 'mean', 'sum', 'std', 'var', 'min', 'max', 'median']
+aggops = ['avg', 'sum', 'std', 'var', 'min', 'max', 'median']
 aggcols = ['trip_distance', 'fare_amount', 'tip_amount', 'total_amount']
 winhours = ['1h', '24h', '168h']
-agg_feature_names = [
-    f'{op}_{win}_{col}' for op in aggops for col in aggcols for win in winhours]
+agg_feature_names = [f'count_{win}' for win in winhours] + [
+    f'{op}_{col}_{win}' for op in aggops for col in aggcols for win in winhours]
 target_feature_names = ['trip_distance',
                         'fare_amount', 'tip_amount', 'total_amount',
                         'is_long_trip', 'is_high_fare', 'is_high_tip']
@@ -212,11 +177,10 @@ X_train, X_test, y_train, y_test = train_test_split(
 # }
 lgb_params = {
     'objective': 'regression',
-    'num_leaves': 10,
+    'num_leaves': 16,
     'learning_rate': 0.1,
     'random_state': random_state,
     'verbose': 1,
-
 }
 # train_data = lgb.Dataset(X_train, label=y_train)
 # test_data = lgb.Dataset(X_test, label=y_test)

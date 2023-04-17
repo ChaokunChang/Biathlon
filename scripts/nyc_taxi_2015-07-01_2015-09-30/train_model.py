@@ -43,13 +43,13 @@ num_reqs = args.num_reqs
 if num_reqs > 0:
     feature_dir = os.path.join(data_dir, f'test_{num_reqs}xReqs', 'features')
     apx_feature_dir = os.path.join(
-        data_dir, f'test_{num_reqs}xReqs', f'apx_features_{sampling_rate}')
+        data_dir, f'test_{num_reqs}xReqs', f'features_apx_{sampling_rate}')
 else:
     feature_dir = os.path.join(data_dir, 'features')
-    apx_feature_dir = os.path.join(data_dir, f'apx_features_{sampling_rate}')
+    apx_feature_dir = os.path.join(data_dir, f'features_apx_{sampling_rate}')
 
 # %%
-df_labels = pd.read_csv(os.path.join(data_dir, 'trips_labels.csv'))
+df_labels = pd.read_csv(os.path.join(data_dir, 'labels_08-01_08-15.csv'))
 df = pd.read_csv(os.path.join(feature_dir, 'requests_08-01_08-15.feas.csv'))
 apx_df = pd.read_csv(os.path.join(
     apx_feature_dir, 'requests_08-01_08-15.feas.csv'))

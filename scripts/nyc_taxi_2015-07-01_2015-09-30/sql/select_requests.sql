@@ -1,9 +1,13 @@
 select trip_id,
+    passenger_count,
     pickup_datetime,
     pickup_longitude,
     pickup_latitude,
-    passenger_count,
-    pickup_ntaname
+    dropoff_longitude,
+    dropoff_latitude,
+    pickup_ntaname,
+    dropoff_ntaname,
+    trip_distance
 from trips
 where pickup_datetime >= '2015-08-01 00:00:00'
     and pickup_datetime < '2015-08-15 00:00:00'

@@ -16,7 +16,7 @@ import logging
 import threading
 import clickhouse_connect
 import sklearn
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn import tree
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import plot_tree
@@ -24,8 +24,22 @@ from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+from sklearn import pipeline
+from sklearn.pipeline import Pipeline
+from sklearn.pipeline import make_pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder, StandardScaler, MinMaxScaler, FunctionTransformer
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn import set_config
 import lightgbm as lgb
 from lightgbm import LGBMClassifier, LGBMRegressor
+import xgboost as xgb
 
 from pandarallel import pandarallel
 
@@ -101,6 +115,7 @@ class SimpleParser(Tap):
         DATA_HOME, 'nyc_taxi_2015-07-01_2015-09-30')  # data dir
     req_src: str = 'requests_08-01_08-15_sample10000.csv'  # request source
     label_src: str = 'labels_08-01_08-15.csv'  # label source
+    keycol: str = 'trip_id'  # key column
     task: str = 'fare_prediction'  # task name
     outdir: str = os.path.join(HOME_DIR, 'results')  # output directory
 
@@ -114,6 +129,7 @@ class SimpleParser(Tap):
     random_state: int = 42  # random state
 
     model_test_size: int = 0.3  # train split for model training
+    model_name: str = 'lgbm'  # model name
 
     def process_args(self) -> None:
         self.task_dir = os.path.join(self.data_dir, self.task)

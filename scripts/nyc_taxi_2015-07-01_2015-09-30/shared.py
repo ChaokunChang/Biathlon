@@ -1,3 +1,24 @@
+from shap import TreeExplainer, KernelExplainer, LinearExplainer, DeepExplainer
+import shap
+from xgboost import XGBClassifier, XGBRegressor
+import xgboost as xgb
+from lightgbm import LGBMClassifier, LGBMRegressor
+import lightgbm as lgb
+from sklearn.inspection import permutation_importance, partial_dependence
+from sklearn.svm import SVR, SVC
+from sklearn.neural_network import MLPRegressor, MLPClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder, StandardScaler, MinMaxScaler, FunctionTransformer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.inspection import DecisionBoundaryDisplay
+from sklearn.tree import plot_tree
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import metrics, pipeline, set_config, tree
+import sklearn
 import json
 import sys
 import os
@@ -15,39 +36,10 @@ from tap import Tap
 import logging
 import threading
 import clickhouse_connect
-import sklearn
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
-from sklearn import tree
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.tree import plot_tree
-from sklearn.inspection import DecisionBoundaryDisplay
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
-from sklearn import pipeline
-from sklearn.pipeline import Pipeline
-from sklearn.pipeline import make_pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder, StandardScaler, MinMaxScaler, FunctionTransformer
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import AdaBoostRegressor
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn import set_config
-import lightgbm as lgb
-from lightgbm import LGBMClassifier, LGBMRegressor
-import xgboost as xgb
-
-from pandarallel import pandarallel
-
+from typing import List, Dict, Tuple, Optional, Union, Any, Literal
 from tqdm import tqdm
 tqdm.pandas()
 
-pandarallel.initialize(progress_bar=True)
-# pandarallel.initialize(nb_workers=2)
 
 HOME_DIR: str = '/home/ckchang/ApproxInfer'  # project home
 DATA_HOME: str = os.path.join(HOME_DIR, 'data')  # data home
@@ -95,6 +87,30 @@ def load_sql_templates(filename: str):
     sql_templates = [
         sql_template for sql_template in sql_templates if sql_template != '']
     return sql_templates
+
+
+def load_requests(filename: str):
+    df = pd.read_csv(filename)
+    return df
+
+
+def sample_requests(req_path, sample=10000):
+    reqs: pd.DataFrame = pd.read_csv(req_path)
+    req_dir = os.path.dirname(req_path)
+    filename = os.path.basename(req_path)
+    filename_noext = os.path.splitext(filename)[0]
+    filename_ext = os.path.splitext(filename)[1]
+    reqs_w_samples = reqs.sample(sample, random_state=0)
+    reqs_w_samples.to_csv(os.path.join(
+        req_dir, f'{filename_noext}_sample{sample}{filename_ext}'), index=False)
+    return reqs_w_samples
+
+
+def save_features(features: pd.DataFrame, feature_dir: str, output_name: str = 'features.csv'):
+    if not os.path.exists(feature_dir):
+        os.makedirs(feature_dir)
+    features.to_csv(os.path.join(feature_dir, output_name), index=False)
+    return None
 
 
 def approximation_rewrite(sql_template: str, sample: float):
@@ -155,7 +171,8 @@ class SimpleParser(Tap):
                 sql_template, self.sample) for sql_template in self.sql_templates]
             self.feature_dir = os.path.join(
                 self.feature_dir, f'sample_{self.sample}')
-            self.outdir = os.path.join(self.outdir, f'sample_{self.sample}')
+            self.outdir = os.path.join(
+                self.outdir, f'sample_{self.sample}', self.model_name)
 
         if not os.path.exists(self.feature_dir):
             os.makedirs(self.feature_dir)

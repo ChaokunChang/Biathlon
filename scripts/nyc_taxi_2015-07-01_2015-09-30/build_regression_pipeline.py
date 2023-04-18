@@ -99,7 +99,7 @@ def data_preprocessing(args: SimpleParser, desc: dict,  df: pd.DataFrame, apx_df
     return df, apx_df
 
 
-def get_features_and_labels(args: SimpleParser, desc: dict, df: pd.DataFrame, apx_df: pd.DataFrame, target: str = 'fare_amount'):
+def get_features_and_labels(args: SimpleParser, desc: dict, df: pd.DataFrame, apx_df: pd.DataFrame, target: str):
     features = df[desc['nonagg_features'] + desc['agg_features']]
     assert features.isna().sum().sum() == 0
     assert target in desc['labels']
@@ -143,7 +143,7 @@ def create_model(args: SimpleParser):
 
 def create_pipeline(args: SimpleParser, desc: dict, df: pd.DataFrame, apx_df: pd.DataFrame, target: str = 'fare_amount'):
     features, labels, apx_features = get_features_and_labels(
-        args, desc, df, apx_df)
+        args, desc, df, apx_df, target=target)
 
     # split data into train and test
     X_train, X_test, apx_X_train, apx_X_test, y_train, y_test = train_test_split(

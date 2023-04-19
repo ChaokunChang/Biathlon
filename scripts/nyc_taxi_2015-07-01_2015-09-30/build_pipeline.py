@@ -128,6 +128,38 @@ def create_model(args: SimpleParser):
         model = RandomForestRegressor(**rf_params)
     elif args.model_name == 'lr':
         model = LinearRegression()
+    elif args.model_name == 'dt':
+        dt_params = {
+            'random_state': args.random_state,
+        }
+        model = DecisionTreeRegressor(**dt_params)
+    elif args.model_name == 'svr':
+        svr_params = {
+            'kernel': 'rbf',
+            'degree': 3,
+            'gamma': 'auto',
+            'coef0': 0.0,
+            'tol': 0.001,
+            'C': 1.0,
+            'epsilon': 0.1,
+            'shrinking': True,
+            'cache_size': 200,
+            'verbose': 1,
+            'max_iter': 1000,
+        }
+        model = SVR(**svr_params)
+    elif args.model_name == 'knn':
+        knn_params = {
+            'n_neighbors': 5,
+            'weights': 'uniform',
+            'algorithm': 'auto',
+            'leaf_size': 30,
+            'p': 2,
+            'metric': 'minkowski',
+            'metric_params': None,
+            'n_jobs': None,
+        }
+        model = KNeighborsRegressor(**knn_params)
     elif args.model_name == 'mlp':
         mlp_params = {
             'hidden_layer_sizes': (100, 100),
@@ -135,7 +167,7 @@ def create_model(args: SimpleParser):
             'solver': 'adam',
             'learning_rate': 'constant',
             'learning_rate_init': 0.001,
-            'max_iter': 10,
+            'max_iter': 200,
             'random_state': args.random_state,
             'verbose': 1,
         }
@@ -172,6 +204,15 @@ def create_pipeline(args: SimpleParser, desc: dict, df: pd.DataFrame, target: st
     return pipe, X_train, X_test, y_train, y_test, kids_train, kids_test
 
 
+def compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True):
+    # We can compute feature importance of model's feature, or pipeline's feature.
+    if use_pipe_feature:
+        return X.columns, permutation_importance(pipe, X, y, n_repeats=10, max_samples=1000, random_state=0, n_jobs=-1).importances_mean
+    else:
+        X = pipe[:-1].transform(X)
+        return X.columns, permutation_importance(pipe[-1], X, y, n_repeats=10, max_samples=1000, random_state=0, n_jobs=-1).importances_mean
+
+
 def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
     model = pipe[-1]
     if args.model_name == 'lgbm':
@@ -182,14 +223,14 @@ def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
         return model.feature_names_in_, model.feature_importances_
     elif args.model_name == 'lr':
         return model.feature_names_in_, model.coef_
+    elif args.model_name == 'dt':
+        return model.feature_names_in_, model.feature_importances_
+    elif args.model_name == 'svr':
+        return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
+    elif args.model_name == 'knn':
+        return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
     elif args.model_name == 'mlp':
-        # We can compute feature importance of model's feature, or pipeline's feature.
-        use_pipe_feature = True
-        if use_pipe_feature:
-            return X.columns, permutation_importance(pipe, X, y, n_repeats=10, random_state=0, n_jobs=-1).importances_mean
-        else:
-            X = pipe[:-1].transform(X)
-            return X.columns, permutation_importance(model, X, y, n_repeats=10, random_state=0, n_jobs=2).importances_mean
+        return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
     else:
         raise ValueError("model name not supported")
 
@@ -285,7 +326,7 @@ if __name__ == '__main__':
         SimpleParser().parse_args().from_dict({'feature_dir': os.path.join(args.feature_dir, '../')}))
 
     fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
-    # print(f'fnames = {fnames} \nfimps = {fimps}')
+    print(f'fnames = {fnames} \nfimps = {fimps}')
     important_fnames = get_importance_features(
         args, fnames, fimps, X_train.columns.tolist(), topk=10)
     print(f'selected importanct features: {important_fnames}')

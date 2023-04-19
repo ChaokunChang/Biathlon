@@ -6,6 +6,7 @@ from lightgbm import LGBMClassifier, LGBMRegressor
 import lightgbm as lgb
 from sklearn.inspection import permutation_importance, partial_dependence
 from sklearn.svm import SVR, SVC
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
@@ -16,7 +17,7 @@ from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.tree import plot_tree
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import metrics, pipeline, set_config, tree
 import sklearn
 import json

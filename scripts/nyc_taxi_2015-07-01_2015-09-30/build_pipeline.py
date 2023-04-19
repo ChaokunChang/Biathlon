@@ -1,30 +1,42 @@
 from shared import *
 
 
-def load_data(args: SimpleParser, sort_by='pickup_datetime', keys=None):
-    desc = {'key': args.keycol, 'labels': [],
-            'nonagg_features': [], 'agg_features': []}
+def get_desc(args: SimpleParser):
+    desc = {}
+    ffilename = args.ffile_prefix
+    desc['key'] = args.keycol
+
+    desc['labels'] = pd.read_csv(args.label_src, nrows=1).columns.tolist()
+    desc['nonagg_features'] = pd.read_csv(
+        args.req_src, nrows=1).columns.tolist()
+    desc['agg_features'] = pd.read_csv(os.path.join(
+        args.feature_dir, f'{ffilename}.csv'), nrows=1).columns.tolist()
+    desc['datetime_features'] = ['pickup_datetime']
+
+    desc['labels'].remove(args.keycol)
+    desc['nonagg_features'].remove(args.keycol)
+    desc['nonagg_features'].remove('pickup_datetime')
+    desc['agg_features'].remove(args.keycol)
+
+    desc['cat_features'] = ['pickup_ntaname',
+                            'dropoff_ntaname', 'passenger_count']
+    desc['num_features'] = [col for col in desc['nonagg_features'] + desc['agg_features']
+                            if col not in desc['cat_features'] + desc['datetime_features']]
+    return desc
+
+
+def load_data(args: SimpleParser, sort_by='pickup_datetime', keyids=None):
     df_labels = pd.read_csv(args.label_src)
     df_request = pd.read_csv(args.req_src)
 
     ffilename = args.ffile_prefix
     fdf = pd.read_csv(os.path.join(args.feature_dir, f'{ffilename}.csv'))
-    if keys is not None:
-        fdf = fdf[fdf[args.keycol].isin(keys)]
+    if keyids is not None:
+        fdf = fdf[fdf[args.keycol].isin(keyids)]
     df = fdf.merge(df_labels, on=args.keycol).merge(df_request, on=args.keycol)
     df = df.sort_values(by=sort_by)
 
-    desc['sort_by'] = sort_by
-    desc['labels'] = [col for col in df_labels.columns if col != args.keycol]
-    desc['nonagg_features'] = [
-        col for col in df_request.columns if col not in [args.keycol, 'pickup_datetime']]
-    desc['agg_features'] = [col for col in fdf.columns if col not in desc['labels'] +
-                            desc['nonagg_features'] + [args.keycol, 'pickup_datetime']]
-    desc['datetime_features'] = ['pickup_datetime']
-    desc['cat_features'] = ['pickup_ntaname', 'dropoff_ntaname']
-    desc['num_features'] = [col for col in desc['nonagg_features'] + desc['agg_features']
-                            if col not in desc['cat_features'] + desc['datetime_features']]
-    # print(f'desc={desc}')
+    desc = get_desc(args)
     return desc, df
 
 
@@ -48,6 +60,7 @@ def data_preprocessing(args: SimpleParser, desc: dict,  df: pd.DataFrame, dropna
         new_df['pickup_month'] = new_df['pickup_datetime'].dt.month
         new_df['pickup_day'] = new_df['pickup_datetime'].dt.day
         new_df['pickup_hour'] = new_df['pickup_datetime'].dt.hour
+        new_df['pickup_minute'] = new_df['pickup_datetime'].dt.minute
         new_df['pickup_weekday'] = new_df['pickup_datetime'].dt.weekday
         new_df['pickup_is_weekend'] = new_df['pickup_weekday'].apply(
             lambda x: 1 if x in [5, 6] else 0)
@@ -72,7 +85,7 @@ def data_preprocessing(args: SimpleParser, desc: dict,  df: pd.DataFrame, dropna
 
     df = remove_invalid(df, dropna=dropna)
     df = encode_datetime_features(df)
-    df = encode_cat_features(df, cat_features=desc['cat_features'])
+    # df = encode_cat_features(df, cat_features=desc['cat_features'])
     if apx_cols is not None:
         df = apx_value_estimation(df, apx_cols)
 
@@ -138,8 +151,8 @@ def create_pipeline(args: SimpleParser, desc: dict, df: pd.DataFrame, target: st
         args, desc, df, target=target)
 
     # split data into train and test
-    X_train, X_test, y_train, y_test = train_test_split(
-        features, labels, test_size=args.model_test_size, shuffle=False)
+    X_train, X_test, y_train, y_test, kids_train, kids_test = train_test_split(
+        features, labels, df[args.keycol], test_size=args.model_test_size, shuffle=False)
 
     numerical_features = desc['num_features']
     cat_features = desc['cat_features']
@@ -151,12 +164,12 @@ def create_pipeline(args: SimpleParser, desc: dict, df: pd.DataFrame, target: st
         ('preprocessor', ColumnTransformer([
             ('num', StandardScaler(), numerical_features),
             ('cat', OneHotEncoder(sparse_output=False,
-             handle_unknown='ignore'), cat_features),
+             handle_unknown='ignore'), cat_features)
         ], remainder='passthrough', verbose=True, verbose_feature_names_out=False)),
         ('model', model),
     ])
 
-    return pipe, X_train, X_test, y_train, y_test
+    return pipe, X_train, X_test, y_train, y_test, kids_train, kids_test
 
 
 def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
@@ -240,27 +253,36 @@ def plot_hist_and_save(args: SimpleParser, data, fname, title, xlabel, ylabel):
     plt.close()
 
 
-if __name__ == '__main__':
-    args = SimpleParser().parse_args()
-    # print(f'args={args}')
-    assert args.sample >= 0 and args.sample <= 1
-
-    apx_feature_dir = args.feature_dir
-    args.feature_dir = os.path.join(apx_feature_dir, '../')
+def build_pipeline(args: SimpleParser):
     desc, df = load_data(args)
     df = data_preprocessing(args, desc, df, dropna=True)
-    pipe, X_train, X_test, y_train, y_test = create_pipeline(
+    desc['nonagg_features'] += ['pickup_month', 'pickup_day',
+                                'pickup_hour', 'pickup_minute', 'pickup_weekday']
+    desc['cat_features'] += ['pickup_month', 'pickup_day',
+                             'pickup_hour', 'pickup_minute', 'pickup_weekday']
+    pipe, X_train, X_test, y_train, y_test, kids_train, kids_test = create_pipeline(
         args, desc, df)
     pipe.fit(X_train, y_train)
-
+    # save pipeline to file
+    joblib.dump(pipe, os.path.join(args.outdir, 'pipe.pkl'))
     fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
-    print(f'fnames = {fnames} \nfimps = {fimps}')
+    # print(f'fnames = {fnames} \nfimps = {fimps}')
     important_fnames = get_importance_features(
         args, fnames, fimps, X_train.columns.tolist(), topk=10)
-    print(f'selected features: {important_fnames}')
-
+    print(f'selected importanct features: {important_fnames}')
     print(f'distribution of y_train: {y_train.describe()}')
     print(f'distribution of y_test: {y_test.describe()}')
+    desc['kids'] = df[args.keycol].values
+    return pipe, X_train, X_test, y_train, y_test, kids_train, kids_test, desc
+
+
+if __name__ == '__main__':
+    args = SimpleParser().parse_args()
+    assert args.sample >= 0 and args.sample <= 1, f'sample={args.sample} must be in [0, 1]'
+    # print(f'args={args}')
+
+    pipe, X_train, X_test, y_train, y_test, kids_train, kids_test, desc = build_pipeline(
+        SimpleParser().parse_args().from_dict({'feature_dir': os.path.join(args.feature_dir, '../')}))
 
     evaluate_pipeline(args, pipe, X_train, y_train, 'train')
     evaluate_pipeline(args, pipe, X_test, y_test, 'test')
@@ -271,12 +293,16 @@ if __name__ == '__main__':
     evaluate_pipeline(args, pipe, exp_X_test,
                       pipe.predict(X_test), 'exp_test sim')
 
-    args.feature_dir = apx_feature_dir
-    apx_desc, apx_df = load_data(args, keys=df[args.keycol])
+    # args.feature_dir = apx_feature_dir
+    apx_desc, apx_df = load_data(args, keyids=desc['kids'])
     apx_df = data_preprocessing(
         args, apx_desc, apx_df, dropna=False, apx_cols=apx_desc['agg_features'])
+    apx_desc['nonagg_features'] += ['pickup_month', 'pickup_day',
+                                    'pickup_hour', 'pickup_minute', 'pickup_weekday']
+    apx_desc['cat_features'] += ['pickup_month', 'pickup_day',
+                                 'pickup_hour', 'pickup_minute', 'pickup_weekday']
     apx_features, apx_labels = get_features_and_labels(
-        args, apx_desc, apx_df, target='fare_amount')
+        args, apx_desc, apx_df, target=args.target)
     apx_X_train, apx_X_test, apx_y_train, apx_y_test = train_test_split(
         apx_features, apx_labels, test_size=args.model_test_size, shuffle=False)
 

@@ -37,6 +37,7 @@ import logging
 import threading
 import clickhouse_connect
 from typing import List, Dict, Tuple, Optional, Union, Any, Literal
+import joblib
 from tqdm import tqdm
 tqdm.pandas()
 
@@ -94,7 +95,25 @@ def load_requests(filename: str):
     return df
 
 
-def sample_requests(req_path, sample=10000):
+def save_cat_vocab(req_path, cat_cols=None):
+    reqs: pd.DataFrame = pd.read_csv(req_path)
+    req_dir = os.path.dirname(req_path)
+    filename = os.path.basename(req_path)
+    filename_noext = os.path.splitext(filename)[0]
+
+    if cat_cols is not None:
+        for col in cat_cols:
+            # there could be nan in the categorical columns, set them as 'nan'
+            all_cats = sorted(reqs[col].fillna('nan').unique().tolist())
+            # save cats to file
+            with open(os.path.join(req_dir, f'{filename_noext}_{col}_cats.txt'), 'w') as f:
+                f.write('\n'.join(all_cats))
+        return all_cats
+    else:
+        return None
+
+
+def sample_requests(req_path, sample=10000, cat_cols=None):
     reqs: pd.DataFrame = pd.read_csv(req_path)
     req_dir = os.path.dirname(req_path)
     filename = os.path.basename(req_path)
@@ -133,6 +152,7 @@ class SimpleParser(Tap):
     label_src: str = 'labels_08-01_08-15.csv'  # label source
     keycol: str = 'trip_id'  # key column
     task: str = 'fare_prediction'  # task name
+    target: str = 'fare_amount'  # target column
     outdir: str = os.path.join(HOME_DIR, 'results')  # output directory
 
     sql_template: str = sql_template_example  # sql template
@@ -146,6 +166,7 @@ class SimpleParser(Tap):
 
     model_test_size: int = 0.3  # train split for model training
     model_name: str = 'lgbm'  # model name
+    model_type: str = 'regression'  # model type
 
     def process_args(self) -> None:
         self.task_dir = os.path.join(self.data_dir, self.task)

@@ -4,7 +4,8 @@ select toYear(pickup_datetime) as year,
     case
         when toDayOfWeek(pickup_datetime) in (0, 6) then 1
         else 0
-    end as is_weekend count(*) as count_dayofweek,
+    end as is_weekend,
+    count(*) as count_dayofweek,
     avg(trip_duration) as avg_trip_duration,
     avg(trip_distance) as avg_trip_distance,
     avg(fare_amount) as avg_fare_amount,

@@ -10,11 +10,10 @@ class DBConnector:
         self.port = port
         self.username = username
         self.passwd = passwd
-        # get current process id
+        # get current process id for identifying the session
         self.thread_id = os.getpid()
         self.session_time = time.time()
         self.session_id = f'session_{self.thread_id}_{self.session_time}'
-        # print(f'session_id={self.session_id}')
         self.client = clickhouse_connect.get_client(
             host=self.host, port=self.port,
             username=self.username, password=self.passwd,
@@ -25,7 +24,6 @@ class DBConnector:
 
 
 class FeatureExtractor:
-    # dbconnector = DBConnector()
     def __init__(self, sql_template: str, key='trip_id'):
         self.sql_template = sql_template
         self.key = key
@@ -33,15 +31,9 @@ class FeatureExtractor:
     def extract_once(self, x: pd.Series or pd.DataFrame):
         sql = self.sql_template.format(**x.to_dict())
         rows_df = DBConnector().execute(sql)
-        # rows_df = self.dbconnector.execute(sql)
-        # clt = clickhouse_connect.get_client(
-        #     host='localhost', username='default', password='', session_id=f'session_{time.time()}')
-        # rows_df = clt.query_df(sql)
-        # print(f'rows_df={rows_df}')
         if self.key not in rows_df.columns:
             rows_df[self.key] = x[self.key]
         aggregations = rows_df.iloc[0]
-        # print(f'aggregations={aggregations}')
         return aggregations
 
     def extract_with_df(self, df: pd.DataFrame, parallel=True):

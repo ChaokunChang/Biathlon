@@ -230,14 +230,21 @@ def baseline_expected_default(X_train, X_test, aggcols):
     return exp_test
 
 
-def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag):
+def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
     y_pred = pipe.predict(X)
-    print(f'evaluate_pipeline: {tag} y_pred.shape={y_pred.shape}')
-    print(f'MSE  of {tag} : ', metrics.mean_squared_error(y, y_pred))
-    print(f'MAE  of {tag} : ', metrics.mean_absolute_error(y, y_pred))
-    print(f'R2   of {tag} : ', metrics.r2_score(y, y_pred))
-    print(f'ExpV of {tag} : ', metrics.explained_variance_score(y, y_pred))
-    print(f'MaxE of {tag} : ', metrics.max_error(y, y_pred))
+    mse = metrics.mean_squared_error(y, y_pred)
+    mae = metrics.mean_absolute_error(y, y_pred)
+    r2 = metrics.r2_score(y, y_pred)
+    expv = metrics.explained_variance_score(y, y_pred)
+    maxe = metrics.max_error(y, y_pred)
+    if verbose:
+        print(f'evaluate_pipeline: {tag} y_pred.shape={y_pred.shape}')
+        print(f'MSE  of {tag} : ', mse)
+        print(f'MAE  of {tag} : ', mae)
+        print(f'R2   of {tag} : ', r2)
+        print(f'ExpV of {tag} : ', expv)
+        print(f'MaxE of {tag} : ', maxe)
+    return tag, mse, mae, r2, expv, maxe
 
 
 def plot_hist_and_save(args: SimpleParser, data, fname, title, xlabel, ylabel):
@@ -265,13 +272,6 @@ def build_pipeline(args: SimpleParser):
     pipe.fit(X_train, y_train)
     # save pipeline to file
     joblib.dump(pipe, os.path.join(args.outdir, 'pipe.pkl'))
-    fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
-    # print(f'fnames = {fnames} \nfimps = {fimps}')
-    important_fnames = get_importance_features(
-        args, fnames, fimps, X_train.columns.tolist(), topk=10)
-    print(f'selected importanct features: {important_fnames}')
-    print(f'distribution of y_train: {y_train.describe()}')
-    print(f'distribution of y_test: {y_test.describe()}')
     desc['kids'] = df[args.keycol].values
     return pipe, X_train, X_test, y_train, y_test, kids_train, kids_test, desc
 
@@ -284,14 +284,15 @@ if __name__ == '__main__':
     pipe, X_train, X_test, y_train, y_test, kids_train, kids_test, desc = build_pipeline(
         SimpleParser().parse_args().from_dict({'feature_dir': os.path.join(args.feature_dir, '../')}))
 
-    evaluate_pipeline(args, pipe, X_train, y_train, 'train')
-    evaluate_pipeline(args, pipe, X_test, y_test, 'test')
+    fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
+    # print(f'fnames = {fnames} \nfimps = {fimps}')
+    important_fnames = get_importance_features(
+        args, fnames, fimps, X_train.columns.tolist(), topk=10)
+    print(f'selected importanct features: {important_fnames}')
 
-    exp_X_test = baseline_expected_default(
-        X_train, X_test, desc['agg_features'])
-    evaluate_pipeline(args, pipe, exp_X_test, y_test, 'exp_test')
-    evaluate_pipeline(args, pipe, exp_X_test,
-                      pipe.predict(X_test), 'exp_test sim')
+    evals = []
+    evals.append(evaluate_pipeline(args, pipe, X_train, y_train, 'train'))
+    evals.append(evaluate_pipeline(args, pipe, X_test, y_test, 'test'))
 
     # args.feature_dir = apx_feature_dir
     apx_desc, apx_df = load_data(args, keyids=desc['kids'])
@@ -306,13 +307,25 @@ if __name__ == '__main__':
     apx_X_train, apx_X_test, apx_y_train, apx_y_test = train_test_split(
         apx_features, apx_labels, test_size=args.model_test_size, shuffle=False)
 
-    evaluate_pipeline(args, pipe, apx_X_train, apx_y_train, 'apx_train')
-    evaluate_pipeline(args, pipe, apx_X_test, apx_y_test, 'apx_test')
+    evals.append(evaluate_pipeline(
+        args, pipe, apx_X_train, apx_y_train, 'apx_train'))
+    evals.append(evaluate_pipeline(
+        args, pipe, apx_X_test, apx_y_test, 'apx_test'))
+    evals.append(evaluate_pipeline(args, pipe, apx_X_train,
+                 pipe.predict(X_train), 'apx_train sim'))
+    evals.append(evaluate_pipeline(args, pipe, apx_X_test,
+                 pipe.predict(X_test), 'apx_test sim'))
 
-    evaluate_pipeline(args, pipe, apx_X_train,
-                      pipe.predict(X_train), 'apx_train sim')
-    evaluate_pipeline(args, pipe, apx_X_test,
-                      pipe.predict(X_test), 'apx_test sim')
+    exp_X_test = baseline_expected_default(
+        X_train, X_test, desc['agg_features'])
+    evals.append(evaluate_pipeline(args, pipe, exp_X_test, y_test, 'exp_test'))
+    evals.append(evaluate_pipeline(args, pipe, exp_X_test,
+                 pipe.predict(X_test), 'exp_test sim'))
+
+    # show evals as pandas dataframe
+    evals_df = pd.DataFrame(
+        evals, columns=['tag', 'mse', 'mae', 'r2', 'expv', 'maxe'])
+    print(evals_df)
 
     plot_hist_and_save(args, y_train, 'y_train.png', 'y_train', 'y', 'count')
     plot_hist_and_save(args, y_test, 'y_test.png', 'y_test', 'y', 'count')

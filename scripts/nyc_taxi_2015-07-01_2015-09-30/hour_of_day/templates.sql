@@ -1,7 +1,4 @@
-select toYear(pickup_datetime) as year,
-    toWeek(pickup_datetime) as week,
-    toDayOfWeek(pickup_datetime) as day,
-    count(*) as count_dayofweek,
+select count(*) as count_dayofweek,
     avg(trip_duration) as avg_trip_duration,
     avg(trip_distance) as avg_trip_distance,
     avg(fare_amount) as avg_fare_amount,
@@ -31,16 +28,11 @@ select toYear(pickup_datetime) as year,
     max(trip_distance) as max_trip_distance,
     max(fare_amount) as max_fare_amount,
     max(tip_amount) as max_tip_amount,
-    max(total_amount) as max_total_amount, 
+    max(total_amount) as max_total_amount,
     median(trip_duration) as median_trip_duration,
     median(trip_distance) as median_trip_distance,
     median(fare_amount) as median_fare_amount,
     median(tip_amount) as median_tip_amount,
     median(total_amount) as median_total_amount
 from trips
-group by toYear(pickup_datetime),
-    toWeek(pickup_datetime),
-    toDayOfWeek(pickup_datetime)
-order by toYear(pickup_datetime),
-    toWeek(pickup_datetime),
-    toDayOfWeek(pickup_datetime);
+where (toDayOfYear(pickup_datetime) * 24 + toHour(pickup_datetime)) = {hourstamp};

@@ -1,8 +1,4 @@
-select toYear(pickup_datetime) as year,
-    toWeek(pickup_datetime) as week,
-    toDayOfWeek(pickup_datetime) as day,
-    toHour(pickup_datetime) as hour,
-    count(*) as count_dayofweek,
+select count(*) as count_dayofweek,
     avg(trip_duration) as avg_trip_duration,
     avg(trip_distance) as avg_trip_distance,
     avg(fare_amount) as avg_fare_amount,
@@ -39,11 +35,4 @@ select toYear(pickup_datetime) as year,
     median(tip_amount) as median_tip_amount,
     median(total_amount) as median_total_amount
 from trips
-group by toYear(pickup_datetime),
-    toWeek(pickup_datetime),
-    toDayOfWeek(pickup_datetime),
-    toHour(pickup_datetime)
-order by toYear(pickup_datetime),
-    toWeek(pickup_datetime),
-    toDayOfWeek(pickup_datetime),
-    toHour(pickup_datetime);
+where toDayOfYear(pickup_datetime) = {day_of_year};

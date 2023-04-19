@@ -326,7 +326,7 @@ if __name__ == '__main__':
         SimpleParser().parse_args().from_dict({'feature_dir': os.path.join(args.feature_dir, '../')}))
 
     fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
-    print(f'fnames = {fnames} \nfimps = {fimps}')
+    # print(f'fnames = {fnames} \nfimps = {fimps}')
     important_fnames = get_importance_features(
         args, fnames, fimps, X_train.columns.tolist(), topk=10)
     print(f'selected importanct features: {important_fnames}')

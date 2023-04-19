@@ -35,6 +35,4 @@ select count(*) as count_dayofweek,
     median(tip_amount) as median_tip_amount,
     median(total_amount) as median_total_amount
 from trips
-where toYear(pickup_datetime) = {year}
-    AND toWeek(pickup_datetime) = {week}
-    AND toDayOfWeek(pickup_datetime) = {day};
+where toDayOfYear(pickup_datetime) = {day_of_year};

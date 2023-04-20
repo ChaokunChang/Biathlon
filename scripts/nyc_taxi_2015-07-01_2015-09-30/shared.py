@@ -145,6 +145,9 @@ def approximation_rewrite(sql_template: str, sample: float):
         # assert 'FROM' in sql_template
         template = re.sub(
             r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', sql_template)
+        # FROM could also be from
+        template = re.sub(
+            r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', template)
         return template
 
 
@@ -167,7 +170,8 @@ class SimpleParser(Tap):
     model_test_size: int = 0.3  # train split for model training
     split_shuffle: bool = False  # shuffle data before split
     model_name: str = 'lgbm'  # model name
-    model_type: str = 'regression'  # model type
+    model_type: Literal['regression',
+                        'classification'] = 'regression'  # model type
 
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)

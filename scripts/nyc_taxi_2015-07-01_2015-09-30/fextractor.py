@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     for i, sql_template in enumerate(args.sql_templates):
         print(f'Extracting features with sql template: {sql_template}')
-        extractor = FeatureExtractor(sql_template)
+        extractor = FeatureExtractor(sql_template, key=args.keycol)
         features = extractor.extract_with_df(reqs, parallel=True)
         save_features(features, feature_dir,
                       output_name=f'{args.ffile_prefix}_{i}.csv')

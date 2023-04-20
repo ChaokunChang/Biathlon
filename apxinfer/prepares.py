@@ -2,21 +2,23 @@ from fextractor import *
 
 
 class PrepareParser(SimpleParser):
-    fare_prediction_from: str = '2015-08-01 00:00:00'
-    fare_prediction_to: str = '2015-08-15 00:00:00'
-    fare_prediction_sample: int = 10000
+    prediction_from: str = '2015-08-01 00:00:00'
+    prediction_to: str = '2015-08-15 00:00:00'
+    prediction_sample: int = 10000
     pass
 
 
 def prepare_fare_prediction(args: PrepareParser):
     args.keycol = 'trip_id'
     args.target = 'fare_amount'
-    fare_prediction_from = args.fare_prediction_from
-    fare_prediction_to = args.fare_prediction_to
-    num_samples = args.fare_prediction_sample
-    from_date = fare_prediction_from.split(' ')[0]
-    to_date = fare_prediction_to.split(' ')[0]
-    args.task_dir += f'_{from_date}_{to_date}_{num_samples}'
+    prediction_from = args.prediction_from
+    prediction_to = args.prediction_to
+    num_samples = args.prediction_sample
+    from_date = prediction_from.split(' ')[0]
+    to_date = prediction_to.split(' ')[0]
+    suffix = f'_{from_date}_{to_date}_{num_samples}'
+    if not args.task_dir.endswith(suffix):
+        args.task_dir += suffix
 
     fcols = ['passenger_count', 'trip_distance', 'pickup_datetime',
              'pickup_longitude', 'pickup_latitude',
@@ -30,13 +32,54 @@ def prepare_fare_prediction(args: PrepareParser):
     {fcols},
     {target}
     from trips
-    where pickup_datetime >= '{fare_prediction_from}'
-        and pickup_datetime < '{fare_prediction_to}'
+    where pickup_datetime >= '{prediction_from}'
+        and pickup_datetime < '{prediction_to}'
         and {target} is not null
     order by pickup_datetime, {keycol}
     """.format(keycol=args.keycol, target=args.target,
                fcols=",".join(fcols),
-               fare_prediction_from=fare_prediction_from, fare_prediction_to=fare_prediction_to)
+               prediction_from=prediction_from, prediction_to=prediction_to)
+    df = dbconn.execute(sql)
+    df = df.sample(num_samples, random_state=0)
+
+    reqs = df[[args.keycol] + fcols]
+    labels = df[[args.keycol, args.target]]
+
+    save_features(reqs, args.task_dir, 'requests.csv')
+    save_features(labels, args.task_dir, 'labels.csv')
+
+
+def prepare_duration_prediction(args: PrepareParser):
+    args.keycol = 'trip_id'
+    args.target = 'trip_duration'
+    prediction_from = args.prediction_from
+    prediction_to = args.prediction_to
+    num_samples = args.prediction_sample
+    from_date = prediction_from.split(' ')[0]
+    to_date = prediction_to.split(' ')[0]
+    suffix = f'_{from_date}_{to_date}_{num_samples}'
+    if not args.task_dir.endswith(suffix):
+        args.task_dir += suffix
+
+    fcols = ['passenger_count', 'trip_distance', 'pickup_datetime',
+             'pickup_longitude', 'pickup_latitude',
+             'dropoff_longitude', 'dropoff_latitude',
+             'pickup_ntaname', 'dropoff_ntaname']
+
+    dbconn = DBConnector()
+    # if target is nan or null, drop it
+    sql = """
+    select {keycol},
+    {fcols},
+    {target}
+    from trips
+    where pickup_datetime >= '{prediction_from}'
+        and pickup_datetime < '{prediction_to}'
+        and {target} is not null
+    order by pickup_datetime, {keycol}
+    """.format(keycol=args.keycol, target=args.target,
+               fcols=",".join(fcols),
+               prediction_from=prediction_from, prediction_to=prediction_to)
     df = dbconn.execute(sql)
     df = df.sample(num_samples, random_state=0)
 
@@ -137,8 +180,10 @@ def prepare_is_night(args: PrepareParser):
 
 if __name__ == "__main__":
     args = PrepareParser().parse_args()
-    if args.task == 'fare_prediction':
+    if args.task.startswith('fare_prediction'):
         prepare_fare_prediction(args)
+    elif args.task.startswith('duration_prediction'):
+        prepare_duration_prediction(args)
     elif args.task == 'day_of_week':
         prepare_dayofweek(args)
     elif args.task == 'is_weekend':

@@ -198,8 +198,5 @@ class SimpleParser(Tap):
             self.outdir = os.path.join(
                 self.outdir, f'sample_{self.sample}')
 
-        assert os.path.exists(self.req_src), f'{self.req_src} does not exist'
-        assert os.path.exists(
-            self.label_src), f'{self.label_src} does not exist'
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.outdir, exist_ok=True)

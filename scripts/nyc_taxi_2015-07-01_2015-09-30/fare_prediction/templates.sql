@@ -1,3 +1,24 @@
+--- raw features
+-- fcols = ['passenger_count', 'trip_distance', 'pickup_datetime',
+--              'pickup_longitude', 'pickup_latitude',
+--              'dropoff_longitude', 'dropoff_latitude',
+--              'pickup_ntaname', 'dropoff_ntaname']
+-- derived_fcols = ['pickup_year', 'pickup_dayofyear', 'pickup_dayofweek', 'pickup_hour', 'pickup_minute']
+select {passenger_count} as passenger_count,
+    {trip_distance} as trip_distance,
+    {pickup_longitude} as pickup_longitude,
+    {pickup_latitude} as pickup_latitude,
+    {dropoff_longitude} as dropoff_longitude,
+    {dropoff_latitude} as dropoff_latitude,
+    '{pickup_ntaname}' as pickup_ntaname,
+    '{dropoff_ntaname}' as dropoff_ntaname,
+    toDateTime('{pickup_datetime}') as pickup_datetime,
+    toYear(toDateTime('{pickup_datetime}')) as pickup_year,
+    toDayOfYear(toDateTime('{pickup_datetime}')) as pickup_dayofyear,
+    toDayOfWeek(toDateTime('{pickup_datetime}')) as pickup_dayofweek,
+    toHour(toDateTime('{pickup_datetime}')) as pickup_hour,
+    toMinute(toDateTime('{pickup_datetime}')) as pickup_minute;
+
 --- 1h  window
 SELECT count(*) as count_1h,
     avg(trip_duration) as avg_trip_duration_1h,

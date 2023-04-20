@@ -42,10 +42,12 @@ import joblib
 from tqdm import tqdm
 tqdm.pandas()
 
-
 HOME_DIR: str = '/home/ckchang/ApproxInfer'  # project home
 DATA_HOME: str = os.path.join(HOME_DIR, 'data')  # data home
+RESULTS_HOME: str = os.path.join(HOME_DIR, 'results')  # results home
 LOG_DIR: str = os.path.join(HOME_DIR, 'logs')  # log home
+
+SUPPORTED_AGGS = ['count', 'sum', 'avg', 'min', 'max', 'median', 'var', 'std']
 
 sql_template_example = """
 SELECT 
@@ -140,23 +142,20 @@ def approximation_rewrite(sql_template: str, sample: float):
         # repalce the table with table_w_samples SAMPLE {sample}
         assert sample > 0 and sample <= 1
         assert 'SAMPLE' not in sql_template
-        assert 'FROM' in sql_template
+        # assert 'FROM' in sql_template
         template = re.sub(
             r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', sql_template)
         return template
 
 
 class SimpleParser(Tap):
-    data_dir: str = os.path.join(
-        DATA_HOME, 'nyc_taxi_2015-07-01_2015-09-30')  # data dir
-    req_src: str = 'requests_08-01_08-15_sample10000.csv'  # request source
-    label_src: str = 'labels_08-01_08-15.csv'  # label source
+    data: str = 'nyc_taxi_2015-07-01_2015-09-30'  # data name
+    task: str = 'fare_prediction_2015-08-01_2015-08-15_10000'  # task name
     keycol: str = 'trip_id'  # key column
-    task: str = 'fare_prediction'  # task name
     target: str = 'fare_amount'  # target column
-    outdir: str = os.path.join(HOME_DIR, 'results')  # output directory
+    sort_by: str = 'pickup_datetime'  # sort by column
 
-    sql_template: str = sql_template_example  # sql template
+    sql_templates: str = [sql_template_example]  # sql template
     sql_templates_file: str = None  # sql templates file
     ffile_prefix = 'features'
 
@@ -166,26 +165,25 @@ class SimpleParser(Tap):
     random_state: int = 42  # random state
 
     model_test_size: int = 0.3  # train split for model training
+    split_shuffle: bool = False  # shuffle data before split
     model_name: str = 'lgbm'  # model name
     model_type: str = 'regression'  # model type
 
     def process_args(self) -> None:
+        self.data_dir = os.path.join(DATA_HOME, self.data)
         self.task_dir = os.path.join(self.data_dir, self.task)
-        # check existence of request source and label source file
-        self.req_src = os.path.join(self.data_dir, self.req_src)
-        self.label_src = os.path.join(self.data_dir, self.label_src)
-        assert os.path.exists(self.req_src), f'{self.req_src} does not exist'
-        assert os.path.exists(
-            self.label_src), f'{self.label_src} does not exist'
+        self.req_src = os.path.join(self.task_dir, 'requests.csv')
+        self.label_src = os.path.join(self.task_dir, 'labels.csv')
+        self.feature_dir = os.path.join(self.task_dir, 'features')
 
-        assert self.sql_template is not None or self.sql_templates_file is not None, 'sql_template or sql_templates_file must be specified'
+        self.outdir_base = os.path.join(
+            RESULTS_HOME, self.task, self.model_name)
+        self.pipeline_fpath = os.path.join(self.outdir_base, 'pipeline.pkl')
+
         if self.sql_templates_file is not None:
             self.sql_templates = load_sql_templates(self.sql_templates_file)
-        else:
-            self.sql_templates = [self.sql_template]
 
-        self.feature_dir = os.path.join(self.task_dir, 'features')
-        self.outdir = os.path.join(self.outdir, self.task)
+        self.outdir = self.outdir_base
         if self.sample > 0:
             # args.sample means run query apprximately with args.sample rate
             # we need to rewrite the query to make it an approximate query
@@ -194,9 +192,10 @@ class SimpleParser(Tap):
             self.feature_dir = os.path.join(
                 self.feature_dir, f'sample_{self.sample}')
             self.outdir = os.path.join(
-                self.outdir, f'sample_{self.sample}', self.model_name)
+                self.outdir, f'sample_{self.sample}')
 
-        if not os.path.exists(self.feature_dir):
-            os.makedirs(self.feature_dir)
-        if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir)
+        assert os.path.exists(self.req_src), f'{self.req_src} does not exist'
+        assert os.path.exists(
+            self.label_src), f'{self.label_src} does not exist'
+        os.makedirs(self.feature_dir, exist_ok=True)
+        os.makedirs(self.outdir, exist_ok=True)

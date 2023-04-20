@@ -171,6 +171,7 @@ class SimpleParser(Tap):
     split_shuffle: bool = False  # shuffle data before split
     model_name: str = 'lgbm'  # model name
     model_type: Literal['regressor', 'classifier'] = 'regressor'  # model type
+    multi_class: bool = False  # multi class classification
 
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)

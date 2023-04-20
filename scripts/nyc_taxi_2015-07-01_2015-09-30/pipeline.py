@@ -93,16 +93,16 @@ def _create_regressor(args: SimpleParser):
 def _create_classifier(args: SimpleParser):
     if args.model_name == 'lgbm':
         lgb_params = {
-            'objective': 'binary',
+            'objective': 'multiclass' if args.multi_class else 'binary',
             'num_leaves': 31,
             'learning_rate': 0.1,
             'random_state': args.random_state,
-            'verbose': 1,
+            'verbose': -1,
         }
         model = lgb.LGBMClassifier(**lgb_params)
     elif args.model_name == 'xgb':
         xgb_params = {
-            'objective': 'binary:logistic',
+            'objective': 'multi:softmax' if args.multi_class else 'binary:logistic',
             'booster': 'gbtree',
             'learning_rate': 0.1,
             'random_state': args.random_state,
@@ -117,7 +117,11 @@ def _create_classifier(args: SimpleParser):
         }
         model = RandomForestClassifier(**rf_params)
     elif args.model_name == 'lr':
-        model = LogisticRegression()
+        lr_params = {
+            'random_state': args.random_state,
+            'verbose': 1,
+        }
+        model = LogisticRegression(**lr_params)
     elif args.model_name == 'dt':
         dt_params = {
             'random_state': args.random_state,
@@ -262,18 +266,36 @@ def _evaluate_regressor_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, 
 def _evaluate_classifier_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
     y_pred = pipe.predict(X)
     acc = metrics.accuracy_score(y, y_pred)
-    recall = metrics.recall_score(y, y_pred)
-    precision = metrics.precision_score(y, y_pred)
-    f1 = metrics.f1_score(y, y_pred)
+    recall = metrics.recall_score(y, y_pred, average='macro', zero_division=0)
+    precision = metrics.precision_score(
+        y, y_pred, average='macro', zero_division=0)
+    f1 = metrics.f1_score(y, y_pred, average='macro', zero_division=0)
+    recall_micro = metrics.recall_score(
+        y, y_pred, average='micro', zero_division=0)
+    precision_micro = metrics.precision_score(
+        y, y_pred, average='micro', zero_division=0)
+    f1_micro = metrics.f1_score(y, y_pred, average='micro', zero_division=0)
+    recall_weighted = metrics.recall_score(
+        y, y_pred, average='weighted', zero_division=0)
+    precision_weighted = metrics.precision_score(
+        y, y_pred, average='weighted', zero_division=0)
+    f1_weighted = metrics.f1_score(
+        y, y_pred, average='weighted', zero_division=0)
     if verbose:
         print(f'evaluate_pipeline: {tag} y_pred.shape={y_pred.shape}')
         print(f'ACC  of {tag} : ', acc)
-        print(f'REC  of {tag} : ', recall)
-        print(f'PREC of {tag} : ', precision)
-        print(f'F1   of {tag} : ', f1)
+        print(f'Recall of {tag} : ', recall)
+        print(f'Precision of {tag} : ', precision)
+        print(f'F1 of {tag} : ', f1)
+        print(f'Recall Micro of {tag} : ', recall_micro)
+        print(f'Precision Micro of {tag} : ', precision_micro)
+        print(f'F1 Micro of {tag} : ', f1_micro)
+        print(f'Recall Weighted of {tag} : ', recall_weighted)
+        print(f'Precision Weighted of {tag} : ', precision_weighted)
+        print(f'F1 Weighted of {tag} : ', f1_weighted)
         # evaluation of every class
-        print(metrics.classification_report(y, y_pred))
-    return pd.Series([tag, acc, recall, precision, f1], index=['tag', 'acc', 'recall', 'precision', 'f1'])
+        print(metrics.classification_report(y, y_pred, zero_division=0))
+    return pd.Series([tag, acc, recall, precision, f1, recall_micro, precision_micro, f1_micro, recall_weighted, precision_weighted, f1_weighted], index=['tag', 'acc', 'recall', 'precision', 'f1', 'recall_micro', 'precision_micro', 'f1_micro', 'recall_weighted', 'precision_weighted', 'f1_weighted'])
 
 
 def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
@@ -461,4 +483,6 @@ def load_pipeline(fpath: str):
 
 if __name__ == '__main__':
     args = SimpleParser().parse_args()
-    build_pipeline(args)
+    print(args)
+    pipe = build_pipeline(args)
+    print(pipe)

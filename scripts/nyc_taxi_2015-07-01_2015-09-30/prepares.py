@@ -51,8 +51,9 @@ def prepare_dayofweek(args: PrepareParser):
     args.keycol = 'day_of_year'
     args.target = 'day_of_week'
     dbconn = DBConnector()
+    # note that we want our label start from 0. so we need to minus 1
     sql = """
-    select DISTINCT toDayOfYear(pickup_datetime) as {keycol}, toDayOfWeek(pickup_datetime) as {target}
+    select DISTINCT toDayOfYear(pickup_datetime) as {keycol}, (toDayOfWeek(pickup_datetime) - 1) as {target}
     from trips
     where {target} is not null
     order by {keycol}
@@ -74,7 +75,7 @@ def prepare_is_weekend(args: PrepareParser):
     sql = """
     select DISTINCT toDayOfYear(pickup_datetime) as {keycol}, 
     case
-        when toDayOfWeek(pickup_datetime) in (0, 6) then 1
+        when toDayOfWeek(pickup_datetime) in (6, 7) then 1
         else 0
     end as {target}
     from trips

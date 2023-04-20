@@ -36,8 +36,7 @@ if __name__ == "__main__":
         args, pipe, apx_X_test, pipe.predict(test_X), 'sim'))
 
     # show evals as pandas dataframe
-    evals_df = pd.DataFrame(
-        evals, columns=['tag', 'mse', 'mae', 'r2', 'expv', 'maxe'])
+    evals_df = pd.DataFrame(evals)
     print(evals_df)
 
     plot_hist_and_save(args, pipe.predict(apx_X_test),

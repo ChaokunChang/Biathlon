@@ -12,7 +12,7 @@ def apx_value_estimation(df: pd.DataFrame, apx_cols: list, sampling_rate: float)
     return df
 
 
-def create_model(args: SimpleParser):
+def _create_regressor(args: SimpleParser):
     if args.model_name == 'lgbm':
         lgb_params = {
             'objective': 'regression',
@@ -90,6 +90,91 @@ def create_model(args: SimpleParser):
     return model
 
 
+def _create_classifier(args: SimpleParser):
+    if args.model_name == 'lgbm':
+        lgb_params = {
+            'objective': 'binary',
+            'num_leaves': 31,
+            'learning_rate': 0.1,
+            'random_state': args.random_state,
+            'verbose': 1,
+        }
+        model = lgb.LGBMClassifier(**lgb_params)
+    elif args.model_name == 'xgb':
+        xgb_params = {
+            'objective': 'binary:logistic',
+            'booster': 'gbtree',
+            'learning_rate': 0.1,
+            'random_state': args.random_state,
+            'verbose': 1,
+        }
+        model = xgb.XGBClassifier(**xgb_params)
+    elif args.model_name == 'rf':
+        rf_params = {
+            'n_estimators': 100,
+            'random_state': args.random_state,
+            'verbose': 1,
+        }
+        model = RandomForestClassifier(**rf_params)
+    elif args.model_name == 'lr':
+        model = LogisticRegression()
+    elif args.model_name == 'dt':
+        dt_params = {
+            'random_state': args.random_state,
+        }
+        model = DecisionTreeClassifier(**dt_params)
+    elif args.model_name == 'svc':
+        svc_params = {
+            'kernel': 'rbf',
+            'degree': 3,
+            'gamma': 'auto',
+            'coef0': 0.0,
+            'tol': 0.001,
+            'C': 1.0,
+            'shrinking': True,
+            'cache_size': 200,
+            'verbose': 1,
+            'max_iter': 1000,
+        }
+        model = SVC(**svc_params)
+    elif args.model_name == 'knn':
+        knn_params = {
+            'n_neighbors': 5,
+            'weights': 'uniform',
+            'algorithm': 'auto',
+            'leaf_size': 30,
+            'p': 2,
+            'metric': 'minkowski',
+            'metric_params': None,
+            'n_jobs': None,
+        }
+        model = KNeighborsClassifier(**knn_params)
+    elif args.model_name == 'mlp':
+        mlp_params = {
+            'hidden_layer_sizes': (100, 100),
+            'activation': 'relu',
+            'solver': 'adam',
+            'learning_rate': 'constant',
+            'learning_rate_init': 0.001,
+            'max_iter': 100,
+            'random_state': args.random_state,
+            'verbose': 1,
+        }
+        model = MLPClassifier(**mlp_params)
+    else:
+        raise ValueError("model name not supported")
+    return model
+
+
+def create_model(args: SimpleParser):
+    if args.model_type == 'regressor':
+        return _create_regressor(args)
+    elif args.model_type == 'classifier':
+        return _create_classifier(args)
+    else:
+        raise ValueError("model type not supported")
+
+
 def compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True):
     # We can compute feature importance of model's feature, or pipeline's feature.
     if use_pipe_feature:
@@ -107,10 +192,10 @@ def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
         return model.feature_names_in_, model.feature_importances_
     elif args.model_name == 'rf':
         return model.feature_names_in_, model.feature_importances_
-    elif args.model_name == 'lr':
-        return model.feature_names_in_, model.coef_
     elif args.model_name == 'dt':
         return model.feature_names_in_, model.feature_importances_
+    elif args.model_name == 'lr':
+        return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
     elif args.model_name == 'svr':
         return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
     elif args.model_name == 'knn':
@@ -157,7 +242,7 @@ def baseline_expected_default(X_train, X_test, aggcols):
     return exp_test
 
 
-def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
+def _evaluate_regressor_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
     y_pred = pipe.predict(X)
     mse = metrics.mean_squared_error(y, y_pred)
     mae = metrics.mean_absolute_error(y, y_pred)
@@ -171,7 +256,33 @@ def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=Fal
         print(f'R2   of {tag} : ', r2)
         print(f'ExpV of {tag} : ', expv)
         print(f'MaxE of {tag} : ', maxe)
-    return tag, mse, mae, r2, expv, maxe
+    return pd.Series([tag, mse, mae, r2, expv, maxe], index=['tag', 'mse', 'mae', 'r2', 'expv', 'maxe'])
+
+
+def _evaluate_classifier_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
+    y_pred = pipe.predict(X)
+    acc = metrics.accuracy_score(y, y_pred)
+    recall = metrics.recall_score(y, y_pred)
+    precision = metrics.precision_score(y, y_pred)
+    f1 = metrics.f1_score(y, y_pred)
+    if verbose:
+        print(f'evaluate_pipeline: {tag} y_pred.shape={y_pred.shape}')
+        print(f'ACC  of {tag} : ', acc)
+        print(f'REC  of {tag} : ', recall)
+        print(f'PREC of {tag} : ', precision)
+        print(f'F1   of {tag} : ', f1)
+        # evaluation of every class
+        print(metrics.classification_report(y, y_pred))
+    return pd.Series([tag, acc, recall, precision, f1], index=['tag', 'acc', 'recall', 'precision', 'f1'])
+
+
+def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
+    if args.model_type == 'regressor':
+        return _evaluate_regressor_pipeline(args, pipe, X, y, tag, verbose)
+    elif args.model_type == 'classifier':
+        return _evaluate_classifier_pipeline(args, pipe, X, y, tag, verbose)
+    else:
+        raise ValueError(f'args.model_type={args.model_type} not supported')
 
 
 def plot_hist_and_save(args: SimpleParser, data, fname, title, xlabel, ylabel):
@@ -331,8 +442,7 @@ def build_pipeline(args: SimpleParser):
     evals.append(evaluate_pipeline(args, pipe, X_test, y_test, 'test'))
 
     # show evals as pandas dataframe
-    evals_df = pd.DataFrame(
-        evals, columns=['tag', 'mse', 'mae', 'r2', 'expv', 'maxe'])
+    evals_df = pd.DataFrame(evals)
     print(evals_df)
 
     plot_hist_and_save(args, y_train, 'y_train.png', 'y_train', 'y', 'count')

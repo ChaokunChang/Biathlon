@@ -10,7 +10,7 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder, StandardScaler, MinMaxScaler, FunctionTransformer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline, make_pipeline
@@ -170,8 +170,7 @@ class SimpleParser(Tap):
     model_test_size: int = 0.3  # train split for model training
     split_shuffle: bool = False  # shuffle data before split
     model_name: str = 'lgbm'  # model name
-    model_type: Literal['regression',
-                        'classification'] = 'regression'  # model type
+    model_type: Literal['regressor', 'classifier'] = 'regressor'  # model type
 
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)

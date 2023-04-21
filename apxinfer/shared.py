@@ -173,6 +173,8 @@ class SimpleParser(Tap):
     model_type: Literal['regressor', 'classifier'] = 'regressor'  # model type
     multi_class: bool = False  # multi class classification
 
+    apx_training: bool = False  # whether to use approximation model
+
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)
         self.task_dir = os.path.join(self.data_dir, self.task)
@@ -182,7 +184,12 @@ class SimpleParser(Tap):
 
         self.outdir_base = os.path.join(
             RESULTS_HOME, self.task, self.model_name)
-        self.pipeline_fpath = os.path.join(self.outdir_base, 'pipeline.pkl')
+        self.pipelines_dir = os.path.join(
+            RESULTS_HOME, self.task, self.model_name, 'pipelines')
+        if self.apx_training:
+            self.pipelines_dir = os.path.join(
+                self.pipelines_dir, f'sample_{self.sample}')
+        self.pipeline_fpath = os.path.join(self.pipelines_dir, 'pipeline.pkl')
 
         if self.sql_templates_file is not None:
             self.sql_templates = load_sql_templates(self.sql_templates_file)
@@ -200,3 +207,4 @@ class SimpleParser(Tap):
 
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.outdir, exist_ok=True)
+        os.makedirs(self.pipelines_dir, exist_ok=True)

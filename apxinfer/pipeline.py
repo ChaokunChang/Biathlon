@@ -3,6 +3,8 @@ set_config(transform_output='pandas')
 
 
 def apx_value_estimation(df: pd.DataFrame, apx_cols: list, sampling_rate: float):
+    if sampling_rate == 0:
+        return df
     count_names = [x for x in apx_cols if x.startswith('count_')]
     sum_names = [x for x in apx_cols if x.startswith('sum_')]
     df[count_names] = df[count_names].apply(
@@ -264,38 +266,49 @@ def _evaluate_regressor_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, 
 
 
 def _evaluate_classifier_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
+    def __compute(y, y_pred, y_score, average):
+        recall = metrics.recall_score(
+            y, y_pred, average=average, zero_division=0)
+        precision = metrics.precision_score(
+            y, y_pred, average=average, zero_division=0)
+        f1 = metrics.f1_score(y, y_pred, average=average, zero_division=0)
+        if np.unique(y).shape[0] == (y_score.shape[1] if len(y_score.shape) == 2 else 2):
+            roc = metrics.roc_auc_score(
+                y, y_score, average=average, multi_class='ovr')
+        else:
+            roc = -1
+        return recall, precision, f1, roc
+
     y_pred = pipe.predict(X)
+    y_score = pipe.predict_proba(X)
+    if not args.multi_class:
+        y_score = y_score[:, 1]
+
     acc = metrics.accuracy_score(y, y_pred)
-    recall = metrics.recall_score(y, y_pred, average='macro', zero_division=0)
-    precision = metrics.precision_score(
-        y, y_pred, average='macro', zero_division=0)
-    f1 = metrics.f1_score(y, y_pred, average='macro', zero_division=0)
-    recall_micro = metrics.recall_score(
-        y, y_pred, average='micro', zero_division=0)
-    precision_micro = metrics.precision_score(
-        y, y_pred, average='micro', zero_division=0)
-    f1_micro = metrics.f1_score(y, y_pred, average='micro', zero_division=0)
-    recall_weighted = metrics.recall_score(
-        y, y_pred, average='weighted', zero_division=0)
-    precision_weighted = metrics.precision_score(
-        y, y_pred, average='weighted', zero_division=0)
-    f1_weighted = metrics.f1_score(
-        y, y_pred, average='weighted', zero_division=0)
+    recall, precision, f1, roc = __compute(y, y_pred, y_score, 'macro')
+    recall_micro, precision_micro, f1_micro, roc_micro = __compute(
+        y, y_pred, y_score, 'micro')
+    recall_weighted, precision_weighted, f1_weighted, roc_weighted = __compute(
+        y, y_pred, y_score, 'weighted')
+
     if verbose:
         print(f'evaluate_pipeline: {tag} y_pred.shape={y_pred.shape}')
         print(f'ACC  of {tag} : ', acc)
         print(f'Recall of {tag} : ', recall)
         print(f'Precision of {tag} : ', precision)
         print(f'F1 of {tag} : ', f1)
+        print(f'ROC of {tag} : ', roc)
         print(f'Recall Micro of {tag} : ', recall_micro)
         print(f'Precision Micro of {tag} : ', precision_micro)
         print(f'F1 Micro of {tag} : ', f1_micro)
+        print(f'ROC Micro of {tag} : ', roc_micro)
         print(f'Recall Weighted of {tag} : ', recall_weighted)
         print(f'Precision Weighted of {tag} : ', precision_weighted)
         print(f'F1 Weighted of {tag} : ', f1_weighted)
+        print(f'ROC Weighted of {tag} : ', roc_weighted)
         # evaluation of every class
         print(metrics.classification_report(y, y_pred, zero_division=0))
-    return pd.Series([tag, acc, recall, precision, f1, recall_micro, precision_micro, f1_micro, recall_weighted, precision_weighted, f1_weighted], index=['tag', 'acc', 'recall', 'precision', 'f1', 'recall_micro', 'precision_micro', 'f1_micro', 'recall_weighted', 'precision_weighted', 'f1_weighted'])
+    return pd.Series([tag, acc, recall, precision, f1, roc, recall_micro, precision_micro, f1_micro, roc_micro, recall_weighted, precision_weighted, f1_weighted, roc_weighted], index=['tag', 'acc', 'recall', 'precision', 'f1', 'roc', 'recall_micro', 'precision_micro', 'f1_micro', 'roc_micro', 'recall_weighted', 'precision_weighted', 'f1_weighted', 'roc_weighted'])
 
 
 def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=False):
@@ -307,7 +320,7 @@ def evaluate_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag, verbose=Fal
         raise ValueError(f'args.model_type={args.model_type} not supported')
 
 
-def plot_hist_and_save(args: SimpleParser, data, fname, title, xlabel, ylabel):
+def plot_hist_and_save(args: SimpleParser, data, fpath, title, xlabel, ylabel):
     fig, ax = plt.subplots()
     ax2 = ax.twinx()
     n, bins, patches = ax.hist(data, bins=100)
@@ -316,7 +329,7 @@ def plot_hist_and_save(args: SimpleParser, data, fname, title, xlabel, ylabel):
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.savefig(os.path.join(args.outdir, fname))
+    plt.savefig(fpath)
     plt.close()
 
 
@@ -422,7 +435,7 @@ def feature_type_inference(df: pd.DataFrame, keycol: str, target: str):
 
 
 def build_pipeline(args: SimpleParser):
-    assert args.sample == 0, f'sample={args.sample} must be in 0'
+    assert args.apx_training or args.sample == 0, 'either apx_training or sample must not be set'
 
     features = load_features(args, sort_by=args.sort_by)
     features = nan_processing(features, dropna=True)
@@ -431,14 +444,15 @@ def build_pipeline(args: SimpleParser):
     labels = load_labels(args, features[args.keycol].values.tolist())
     Xy = pd.merge(features, labels, on=args.keycol).sort_values(
         by=args.sort_by).drop(columns=typed_fnames['dt_features'])
+    Xy = apx_value_estimation(Xy, typed_fnames['agg_features'], args.sample)
     X_train, X_test, y_train, y_test, kids_train, kids_test = train_test_split(Xy.drop(
         columns=[args.target]), Xy[args.target], Xy[args.keycol],
         test_size=args.model_test_size, random_state=args.random_state, shuffle=args.split_shuffle)
 
     # save test X, y, kids
-    save_features(X_test, args.outdir_base, 'test_X.csv')
-    save_features(y_test, args.outdir_base, 'test_y.csv')
-    save_features(kids_test, args.outdir_base, 'test_kids.csv')
+    save_features(X_test, args.pipelines_dir, 'test_X.csv')
+    save_features(y_test, args.pipelines_dir, 'test_y.csv')
+    save_features(kids_test, args.pipelines_dir, 'test_kids.csv')
 
     model = create_model(args)
     pipe = Pipeline([
@@ -466,13 +480,16 @@ def build_pipeline(args: SimpleParser):
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)
     print(evals_df)
+    save_features(evals_df, args.pipelines_dir, 'evals.csv')
 
-    plot_hist_and_save(args, y_train, 'y_train.png', 'y_train', 'y', 'count')
-    plot_hist_and_save(args, y_test, 'y_test.png', 'y_test', 'y', 'count')
-    plot_hist_and_save(args, pipe.predict(X_train),
-                       'y_train_pred.png', 'y_train_pred', 'y', 'count')
-    plot_hist_and_save(args, pipe.predict(X_test),
-                       'y_test_pred.png', 'y_test_pred', 'y', 'count')
+    plot_hist_and_save(args, y_train, os.path.join(
+        args.outdir, 'y_train.png'), 'y_train', 'y', 'count')
+    plot_hist_and_save(args, y_test, os.path.join(
+        args.outdir, 'y_test.png'), 'y_test', 'y', 'count')
+    plot_hist_and_save(args, pipe.predict(X_train), os.path.join(
+        args.pipelines_dir, 'y_train_pred.png'), 'y_train_pred', 'y', 'count')
+    plot_hist_and_save(args, pipe.predict(X_test), os.path.join(
+        args.pipelines_dir, 'y_test_pred.png'), 'y_test_pred', 'y', 'count')
 
     return pipe
 
@@ -483,6 +500,6 @@ def load_pipeline(fpath: str):
 
 if __name__ == '__main__':
     args = SimpleParser().parse_args()
-    print(args)
+    # print(args)
     pipe = build_pipeline(args)
-    print(pipe)
+    # print(pipe)

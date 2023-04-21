@@ -1,4 +1,4 @@
-select count(*) as count_dayofweek,
+select count(*) as count_hourofday,
     avg(trip_duration) as avg_trip_duration,
     avg(trip_distance) as avg_trip_distance,
     avg(fare_amount) as avg_fare_amount,

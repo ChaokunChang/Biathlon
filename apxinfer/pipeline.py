@@ -190,7 +190,7 @@ def compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=T
         return X.columns, permutation_importance(pipe[-1], X, y, n_repeats=10, max_samples=min(1000, len(X)), random_state=0, n_jobs=-1).importances_mean
 
 
-def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
+def _get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
     model = pipe[-1]
     if args.model_name == 'lgbm':
         return model.feature_name_, model.feature_importances_
@@ -212,32 +212,32 @@ def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
         raise ValueError("model name not supported")
 
 
-def get_importance_features(args: SimpleParser, fnames, fimps, fcols: list, thr=0, topk=0):
-    # print(f'pipe.steps[-1][-1] = {inspect(pipe.steps[-1][-1])}')
-    assert len(fimps) == len(
-        fnames), f'len(fimps)={len(fimps)}, len(fnames)={len(fnames)}'
+def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y, fcols: list) -> pd.DataFrame:
+    fnames, imps = _get_feature_importance(args, pipe, X, y)
+    fimps = pd.DataFrame({'feature': fnames, 'importance': imps})
+    # in fimps,
+    # for feature in fcols, keep that row;
+    # for feature not in fcols, but starts with a col in fols,
+    #  keep that row, and add a new row with feature name as the col name, and importance as the sum of all features that starts with that col name.
+    # for feature not in fcols, and not starts with a col in fcols,
+    #  keep that row, and add a new row with feature name as 'other', and importance as the sum of all features that not starts with a col in fcols.
+    # end
 
-    important_fnames = []
-    important_fid = []
-    important_fimps = []
-    for i, imp in enumerate(fimps):
-        important_fid.append(i)
-        important_fnames.append(fnames[i])
-        important_fimps.append(imp)
-    topfnames = []
-    for fid, fname, fimp in sorted(zip(important_fid, important_fnames, important_fimps), key=lambda x: x[2], reverse=True):
-        if fimp > thr:
-            if topk > 0 and len(topfnames) >= topk:
-                break
-            print(f'f{fid}({fname}) importance: {fimp}')
-            if fname in fcols:
-                topfnames.append(fname)
-            else:
-                # must be cat featuresƒ
-                catname = '_'.join(fname.split('_')[:-1])
-                if catname in fcols and catname not in topfnames:
-                    topfnames.append(catname)
-    return topfnames
+    def _get_fname(x):
+        fname = x['feature']
+        if fname in fcols:
+            return fname
+        else:
+            for fcol in fcols:
+                if fname.startswith(fcol):
+                    return fcol
+        return 'other'
+    fimps['fname'] = fimps.apply(_get_fname, axis=1)
+    print(fimps)
+    fimps = fimps.groupby('fname').agg(
+        {'feature': lambda x: '+'.join(x), 'importance': 'sum'}).reset_index()
+    fimps.sort_values('importance', ascending=False, inplace=True)
+    return fimps
 
 
 def baseline_expected_default(X_train, X_test, aggcols):
@@ -467,11 +467,13 @@ def build_pipeline(args: SimpleParser):
     pipe.fit(X_train, y_train)
     joblib.dump(pipe, args.pipeline_fpath)
 
-    fnames, fimps = get_feature_importance(args, pipe, X_train, y_train)
-    # print(f'fnames = {fnames} \nfimps = {fimps}')
-    important_fnames = get_importance_features(
-        args, fnames, fimps, X_train.columns.tolist(), topk=10)
-    print(f'selected importanct features: {important_fnames}')
+    fcols = X_train.columns.tolist()
+    fimps = get_feature_importance(args, pipe, X_train, y_train, fcols)
+    save_features(fimps, args.pipelines_dir, 'feature_importance.csv')
+
+    topk_fnames = fimps.sort_values(by='importance', ascending=False).head(
+        args.topk_features)['fname'].values.tolist()
+    print(f'topk importanct fnames: {topk_fnames}')
 
     evals = []
     evals.append(evaluate_pipeline(args, pipe, X_train, y_train, 'train'))

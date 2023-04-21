@@ -175,6 +175,8 @@ class SimpleParser(Tap):
 
     apx_training: bool = False  # whether to use approximation model
 
+    topk_features: int = 10  # top k features to show
+
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)
         self.task_dir = os.path.join(self.data_dir, self.task)

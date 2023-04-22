@@ -83,7 +83,7 @@ def _create_regressor(args: SimpleParser):
             'learning_rate_init': 0.001,
             'max_iter': 100,
             'random_state': args.random_state,
-            'verbose': 1,
+            'verbose': 0,
         }
         model = MLPRegressor(**mlp_params)
     else:
@@ -164,7 +164,7 @@ def _create_classifier(args: SimpleParser):
             'learning_rate_init': 0.001,
             'max_iter': 100,
             'random_state': args.random_state,
-            'verbose': 1,
+            'verbose': 0,
         }
         model = MLPClassifier(**mlp_params)
     else:
@@ -233,7 +233,6 @@ def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y, fcols: list
                     return fcol
         return 'other'
     fimps['fname'] = fimps.apply(_get_fname, axis=1)
-    print(fimps)
     fimps = fimps.groupby('fname').agg(
         {'feature': lambda x: '+'.join(x), 'importance': 'sum'}).reset_index()
     fimps.sort_values('importance', ascending=False, inplace=True)

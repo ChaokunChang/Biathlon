@@ -185,9 +185,8 @@ class SimpleParser(Tap):
         self.feature_dir = os.path.join(self.task_dir, 'features')
 
         self.outdir_base = os.path.join(
-            RESULTS_HOME, self.task, self.model_name)
-        self.pipelines_dir = os.path.join(
-            RESULTS_HOME, self.task, self.model_name, 'pipelines')
+            RESULTS_HOME, self.data, self.task, self.model_name)
+        self.pipelines_dir = os.path.join(self.outdir_base, 'pipelines')
         if self.apx_training:
             self.pipelines_dir = os.path.join(
                 self.pipelines_dir, f'sample_{self.sample}')

@@ -344,8 +344,6 @@ def load_from_csv(fpath: str, keycol: str, kids=None, sort_by=None) -> pd.DataFr
 def load_features(args: SimpleParser, kids=None, sort_by=None):
     features = load_from_csv(os.path.join(
         args.feature_dir, f'{args.ffile_prefix}.csv'), args.keycol, kids, None)
-    # reqs = load_from_csv(args.req_src, args.keycol, kids, None)
-    # features = features.merge(reqs, on=args.keycol)
     if sort_by is not None:
         features = features.sort_values(by=sort_by)
     return features
@@ -433,17 +431,33 @@ def feature_type_inference(df: pd.DataFrame, keycol: str, target: str):
     return typed_features
 
 
+def load_pipeline(pipe_dir: str, input_name: str = 'pipeline.pkl') -> Pipeline:
+    fpath = os.path.join(pipe_dir, input_name)
+    return joblib.load(fpath)
+
+
+def save_pipeline(pipe: Pipeline, pipe_dir: str, output_name: str = 'pipeline.pkl'):
+    joblib.dump(pipe, os.path.join(pipe_dir, output_name))
+    return None
+
+
 def build_pipeline(args: SimpleParser):
     assert args.apx_training or args.sample == 0, 'either apx_training or sample must not be set'
 
     features = load_features(args, sort_by=args.sort_by)
     features = nan_processing(features, dropna=True)
-    typed_fnames = feature_type_inference(
-        features, args.keycol, target=args.target)
     labels = load_labels(args, features[args.keycol].values.tolist())
+
     Xy = pd.merge(features, labels, on=args.keycol).sort_values(
-        by=args.sort_by).drop(columns=typed_fnames['dt_features'])
+        by=args.sort_by)
+    if args.fcols is not None:
+        Xy = Xy[[args.keycol, args.target] + args.fcols]
+
+    typed_fnames = feature_type_inference(Xy, args.keycol, target=args.target)
+
     Xy = apx_value_estimation(Xy, typed_fnames['agg_features'], args.sample)
+    Xy.drop(columns=typed_fnames['dt_features'], inplace=True)
+
     X_train, X_test, y_train, y_test, kids_train, kids_test = train_test_split(Xy.drop(
         columns=[args.target]), Xy[args.target], Xy[args.keycol],
         test_size=args.model_test_size, random_state=args.random_state, shuffle=args.split_shuffle)
@@ -464,7 +478,7 @@ def build_pipeline(args: SimpleParser):
         ('model', model),
     ])
     pipe.fit(X_train, y_train)
-    joblib.dump(pipe, args.pipeline_fpath)
+    save_pipeline(pipe, args.pipelines_dir, 'pipeline.pkl')
 
     fcols = X_train.columns.tolist()
     fimps = get_feature_importance(args, pipe, X_train, y_train, fcols)
@@ -484,19 +498,15 @@ def build_pipeline(args: SimpleParser):
     save_features(evals_df, args.pipelines_dir, 'evals.csv')
 
     plot_hist_and_save(args, y_train, os.path.join(
-        args.outdir, 'y_train.png'), 'y_train', 'y', 'count')
+        args.experiment_dir, 'y_train.png'), 'y_train', 'y', 'count')
     plot_hist_and_save(args, y_test, os.path.join(
-        args.outdir, 'y_test.png'), 'y_test', 'y', 'count')
+        args.experiment_dir, 'y_test.png'), 'y_test', 'y', 'count')
     plot_hist_and_save(args, pipe.predict(X_train), os.path.join(
         args.pipelines_dir, 'y_train_pred.png'), 'y_train_pred', 'y', 'count')
     plot_hist_and_save(args, pipe.predict(X_test), os.path.join(
         args.pipelines_dir, 'y_test_pred.png'), 'y_test_pred', 'y', 'count')
 
     return pipe
-
-
-def load_pipeline(fpath: str):
-    return joblib.load(fpath)
 
 
 if __name__ == '__main__':

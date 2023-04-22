@@ -5,10 +5,9 @@ if __name__ == "__main__":
     assert args.sample >= 0 and args.sample <= 1, 'sample rate must be in [0, 1]'
     assert args.apx_training == False, 'apx_training must be False'
 
-    pipe = load_pipeline(args.pipeline_fpath)
-    apx_ppath = os.path.join(
-        args.pipelines_dir, f'sample_{args.sample}', 'pipeline.pkl')
-    apx_pipe = load_pipeline(apx_ppath) if args.sample > 0 else pipe
+    pipe = load_pipeline(args.pipelines_dir, 'pipeline.pkl')
+    apx_pipe = load_pipeline(os.path.join(
+        args.pipelines_dir, f'sample_{args.sample}'), 'pipeline.pkl') if args.sample > 0 else pipe
 
     test_X = pd.read_csv(os.path.join(args.pipelines_dir, 'test_X.csv'))
     test_y = pd.read_csv(os.path.join(args.pipelines_dir, 'test_y.csv'))
@@ -40,9 +39,8 @@ if __name__ == "__main__":
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)
     print(evals_df)
-    save_features(evals_df, args.outdir, 'evals.csv')
-
+    save_features(evals_df, args.evals_dir, 'evals.csv')
     plot_hist_and_save(args, pipe.predict(apx_X), os.path.join(
-        args.outdir, 'apx_y_test_pred.png'), 'apx_y_test_pred', 'y', 'count')
+        args.evals_dir, 'apx_y_test_pred.png'), 'apx_y_test_pred', 'y', 'count')
     plot_hist_and_save(args, pipe.predict(exp_X), os.path.join(
-        args.outdir, 'bsl_y_test_pred.png'), 'bsl_y_test_pred', 'y', 'count')
+        args.evals_dir, 'bsl_y_test_pred.png'), 'bsl_y_test_pred', 'y', 'count')

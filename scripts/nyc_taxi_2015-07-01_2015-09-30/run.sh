@@ -29,18 +29,19 @@ cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6"
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
 echo $cfg
 
-python $apxinfer_dir/prepares.py $cfg
+# python $apxinfer_dir/prepares.py $cfg
 
-python $apxinfer_dir/fextractor.py $cfg --sample 0
-python $apxinfer_dir/fextractor.py $cfg --sample 0.01
-python $apxinfer_dir/fextractor.py $cfg --sample 0.1
-python $apxinfer_dir/fextractor.py $cfg --sample 0.5
+# python $apxinfer_dir/fextractor.py $cfg --sample 0
+# python $apxinfer_dir/fextractor.py $cfg --sample 0.01
+# python $apxinfer_dir/fextractor.py $cfg --sample 0.1
+# python $apxinfer_dir/fextractor.py $cfg --sample 0.5
 
-python $apxinfer_dir/pipeline.py $cfg --sample 0.01 --apx_training
-python $apxinfer_dir/pipeline.py $cfg --sample 0.1 --apx_training
-python $apxinfer_dir/pipeline.py $cfg --sample 0.5 --apx_training
-python $apxinfer_dir/pipeline.py $cfg 
+# python $apxinfer_dir/pipeline.py $cfg 
+# python $apxinfer_dir/pipeline.py $cfg --sample 0.01 --apx_training
+# python $apxinfer_dir/pipeline.py $cfg --sample 0.1 --apx_training
+# python $apxinfer_dir/pipeline.py $cfg --sample 0.5 --apx_training
 
-python $apxinfer_dir/test_pipeline.py $cfg --sample 0.01
-python $apxinfer_dir/test_pipeline.py $cfg --sample 0.1
+# python $apxinfer_dir/test_pipeline.py $cfg --sample 0.01
+# python $apxinfer_dir/test_pipeline.py $cfg --sample 0.2
 python $apxinfer_dir/test_pipeline.py $cfg --sample 0.5
+# python $apxinfer_dir/test_pipeline.py $cfg

@@ -98,41 +98,16 @@ def load_requests(filename: str):
     return df
 
 
-def save_cat_vocab(req_path, cat_cols=None):
-    reqs: pd.DataFrame = pd.read_csv(req_path)
-    req_dir = os.path.dirname(req_path)
-    filename = os.path.basename(req_path)
-    filename_noext = os.path.splitext(filename)[0]
-
-    if cat_cols is not None:
-        for col in cat_cols:
-            # there could be nan in the categorical columns, set them as 'nan'
-            all_cats = sorted(reqs[col].fillna('nan').unique().tolist())
-            # save cats to file
-            with open(os.path.join(req_dir, f'{filename_noext}_{col}_cats.txt'), 'w') as f:
-                f.write('\n'.join(all_cats))
-        return all_cats
-    else:
-        return None
-
-
-def sample_requests(req_path, sample=10000, cat_cols=None):
-    reqs: pd.DataFrame = pd.read_csv(req_path)
-    req_dir = os.path.dirname(req_path)
-    filename = os.path.basename(req_path)
-    filename_noext = os.path.splitext(filename)[0]
-    filename_ext = os.path.splitext(filename)[1]
-    reqs_w_samples = reqs.sample(sample, random_state=0)
-    reqs_w_samples.to_csv(os.path.join(
-        req_dir, f'{filename_noext}_sample{sample}{filename_ext}'), index=False)
-    return reqs_w_samples
-
-
 def save_features(features: pd.DataFrame, feature_dir: str, output_name: str = 'features.csv'):
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
     features.to_csv(os.path.join(feature_dir, output_name), index=False)
     return None
+
+
+def load_features(feature_dir: str, input_name: str = 'features.csv') -> pd.DataFrame:
+    features = pd.read_csv(os.path.join(feature_dir, input_name))
+    return features
 
 
 def approximation_rewrite(sql_template: str, sample: float):
@@ -167,6 +142,8 @@ class SimpleParser(Tap):
 
     random_state: int = 42  # random state
 
+    fcols: str = None  # feature columns
+
     model_test_size: int = 0.3  # train split for model training
     split_shuffle: bool = False  # shuffle data before split
     model_name: str = 'lgbm'  # model name
@@ -182,30 +159,46 @@ class SimpleParser(Tap):
         self.task_dir = os.path.join(self.data_dir, self.task)
         self.req_src = os.path.join(self.task_dir, 'requests.csv')
         self.label_src = os.path.join(self.task_dir, 'labels.csv')
-        self.feature_dir = os.path.join(self.task_dir, 'features')
-
-        self.outdir_base = os.path.join(
-            RESULTS_HOME, self.data, self.task, self.model_name)
-        self.pipelines_dir = os.path.join(self.outdir_base, 'pipelines')
-        if self.apx_training:
-            self.pipelines_dir = os.path.join(
-                self.pipelines_dir, f'sample_{self.sample}')
-        self.pipeline_fpath = os.path.join(self.pipelines_dir, 'pipeline.pkl')
-
+        
         if self.sql_templates_file is not None:
             self.sql_templates = load_sql_templates(self.sql_templates_file)
-
-        self.outdir = self.outdir_base
+        
         if self.sample > 0:
-            # args.sample means run query apprximately with args.sample rate
             # we need to rewrite the query to make it an approximate query
             self.sql_templates = [approximation_rewrite(
                 sql_template, self.sample) for sql_template in self.sql_templates]
-            self.feature_dir = os.path.join(
-                self.feature_dir, f'sample_{self.sample}')
-            self.outdir = os.path.join(
-                self.outdir, f'sample_{self.sample}')
+
+        self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample == 0 else os.path.join(
+            self.task_dir, 'features', f'sample_{self.sample}')
+
+        if self.fcols is not None:
+            if self.fcols.endswith('feature_importance.csv'):
+                # fcols is filename to feature_importance.csv
+                # we select topk features from feature_importance.csv
+                fimps = pd.read_csv(self.fcols)
+                self.fcols = fimps.sort_values(by='importance', ascending=False).head(
+                    self.topk_features)['fname'].values.tolist()
+                self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
+            else:
+                # fcols is a list of feature names splited by ,
+                self.fcols = self.fcols.split(',')
+                self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
+            assert len(self.fcols) > 0, f'fcols is empty'
+        else:
+            self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, self.model_name)
+
+        
+        self.pipelines_dir = os.path.join(self.experiment_dir, 'pipelines')
+        if self.apx_training:
+            self.pipelines_dir = os.path.join(
+                self.pipelines_dir, f'sample_{self.sample}')
+        # self.pipeline_fpath = os.path.join(self.pipelines_dir, 'pipeline.pkl')
+
+        self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample == 0 else os.path.join(
+            self.experiment_dir, 'evals', f'sample_{self.sample}')
+        # self.outdir = self.experiment_dir if self.sample > 0 else os.path.join(self.experiment_dir, f'sample_{self.sample}')
+
 
         os.makedirs(self.feature_dir, exist_ok=True)
-        os.makedirs(self.outdir, exist_ok=True)
         os.makedirs(self.pipelines_dir, exist_ok=True)
+        os.makedirs(self.evals_dir, exist_ok=True)

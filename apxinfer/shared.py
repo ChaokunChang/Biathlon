@@ -93,11 +93,6 @@ def load_sql_templates(filename: str):
     return sql_templates
 
 
-def load_requests(filename: str):
-    df = pd.read_csv(filename)
-    return df
-
-
 def save_features(features: pd.DataFrame, feature_dir: str, output_name: str = 'features.csv'):
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
@@ -124,6 +119,52 @@ def approximation_rewrite(sql_template: str, sample: float):
         template = re.sub(
             r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', template)
         return template
+
+
+def get_query_feature_map(templates: list[str]):
+    query_feature_map = {}
+    feature_query_map = {}
+    for i, template in enumerate(templates):
+        # get the feature name, which is the last word after 'as' or 'AS'
+        features = re.findall(r'[as|AS]\s+(\w+)', template)
+        query_feature_map[i] = features
+        for feature in features:
+            assert feature not in feature_query_map
+            feature_query_map[feature] = i
+    return query_feature_map, feature_query_map
+
+
+class SQLTemplates:
+    def __init__(self) -> None:
+        self.templates: list[str] = None
+        self.q2f: dict = None
+        self.f2q: dict = None
+        pass
+
+    def from_file(self, input_file: str):
+        with open(input_file, 'r') as f:
+            self.templates = f.read().split(';')
+        # remove the comments in sql_template
+        self.templates = [re.sub(r'--.*', '', sql_template)
+                          for sql_template in self.templates]
+        self.templates = [sql_template.replace(r'\s+', ' ').strip()
+                          for sql_template in self.templates]
+        self.templates = [
+            sql_template for sql_template in self.templates if sql_template != '']
+        self.q2f, self.f2q = get_query_feature_map(self.templates)
+        return self
+
+    def make_apx_queries(self, samples: list[float]):
+        if samples is None or len(samples) == 0:
+            return self
+        else:
+            # repalce the table with table_w_samples SAMPLE {sample}
+            for i, sample in enumerate(samples):
+                assert sample > 0 and sample <= 1
+                assert 'SAMPLE' not in self.templates[i]
+                self.templates[i] = re.sub(
+                    r'[FROM|from]\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', self.templates[i])
+            return self
 
 
 class SimpleParser(Tap):
@@ -159,10 +200,10 @@ class SimpleParser(Tap):
         self.task_dir = os.path.join(self.data_dir, self.task)
         self.req_src = os.path.join(self.task_dir, 'requests.csv')
         self.label_src = os.path.join(self.task_dir, 'labels.csv')
-        
+
         if self.sql_templates_file is not None:
             self.sql_templates = load_sql_templates(self.sql_templates_file)
-        
+
         if self.sample > 0:
             # we need to rewrite the query to make it an approximate query
             self.sql_templates = [approximation_rewrite(
@@ -178,16 +219,18 @@ class SimpleParser(Tap):
                 fimps = pd.read_csv(self.fcols)
                 self.fcols = fimps.sort_values(by='importance', ascending=False).head(
                     self.topk_features)['fname'].values.tolist()
-                self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
+                self.experiment_dir = os.path.join(
+                    RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
             else:
                 # fcols is a list of feature names splited by ,
                 self.fcols = self.fcols.split(',')
-                self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
+                self.experiment_dir = os.path.join(
+                    RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
             assert len(self.fcols) > 0, f'fcols is empty'
         else:
-            self.experiment_dir = os.path.join(RESULTS_HOME, self.data, self.task, self.model_name)
+            self.experiment_dir = os.path.join(
+                RESULTS_HOME, self.data, self.task, self.model_name)
 
-        
         self.pipelines_dir = os.path.join(self.experiment_dir, 'pipelines')
         if self.apx_training:
             self.pipelines_dir = os.path.join(
@@ -197,7 +240,6 @@ class SimpleParser(Tap):
         self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample == 0 else os.path.join(
             self.experiment_dir, 'evals', f'sample_{self.sample}')
         # self.outdir = self.experiment_dir if self.sample > 0 else os.path.join(self.experiment_dir, f'sample_{self.sample}')
-
 
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.pipelines_dir, exist_ok=True)

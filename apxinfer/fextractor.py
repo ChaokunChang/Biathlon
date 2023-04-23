@@ -49,7 +49,7 @@ class FeatureExtractor:
 if __name__ == "__main__":
     args = SimpleParser().parse_args()
 
-    reqs = load_requests(args.req_src)
+    reqs = pd.read_csv(args.req_src)
 
     feature_dir = args.feature_dir
 

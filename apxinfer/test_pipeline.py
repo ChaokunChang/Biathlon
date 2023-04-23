@@ -1,13 +1,20 @@
 from pipeline import *
 
+def load_apx_pipeline(args: SimpleParser):
+    if args.sample > 0:
+        apx_pipe_dir = os.path.join(args.pipelines_dir, f'sample_{args.sample}')
+    else:
+        apx_pipe_dir = args.pipelines_dir
+    apx_pipe = load_pipeline(apx_pipe_dir, 'pipeline.pkl')
+    return apx_pipe
+
 if __name__ == "__main__":
     args = SimpleParser().parse_args()
     assert args.sample >= 0 and args.sample <= 1, 'sample rate must be in [0, 1]'
     assert args.apx_training == False, 'apx_training must be False'
 
     pipe = load_pipeline(args.pipelines_dir, 'pipeline.pkl')
-    apx_pipe = load_pipeline(os.path.join(
-        args.pipelines_dir, f'sample_{args.sample}'), 'pipeline.pkl') if args.sample > 0 else pipe
+    apx_pipe = load_apx_pipeline(args)
 
     test_X = pd.read_csv(os.path.join(args.pipelines_dir, 'test_X.csv'))
     test_y = pd.read_csv(os.path.join(args.pipelines_dir, 'test_y.csv'))

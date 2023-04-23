@@ -48,21 +48,22 @@ class FeatureExtractor:
 
 if __name__ == "__main__":
     args = SimpleParser().parse_args()
+    print(args)
 
     reqs = pd.read_csv(args.req_src)
 
     feature_dir = args.feature_dir
 
-    for i, sql_template in enumerate(args.sql_templates):
+    allfeas = []
+    for i, sql_template in enumerate(args.templator.templates):
         print(f'Extracting features with sql template: {sql_template}')
         extractor = FeatureExtractor(sql_template, key=args.keycol)
         features = extractor.extract_with_df(reqs, parallel=True)
         save_features(features, feature_dir,
                       output_name=f'{args.ffile_prefix}_{i}.csv')
-
-    # combine features in to one file, remove duplicate columns
-    features = pd.concat([pd.read_csv(os.path.join(
-        feature_dir, f'{args.ffile_prefix}_{i}.csv')) for i in range(len(args.sql_templates))], axis=1)
+        allfeas.append(features)
+    # merge features in to one file, remove duplicate columns
+    features = pd.concat(allfeas, axis=1)
     features = features.loc[:, ~features.columns.duplicated()]
     save_features(features, feature_dir,
                   output_name=f'{args.ffile_prefix}.csv')

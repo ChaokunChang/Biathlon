@@ -126,10 +126,12 @@ def get_query_feature_map(templates: list[str]):
     feature_query_map = {}
     for i, template in enumerate(templates):
         # get the feature name, which is the last word after 'as' or 'AS'
-        features = re.findall(r'[as|AS]\s+(\w+)', template)
+        features = re.findall(r'\s+as\s+(\w+)', template)
+        features += re.findall(r'\s+AS\s+(\w+)', template)
+        print(features)
         query_feature_map[i] = features
         for feature in features:
-            assert feature not in feature_query_map
+            assert feature not in feature_query_map, f'{feature} is duplicated'
             feature_query_map[feature] = i
     return query_feature_map, feature_query_map
 
@@ -154,17 +156,27 @@ class SQLTemplates:
         self.q2f, self.f2q = get_query_feature_map(self.templates)
         return self
 
-    def make_apx_queries(self, samples: list[float]):
-        if samples is None or len(samples) == 0:
-            return self
-        else:
+    def apx_transform(self, samples: list[float] | float = None):
+        if isinstance(samples, float):
+            samples = [samples] * len(self.templates)
+        if samples is not None and len(samples) > 0:
             # repalce the table with table_w_samples SAMPLE {sample}
             for i, sample in enumerate(samples):
-                assert sample > 0 and sample <= 1
-                assert 'SAMPLE' not in self.templates[i]
-                self.templates[i] = re.sub(
-                    r'[FROM|from]\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', self.templates[i])
-            return self
+                if (sample > 0 and sample <= 1):
+                    assert 'SAMPLE' not in self.templates[i]
+                    self.templates[i] = re.sub(
+                        r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', self.templates[i])
+                    self.templates[i] = re.sub(
+                        r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', self.templates[i])
+
+        return self
+
+
+def to_sample(string: str) -> Union[float, str]:
+    if string.startswith('auto'):
+        return string
+    else:
+        return float(string)
 
 
 class SimpleParser(Tap):
@@ -174,11 +186,13 @@ class SimpleParser(Tap):
     target: str = 'fare_amount'  # target column
     sort_by: str = 'pickup_datetime'  # sort by column
 
-    sql_templates: str = [sql_template_example]  # sql template
+    # sql_templates: str = [sql_template_example]  # sql template
+    templator: SQLTemplates = None  # sql template
     sql_templates_file: str = None  # sql templates file
     ffile_prefix = 'features'
 
-    sample: float = 0  # sample rate of sql query. default 0 means disable sampling
+    # sample rate of sql query. default 0 means disable sampling
+    sample: Union[float, str] = 0
     config: str = None  # config file
 
     random_state: int = 42  # random state
@@ -195,19 +209,18 @@ class SimpleParser(Tap):
 
     topk_features: int = 10  # top k features to show
 
+    def configure(self):
+        self.add_argument('--sample', type=to_sample)
+
     def process_args(self) -> None:
         self.data_dir = os.path.join(DATA_HOME, self.data)
         self.task_dir = os.path.join(self.data_dir, self.task)
         self.req_src = os.path.join(self.task_dir, 'requests.csv')
         self.label_src = os.path.join(self.task_dir, 'labels.csv')
 
-        if self.sql_templates_file is not None:
-            self.sql_templates = load_sql_templates(self.sql_templates_file)
-
-        if self.sample > 0:
-            # we need to rewrite the query to make it an approximate query
-            self.sql_templates = [approximation_rewrite(
-                sql_template, self.sample) for sql_template in self.sql_templates]
+        assert self.sql_templates_file is not None, 'sql_templates_file is required'
+        self.templator = SQLTemplates().from_file(self.sql_templates_file)
+        self.templator = self.templator.apx_transform([self.sample])
 
         self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample == 0 else os.path.join(
             self.task_dir, 'features', f'sample_{self.sample}')
@@ -235,11 +248,9 @@ class SimpleParser(Tap):
         if self.apx_training:
             self.pipelines_dir = os.path.join(
                 self.pipelines_dir, f'sample_{self.sample}')
-        # self.pipeline_fpath = os.path.join(self.pipelines_dir, 'pipeline.pkl')
 
         self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample == 0 else os.path.join(
             self.experiment_dir, 'evals', f'sample_{self.sample}')
-        # self.outdir = self.experiment_dir if self.sample > 0 else os.path.join(self.experiment_dir, f'sample_{self.sample}')
 
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.pipelines_dir, exist_ok=True)

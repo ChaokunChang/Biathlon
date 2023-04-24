@@ -268,3 +268,8 @@ class SimpleParser(Tap):
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.pipelines_dir, exist_ok=True)
         os.makedirs(self.evals_dir, exist_ok=True)
+
+
+if __name__ == "__main__":
+    args = SimpleParser().parse_args()
+    print(args)

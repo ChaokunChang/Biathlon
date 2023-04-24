@@ -39,7 +39,6 @@ cfg6="--data $data_name --task duration_prediction_2015-08-01_2015-08-15_10000 -
 cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
-cfg="$cfg $fcols"
 echo $cfg
 
 if [ $sample == -1 ]; then
@@ -48,6 +47,7 @@ if [ $sample == -1 ]; then
     exit 0
 fi
 
+cfg="$cfg $fcols"
 if [ $sample == 0 ]; then
     # feature extraction stage
     python $apxinfer_dir/fextractor.py $cfg
@@ -55,9 +55,13 @@ if [ $sample == 0 ]; then
     python $apxinfer_dir/test_pipeline.py $cfg
     exit 0
 else
-    # feature extraction stage
-    python $apxinfer_dir/fextractor.py $cfg --sample $sample
-    python $apxinfer_dir/pipeline.py $cfg
-    python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
-    python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
+    # if $sample starts with auto
+    if [[ $sample == auto* ]]; then
+        python $apxinfer_dir/test_auto_sampling.py $cfg --sample $sample
+    else
+        python $apxinfer_dir/fextractor.py $cfg --sample $sample
+        python $apxinfer_dir/pipeline.py $cfg
+        python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
+        python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
+    fi
 fi

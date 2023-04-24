@@ -332,12 +332,27 @@ def plot_hist_and_save(args: SimpleParser, data, fpath, title, xlabel, ylabel):
     plt.close()
 
 
-def nan_processing(df: pd.DataFrame, dropna):
+def nan_processing(df: pd.DataFrame, dropna=True) -> pd.DataFrame:
     if dropna:
         df = df.dropna()
     else:
         df = df.fillna(0)
     assert df.isna().sum().sum() == 0
+    return df
+
+
+def datetime_processing(df: pd.DataFrame, method='drop'):
+    # find the datetime cols
+    datetime_cols = [
+        col for col in df.columns if df[col].dtype == 'datetime64[ns]']
+    datetime_cols += [col for col in df.columns if df[col].dtype ==
+                      'object' and col.endswith('_datetime')]
+    if len(datetime_cols) == 0:
+        return df
+    if method == 'drop':
+        df = df.drop(columns=datetime_cols)
+    else:
+        raise ValueError(f'methods={method} not supported')
     return df
 
 
@@ -362,7 +377,7 @@ def load_labels(args: SimpleParser, kids=None) -> pd.DataFrame:
     return labels[[args.keycol, args.target]]
 
 
-def _feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
+def feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
     num_features = []
     cat_features = []
     dt_features = []
@@ -395,14 +410,18 @@ def _feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
     return num_features, cat_features, dt_features
 
 
-def _feature_ctype_inference(df: pd.DataFrame, keycol: str, target: str):
+def is_agg_feature(fname: str):
+    return fname.find('_') > 0 and fname.split('_', 1)[0] in SUPPORTED_AGGS
+
+
+def feature_ctype_inference(cols: list, keycol: str, target: str):
     agg_features = []
     nonagg_features = []
-    for col in df.columns:
+    for col in cols:
         if col == keycol or col == target:
             continue
         # if col starts with '{agg}_', where agg is in [count, avg, sum, var, std, min, max, median], it is an aggregated feature
-        if col.find('_') > 0 and col.split('_', 1)[0] in SUPPORTED_AGGS:
+        if is_agg_feature(col):
             agg_features.append(col)
         else:
             nonagg_features.append(col)
@@ -417,13 +436,13 @@ def feature_type_inference(df: pd.DataFrame, keycol: str, target: str):
                       'agg_features': [], 'nonagg_features': [],
                       'keycol': keycol, 'target': target,
                       }
-    num_features, cat_features, dt_features = _feature_dtype_inference(
+    num_features, cat_features, dt_features = feature_dtype_inference(
         df, keycol, target)
     typed_features['num_features'] = num_features
     typed_features['cat_features'] = cat_features
     typed_features['dt_features'] = dt_features
-    agg_features, nonagg_features = _feature_ctype_inference(
-        df, keycol, target)
+    agg_features, nonagg_features = feature_ctype_inference(
+        df.columns.to_list(), keycol, target)
     typed_features['agg_features'] = agg_features
     typed_features['nonagg_features'] = nonagg_features
     return typed_features
@@ -446,8 +465,7 @@ def build_pipeline(args: SimpleParser):
         args, dropna=True, sort_by=args.sort_by, cols=args.fcols)
     labels = load_labels(args, features[args.keycol].values.tolist())
 
-    Xy = pd.merge(features, labels, on=args.keycol).sort_values(
-        by=args.sort_by)
+    Xy = pd.merge(features, labels, on=args.keycol, how='left')
 
     typed_fnames = feature_type_inference(Xy, args.keycol, target=args.target)
 

@@ -109,15 +109,31 @@ def approximation_rewrite(sql_template: str, sample: float = None):
     if sample is None or sample == 0:
         return sql_template
     else:
-        # repalce the table with table_w_samples SAMPLE {sample}
         assert sample > 0 and sample <= 1
         assert 'SAMPLE' not in sql_template
-        # assert 'FROM' in sql_template
+        # repalce the 'from table' and 'FROM table' with 'FROM table_w_samples SAMPLE {sample}'
         template = re.sub(
             r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', sql_template)
-        # FROM could also be from
         template = re.sub(
             r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', template)
+
+        scale = 1 / sample
+        # replace the count(*) with count(*) * {scale}
+        template = re.sub(
+            r'count\(\*\)', fr'count(*) * {scale}', template)
+        # replace the count(col) with count(col) * {scale}
+        template = re.sub(
+            r'count\((\w+)\)', fr'count(\1) * {scale}', template)
+        # replace the sum(col) with sum(col) * {scale}
+        template = re.sub(
+            r'sum\((\w+)\)', fr'sum(\1) * {scale}', template)
+        # replace the varPop(col) with varSamp(col)
+        template = re.sub(
+            r'varPop\((\w+)\)', fr'varSamp(\1)', template)
+        # replace the stddevPop(col) with stddevSamp(col)
+        template = re.sub(
+            r'stddevPop\((\w+)\)', fr'stddevSamp(\1)', template)
+
         return template
 
 
@@ -164,13 +180,8 @@ class SQLTemplates:
         if len(samples) > 0:
             # repalce the table with table_w_samples SAMPLE {sample}
             for i, sample in enumerate(samples):
-                if (sample > 0 and sample <= 1):
-                    assert 'SAMPLE' not in self.templates[i]
-                    self.templates[i] = re.sub(
-                        r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', self.templates[i])
-                    self.templates[i] = re.sub(
-                        r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', self.templates[i])
-
+                self.templates[i] = approximation_rewrite(
+                    self.templates[i], sample)
         return self
 
 
@@ -222,7 +233,8 @@ class SimpleParser(Tap):
 
         assert self.sql_templates_file is not None, 'sql_templates_file is required'
         self.templator = SQLTemplates().from_file(self.sql_templates_file)
-        self.templator = self.templator.apx_transform(self.sample)
+        if isinstance(self.sample, float):
+            self.templator = self.templator.apx_transform(self.sample)
 
         self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample is None else os.path.join(
             self.task_dir, 'features', f'sample_{self.sample}')

@@ -46,24 +46,28 @@ class FeatureExtractor:
         return features
 
 
-if __name__ == "__main__":
-    args = SimpleParser().parse_args()
-    print(args)
-
-    reqs = load_from_csv(args.task_dir, 'requests.csv')
-
-    feature_dir = args.feature_dir
+def extract(task_dir: str, feature_dir: str, ffile_prefix: str, keycol: str, sql_templates: str):
+    reqs = load_from_csv(task_dir, 'requests.csv')
 
     allfeas = []
-    for i, sql_template in enumerate(args.templator.templates):
+    for i, sql_template in enumerate(sql_templates):
         print(f'Extracting features with sql template: {sql_template}')
-        extractor = FeatureExtractor(sql_template, key=args.keycol)
+        extractor = FeatureExtractor(sql_template, key=keycol)
         features = extractor.extract_with_df(reqs, parallel=True)
         save_to_csv(features, feature_dir,
-                      output_name=f'{args.ffile_prefix}_{i}.csv')
+                    output_name=f'{ffile_prefix}_{i}.csv')
         allfeas.append(features)
     # merge features in to one file, remove duplicate columns
     features = pd.concat(allfeas, axis=1)
     features = features.loc[:, ~features.columns.duplicated()]
-    save_to_csv(features, feature_dir,
-                  output_name=f'{args.ffile_prefix}.csv')
+    save_to_csv(features, feature_dir, output_name=f'{ffile_prefix}.csv')
+    return features
+
+
+if __name__ == "__main__":
+    args = SimpleParser().parse_args()
+    assert args.sample is None or isinstance(args.sample, float)
+    print(args)
+
+    extract(args.task_dir, args.feature_dir, args.ffile_prefix,
+            args.keycol, args.templator.templates)

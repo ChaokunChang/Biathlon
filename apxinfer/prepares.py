@@ -45,8 +45,8 @@ def prepare_fare_prediction(args: PrepareParser):
     reqs = df[[args.keycol] + fcols]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 def prepare_duration_prediction(args: PrepareParser):
@@ -86,8 +86,8 @@ def prepare_duration_prediction(args: PrepareParser):
     reqs = df[[args.keycol] + fcols]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 def prepare_dayofweek(args: PrepareParser):
@@ -106,8 +106,8 @@ def prepare_dayofweek(args: PrepareParser):
     reqs = df[[args.keycol]]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 def prepare_is_weekend(args: PrepareParser):
@@ -130,8 +130,8 @@ def prepare_is_weekend(args: PrepareParser):
     reqs = df[[args.keycol]]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 def prepare_hourofday(args: PrepareParser):
@@ -150,8 +150,8 @@ def prepare_hourofday(args: PrepareParser):
     reqs = df[[args.keycol]]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 def prepare_is_night(args: PrepareParser):
@@ -174,8 +174,8 @@ def prepare_is_night(args: PrepareParser):
     reqs = df[[args.keycol]]
     labels = df[[args.keycol, args.target]]
 
-    save_features(reqs, args.task_dir, 'requests.csv')
-    save_features(labels, args.task_dir, 'labels.csv')
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
 if __name__ == "__main__":

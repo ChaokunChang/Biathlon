@@ -2,8 +2,8 @@ from shared import *
 set_config(transform_output='pandas')
 
 
-def apx_value_estimation(df: pd.DataFrame, apx_cols: list, sampling_rate: float):
-    if sampling_rate == 0:
+def apx_value_estimation(df: pd.DataFrame, apx_cols: list, sampling_rate: float = None):
+    if sampling_rate is None or sampling_rate == 0:
         return df
     count_names = [x for x in apx_cols if x.startswith('count_')]
     sum_names = [x for x in apx_cols if x.startswith('sum_')]
@@ -332,29 +332,6 @@ def plot_hist_and_save(args: SimpleParser, data, fpath, title, xlabel, ylabel):
     plt.close()
 
 
-def load_from_csv(fpath: str, keycol: str, kids=None, sort_by=None) -> pd.DataFrame:
-    df = pd.read_csv(fpath)
-    if kids is not None:
-        df = df[df[keycol].isin(kids)]
-    if sort_by is not None:
-        df = df.sort_values(by=sort_by)
-    return df
-
-
-def load_features(args: SimpleParser, kids=None, sort_by=None):
-    features = load_from_csv(os.path.join(
-        args.feature_dir, f'{args.ffile_prefix}.csv'), args.keycol, kids, None)
-    if sort_by is not None:
-        features = features.sort_values(by=sort_by)
-    return features
-
-
-def load_labels(args: SimpleParser, kids=None):
-    labels = load_from_csv(args.label_src, args.keycol, kids, None)
-    assert labels.isna().sum().sum() == 0, f'labels contains NaN'
-    return labels[[args.keycol, args.target]]
-
-
 def nan_processing(df: pd.DataFrame, dropna):
     if dropna:
         df = df.dropna()
@@ -362,6 +339,27 @@ def nan_processing(df: pd.DataFrame, dropna):
         df = df.fillna(0)
     assert df.isna().sum().sum() == 0
     return df
+
+
+def load_features(args: SimpleParser, dropna=True, sort_by=None, kids=None, cols=None) -> pd.DataFrame:
+    features = load_from_csv(args.feature_dir, f'{args.ffile_prefix}.csv')
+    if kids is not None:
+        features = features[features[args.keycol].isin(kids)]
+    if sort_by is not None:
+        features = features.sort_values(by=sort_by)
+    if cols is not None:
+        cols = [args.keycol] + cols if args.keycol not in cols else cols
+        features = features[cols]
+    features = nan_processing(features, dropna)
+    return features
+
+
+def load_labels(args: SimpleParser, kids=None) -> pd.DataFrame:
+    labels = load_from_csv(args.task_dir, f'labels.csv')
+    if kids is not None:
+        labels = labels[labels[args.keycol].isin(kids)]
+    assert labels.isna().sum().sum() == 0, f'labels contains NaN'
+    return labels[[args.keycol, args.target]]
 
 
 def _feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
@@ -442,16 +440,14 @@ def save_pipeline(pipe: Pipeline, pipe_dir: str, output_name: str = 'pipeline.pk
 
 
 def build_pipeline(args: SimpleParser):
-    assert args.apx_training or args.sample == 0, 'either apx_training or sample must not be set'
+    assert args.apx_training or args.sample is None, 'either apx_training or sample must not be set'
 
-    features = load_features(args, sort_by=args.sort_by)
-    features = nan_processing(features, dropna=True)
+    features = load_features(
+        args, dropna=True, sort_by=args.sort_by, cols=args.fcols)
     labels = load_labels(args, features[args.keycol].values.tolist())
 
     Xy = pd.merge(features, labels, on=args.keycol).sort_values(
         by=args.sort_by)
-    if args.fcols is not None:
-        Xy = Xy[[args.keycol, args.target] + args.fcols]
 
     typed_fnames = feature_type_inference(Xy, args.keycol, target=args.target)
 
@@ -463,9 +459,9 @@ def build_pipeline(args: SimpleParser):
         test_size=args.model_test_size, random_state=args.random_state, shuffle=args.split_shuffle)
 
     # save test X, y, kids
-    save_features(X_test, args.pipelines_dir, 'test_X.csv')
-    save_features(y_test, args.pipelines_dir, 'test_y.csv')
-    save_features(kids_test, args.pipelines_dir, 'test_kids.csv')
+    save_to_csv(X_test, args.pipelines_dir, 'test_X.csv')
+    save_to_csv(y_test, args.pipelines_dir, 'test_y.csv')
+    save_to_csv(kids_test, args.pipelines_dir, 'test_kids.csv')
 
     model = create_model(args)
     pipe = Pipeline([
@@ -482,7 +478,7 @@ def build_pipeline(args: SimpleParser):
 
     fcols = X_train.columns.tolist()
     fimps = get_feature_importance(args, pipe, X_train, y_train, fcols)
-    save_features(fimps, args.pipelines_dir, 'feature_importance.csv')
+    save_to_csv(fimps, args.pipelines_dir, 'feature_importance.csv')
 
     topk_fnames = fimps.sort_values(by='importance', ascending=False).head(
         args.topk_features)['fname'].values.tolist()
@@ -495,7 +491,7 @@ def build_pipeline(args: SimpleParser):
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)
     print(evals_df)
-    save_features(evals_df, args.pipelines_dir, 'evals.csv')
+    save_to_csv(evals_df, args.pipelines_dir, 'evals.csv')
 
     plot_hist_and_save(args, y_train, os.path.join(
         args.experiment_dir, 'y_train.png'), 'y_train', 'y', 'count')

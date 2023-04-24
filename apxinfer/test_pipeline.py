@@ -1,16 +1,19 @@
 from pipeline import *
 
+
 def load_apx_pipeline(args: SimpleParser):
-    if args.sample > 0:
-        apx_pipe_dir = os.path.join(args.pipelines_dir, f'sample_{args.sample}')
+    if args.sample is not None:
+        apx_pipe_dir = os.path.join(
+            args.pipelines_dir, f'sample_{args.sample}')
     else:
         apx_pipe_dir = args.pipelines_dir
     apx_pipe = load_pipeline(apx_pipe_dir, 'pipeline.pkl')
     return apx_pipe
 
+
 if __name__ == "__main__":
     args = SimpleParser().parse_args()
-    assert args.sample >= 0 and args.sample <= 1, 'sample rate must be in [0, 1]'
+    # assert args.sample >= 0 and args.sample <= 1, 'sample rate must be in [0, 1]'
     assert args.apx_training == False, 'apx_training must be False'
 
     pipe = load_pipeline(args.pipelines_dir, 'pipeline.pkl')
@@ -21,8 +24,7 @@ if __name__ == "__main__":
     test_kids = pd.read_csv(os.path.join(args.pipelines_dir, 'test_kids.csv'))
 
     apx_features = load_features(
-        args, kids=test_kids.values.flatten().tolist())
-    apx_features = nan_processing(apx_features, dropna=False)
+        args, dropna=False, kids=test_kids.values.flatten().tolist(), cols=args.fcols)
     typed_fnames = feature_type_inference(
         apx_features, args.keycol, target=args.target)
 
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)
     print(evals_df)
-    save_features(evals_df, args.evals_dir, 'evals.csv')
+    save_to_csv(evals_df, args.evals_dir, 'evals.csv')
     plot_hist_and_save(args, pipe.predict(apx_X), os.path.join(
         args.evals_dir, 'apx_y_test_pred.png'), 'apx_y_test_pred', 'y', 'count')
     plot_hist_and_save(args, pipe.predict(exp_X), os.path.join(

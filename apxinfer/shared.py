@@ -93,20 +93,20 @@ def load_sql_templates(filename: str):
     return sql_templates
 
 
-def save_features(features: pd.DataFrame, feature_dir: str, output_name: str = 'features.csv'):
+def save_to_csv(features: pd.DataFrame, feature_dir: str, output_name: str = 'features.csv'):
     if not os.path.exists(feature_dir):
         os.makedirs(feature_dir)
     features.to_csv(os.path.join(feature_dir, output_name), index=False)
     return None
 
 
-def load_features(feature_dir: str, input_name: str = 'features.csv') -> pd.DataFrame:
+def load_from_csv(feature_dir: str, input_name: str = 'features.csv') -> pd.DataFrame:
     features = pd.read_csv(os.path.join(feature_dir, input_name))
     return features
 
 
-def approximation_rewrite(sql_template: str, sample: float):
-    if sample == 0:
+def approximation_rewrite(sql_template: str, sample: float = None):
+    if sample is None or sample == 0:
         return sql_template
     else:
         # repalce the table with table_w_samples SAMPLE {sample}
@@ -128,7 +128,7 @@ def get_query_feature_map(templates: list[str]):
         # get the feature name, which is the last word after 'as' or 'AS'
         features = re.findall(r'\s+as\s+(\w+)', template)
         features += re.findall(r'\s+AS\s+(\w+)', template)
-        print(features)
+        # print(features)
         query_feature_map[i] = features
         for feature in features:
             assert feature not in feature_query_map, f'{feature} is duplicated'
@@ -157,9 +157,11 @@ class SQLTemplates:
         return self
 
     def apx_transform(self, samples: list[float] | float = None):
+        if samples is None:
+            return self
         if isinstance(samples, float):
             samples = [samples] * len(self.templates)
-        if samples is not None and len(samples) > 0:
+        if len(samples) > 0:
             # repalce the table with table_w_samples SAMPLE {sample}
             for i, sample in enumerate(samples):
                 if (sample > 0 and sample <= 1):
@@ -192,7 +194,7 @@ class SimpleParser(Tap):
     ffile_prefix = 'features'
 
     # sample rate of sql query. default 0 means disable sampling
-    sample: Union[float, str] = 0
+    sample: Union[float, str] = None
     config: str = None  # config file
 
     random_state: int = 42  # random state
@@ -220,23 +222,30 @@ class SimpleParser(Tap):
 
         assert self.sql_templates_file is not None, 'sql_templates_file is required'
         self.templator = SQLTemplates().from_file(self.sql_templates_file)
-        self.templator = self.templator.apx_transform([self.sample])
+        self.templator = self.templator.apx_transform(self.sample)
 
-        self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample == 0 else os.path.join(
+        self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample is None else os.path.join(
             self.task_dir, 'features', f'sample_{self.sample}')
 
         if self.fcols is not None:
             if self.fcols.endswith('feature_importance.csv'):
                 # fcols is filename to feature_importance.csv
                 # we select topk features from feature_importance.csv
-                fimps = pd.read_csv(self.fcols)
-                self.fcols = fimps.sort_values(by='importance', ascending=False).head(
-                    self.topk_features)['fname'].values.tolist()
+                fimps_df = pd.read_csv(self.fcols)
+                topkfimps = fimps_df.sort_values(
+                    by='importance', ascending=False).head(self.topk_features)
+                self.fcols = topkfimps['fname'].values.tolist()
+                self.fimps = topkfimps['importance'].values.tolist()
                 self.experiment_dir = os.path.join(
                     RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
             else:
-                # fcols is a list of feature names splited by ,
-                self.fcols = self.fcols.split(',')
+                # fcols is a list of feature names and imps splited by ,
+                # each element will be fname:fimp
+                self.fcols_imps = self.fcols.split(',')
+                self.fcols = [fcol_imp.split(':')[0]
+                              for fcol_imp in self.fcols_imps]
+                self.fimps = [float(fcol_imp.split(':')[1]) if len(
+                    fcol_imp.split(':')) > 1 else 0.0 for fcol_imp in self.fcols_imps]
                 self.experiment_dir = os.path.join(
                     RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
             assert len(self.fcols) > 0, f'fcols is empty'
@@ -244,13 +253,17 @@ class SimpleParser(Tap):
             self.experiment_dir = os.path.join(
                 RESULTS_HOME, self.data, self.task, self.model_name)
 
+        self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample is None else os.path.join(
+            self.experiment_dir, 'evals', f'sample_{self.sample}')
+
+        # pipelines_dir stores the built pipelines
+        # for pipeline built with exact features, store in pipelines_dir
         self.pipelines_dir = os.path.join(self.experiment_dir, 'pipelines')
         if self.apx_training:
+            # for pipeline built with approximate features, store in pipelines_dir/sample_{sample}
+            assert self.sample is not None, 'sample is required for apx_training'
             self.pipelines_dir = os.path.join(
                 self.pipelines_dir, f'sample_{self.sample}')
-
-        self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample == 0 else os.path.join(
-            self.experiment_dir, 'evals', f'sample_{self.sample}')
 
         os.makedirs(self.feature_dir, exist_ok=True)
         os.makedirs(self.pipelines_dir, exist_ok=True)

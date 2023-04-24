@@ -1,9 +1,21 @@
+# make sure we have at least three arguments cfgid, model, and sample
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 cfgid model sample"
+    echo "cfgid: 1-6"
+    echo "model: lgbm, mlp, xgb, rf, etc"
+    echo "sample: 0.001, 0.01, 0.1, 0.5, etc"
+    exit 1
+fi
+
 cfgid=$1
-# if we have two args, then set model as the second arg, otherwise use default
-if [ $# -eq 2 ]; then
-    model=$2
+model=$2
+sample=$3
+
+# if we have the forth argument, it will be fcols option
+if [ $# -eq 4 ]; then
+    fcols="--fcols $4"
 else
-    model="lgbm"
+    fcols=""
 fi
 
 cur_dir=$(pwd)
@@ -27,21 +39,25 @@ cfg6="--data $data_name --task duration_prediction_2015-08-01_2015-08-15_10000 -
 cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
+cfg="$cfg $fcols"
 echo $cfg
 
-# python $apxinfer_dir/prepares.py $cfg
+if [ $sample == -1 ]; then
+    # prepare stage
+    python $apxinfer_dir/prepares.py $cfg
+    exit 0
+fi
 
-# python $apxinfer_dir/fextractor.py $cfg --sample 0
-# python $apxinfer_dir/fextractor.py $cfg --sample 0.01
-# python $apxinfer_dir/fextractor.py $cfg --sample 0.1
-# python $apxinfer_dir/fextractor.py $cfg --sample 0.5
-
-# python $apxinfer_dir/pipeline.py $cfg 
-# python $apxinfer_dir/pipeline.py $cfg --sample 0.01 --apx_training
-# python $apxinfer_dir/pipeline.py $cfg --sample 0.1 --apx_training
-# python $apxinfer_dir/pipeline.py $cfg --sample 0.5 --apx_training
-
-# python $apxinfer_dir/test_pipeline.py $cfg --sample 0.01
-# python $apxinfer_dir/test_pipeline.py $cfg --sample 0.2
-python $apxinfer_dir/test_pipeline.py $cfg --sample 0.5
-# python $apxinfer_dir/test_pipeline.py $cfg
+if [ $sample == 0 ]; then
+    # feature extraction stage
+    python $apxinfer_dir/fextractor.py $cfg
+    python $apxinfer_dir/pipeline.py $cfg
+    python $apxinfer_dir/test_pipeline.py $cfg
+    exit 0
+else
+    # feature extraction stage
+    python $apxinfer_dir/fextractor.py $cfg --sample $sample
+    python $apxinfer_dir/pipeline.py $cfg
+    python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
+    python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
+fi

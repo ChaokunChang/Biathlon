@@ -1,18 +1,20 @@
 # make sure we have at least three arguments cfgid, model, and sample
-if [ $# -lt 3 ]; then
+if [ $# -lt 4 ]; then
     echo "Usage: $0 cfgid model sample"
     echo "cfgid: 1-6"
     echo "model: lgbm, mlp, xgb, rf, etc"
     echo "sample: 0.001, 0.01, 0.1, 0.5, etc"
+    echo "mode: build, test"
     exit 1
 fi
 
 cfgid=$1
 model=$2
 sample=$3
+mode=$4
 
 # if we have the forth argument, it will be fcols option
-if [ $# -eq 4 ]; then
+if [ $# -eq 5 ]; then
     fcols="--fcols $4"
 else
     fcols=""
@@ -50,20 +52,25 @@ fi
 
 cfg="$cfg $fcols"
 if [ $sample == 0 ]; then
-    # feature extraction stage
-    python $apxinfer_dir/fextractor.py $cfg
-    python $apxinfer_dir/pipeline.py $cfg
-    python $apxinfer_dir/test_pipeline.py $cfg
-    exit 0
+    if [ $mode == "build" ]; then
+        # feature extraction stage
+        python $apxinfer_dir/fextractor.py $cfg
+        python $apxinfer_dir/pipeline.py $cfg
+    else
+        python $apxinfer_dir/test_pipeline.py $cfg
+    fi
 else
     # if $sample starts with auto
     if [[ $sample == auto* ]]; then
         echo "run with auto"
         python $apxinfer_dir/test_auto_sampling.py $cfg --sample $sample
     else
-        python $apxinfer_dir/fextractor.py $cfg --sample $sample
-        python $apxinfer_dir/pipeline.py $cfg
-        python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
-        python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
+        if [ $mode == "build" ]; then
+            python $apxinfer_dir/fextractor.py $cfg --sample $sample
+            python $apxinfer_dir/pipeline.py $cfg
+            python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
+        else
+            python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
+        fi
     fi
 fi

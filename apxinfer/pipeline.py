@@ -2,18 +2,6 @@ from shared import *
 set_config(transform_output='pandas')
 
 
-def apx_value_estimation(df: pd.DataFrame, apx_cols: list, sampling_rate: float = None):
-    if sampling_rate is None or sampling_rate == 0:
-        return df
-    count_names = [x for x in apx_cols if x.startswith('count_')]
-    sum_names = [x for x in apx_cols if x.startswith('sum_')]
-    df[count_names] = df[count_names].apply(
-        lambda x: x/sampling_rate, axis=0)
-    df[sum_names] = df[sum_names].apply(
-        lambda x: x/sampling_rate, axis=0)
-    return df
-
-
 def _create_regressor(args: SimpleParser):
     if args.model_name == 'lgbm':
         lgb_params = {
@@ -212,12 +200,13 @@ def _get_feature_importance(pipe: Pipeline, X, y):
         raise ValueError("model name not supported")
 
 
-def get_feature_importance(pipe: Pipeline, X:pd.DataFrame, y) -> pd.DataFrame:
+def get_feature_importance(pipe: Pipeline, X: pd.DataFrame, y) -> pd.DataFrame:
     fnames, imps = _get_feature_importance(pipe, X, y)
     fimps = pd.DataFrame({'feature': fnames, 'importance': imps})
 
     fcols = X.columns.to_list()
     # note that the fnames may contain derived features, thus different with fcols
+
     def _get_fname(x):
         # we use this function to get the pipline input fname
         # given the model input fname
@@ -364,7 +353,7 @@ def datetime_processing(df: pd.DataFrame, method='drop'):
     return df
 
 
-def load_features(args: SimpleParser, dropna=True, sort_by:str=None, kids=None, cols=None) -> pd.DataFrame:
+def load_features(args: SimpleParser, dropna=True, sort_by: str = None, kids=None, cols=None) -> pd.DataFrame:
     features = load_from_csv(args.feature_dir, f'{args.ffile_prefix}.csv')
     if kids is not None:
         features = features[features[args.keycol].isin(kids)]
@@ -385,75 +374,9 @@ def load_labels(args: SimpleParser, kids=None) -> pd.DataFrame:
     return labels[[args.keycol, args.target]]
 
 
-def feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
-    num_features = []
-    cat_features = []
-    dt_features = []
-    for col in df.columns:
-        if col == keycol or col == target:
-            continue
-        dtype = df[col].dtype
-        if dtype == 'object':
-            if 'datetime' in col:
-                dt_features.append(col)
-            else:
-                cat_features.append(col)
-        elif dtype == 'int64' or dtype == 'float64':
-            # for low cardinality, treat as categorical
-            if df[col].nunique() < 10:
-                # if the col is aggregation feature, treat it as numerical and warn
-                if col.find('_') > 0 and col.split('_', 1)[0] in SUPPORTED_AGGS:
-                    print(
-                        f'WARNING: col={col} is low cardinality, but it is an aggregation feature, treat it as numerical')
-                    num_features.append(col)
-                else:
-                    cat_features.append(col)
-            else:
-                num_features.append(col)
-        else:
-            raise Exception(f'Unknown dtype={dtype} for col={col}')
-    # print(f'feature_type_inference: num_features={num_features}')
-    # print(f'feature_type_inference: dt_features={dt_features}')
-    print(f'feature_type_inference: cat_features={cat_features}')
-    return num_features, cat_features, dt_features
-
-
-def is_agg_feature(fname: str):
-    return fname.find('_') > 0 and fname.split('_', 1)[0] in SUPPORTED_AGGS
-
-
-def feature_ctype_inference(cols: list, keycol: str, target: str):
-    agg_features = []
-    nonagg_features = []
-    for col in cols:
-        if col == keycol or col == target:
-            continue
-        # if col starts with '{agg}_', where agg is in [count, avg, sum, var, std, min, max, median], it is an aggregated feature
-        if is_agg_feature(col):
-            agg_features.append(col)
-        else:
-            nonagg_features.append(col)
-    # print(f'feature_type_inference: agg_features={agg_features}')
-    print(f'feature_type_inference: nonagg_features={nonagg_features}')
-    return agg_features, nonagg_features
-
-
-def feature_type_inference(df: pd.DataFrame, keycol: str, target: str):
-    # print(f'feature_type_inference: df.columns={df.columns}')
-    typed_features = {'num_features': [], 'cat_features': [], 'dt_features': [],
-                      'agg_features': [], 'nonagg_features': [],
-                      'keycol': keycol, 'target': target,
-                      }
-    num_features, cat_features, dt_features = feature_dtype_inference(
-        df, keycol, target)
-    typed_features['num_features'] = num_features
-    typed_features['cat_features'] = cat_features
-    typed_features['dt_features'] = dt_features
-    agg_features, nonagg_features = feature_ctype_inference(
-        df.columns.to_list(), keycol, target)
-    typed_features['agg_features'] = agg_features
-    typed_features['nonagg_features'] = nonagg_features
-    return typed_features
+def save_pipeline(pipe: Pipeline, pipe_dir: str, output_name: str = 'pipeline.pkl'):
+    joblib.dump(pipe, os.path.join(pipe_dir, output_name))
+    return None
 
 
 def load_pipeline(pipe_dir: str, input_name: str = 'pipeline.pkl') -> Pipeline:
@@ -461,9 +384,14 @@ def load_pipeline(pipe_dir: str, input_name: str = 'pipeline.pkl') -> Pipeline:
     return joblib.load(fpath)
 
 
-def save_pipeline(pipe: Pipeline, pipe_dir: str, output_name: str = 'pipeline.pkl'):
-    joblib.dump(pipe, os.path.join(pipe_dir, output_name))
-    return None
+def load_apx_pipeline(pipelines_dir, sample):
+    if sample is not None:
+        apx_pipe_dir = os.path.join(
+            pipelines_dir, f'sample_{sample}')
+    else:
+        apx_pipe_dir = pipelines_dir
+    apx_pipe = load_pipeline(apx_pipe_dir, 'pipeline.pkl')
+    return apx_pipe
 
 
 def build_pipeline(args: SimpleParser):
@@ -472,13 +400,8 @@ def build_pipeline(args: SimpleParser):
     features = load_features(
         args, dropna=True, sort_by=args.sort_by, cols=args.fcols)
     labels = load_labels(args, features[args.keycol].values.tolist())
-
     Xy = pd.merge(features, labels, on=args.keycol, how='left')
-
-    typed_fnames = feature_type_inference(Xy, args.keycol, target=args.target)
-
-    Xy = apx_value_estimation(Xy, typed_fnames['agg_features'], args.sample)
-    Xy.drop(columns=typed_fnames['dt_features'], inplace=True)
+    Xy = datetime_processing(Xy, 'drop')
 
     X_train, X_test, y_train, y_test, kids_train, kids_test = train_test_split(Xy.drop(
         columns=[args.target]), Xy[args.target], Xy[args.keycol],
@@ -489,6 +412,7 @@ def build_pipeline(args: SimpleParser):
     save_to_csv(y_test, args.pipelines_dir, 'test_y.csv')
     save_to_csv(kids_test, args.pipelines_dir, 'test_kids.csv')
 
+    typed_fnames = feature_type_inference(Xy, args.keycol, target=args.target)
     model = create_model(args)
     pipe = Pipeline([
         ('preprocessor', ColumnTransformer([
@@ -502,13 +426,17 @@ def build_pipeline(args: SimpleParser):
     pipe.fit(X_train, y_train)
     save_pipeline(pipe, args.pipelines_dir, 'pipeline.pkl')
 
+    # save the feature importance along with pipeline,
+    # it will be used to compute query sample size during test
     fimps = get_feature_importance(pipe, X_train, y_train)
     save_to_csv(fimps, args.pipelines_dir, 'feature_importance.csv')
 
+    # print the topk importance feature
     topk_fnames = fimps.sort_values(by='importance', ascending=False).head(
         args.topk_features)['fname'].values.tolist()
     print(f'topk importanct fnames: {topk_fnames}')
 
+    # collect evaluations
     evals = []
     evals.append(evaluate_pipeline(args, pipe, X_train, y_train, 'train'))
     evals.append(evaluate_pipeline(args, pipe, X_test, y_test, 'test'))
@@ -518,6 +446,7 @@ def build_pipeline(args: SimpleParser):
     print(evals_df)
     save_to_csv(evals_df, args.pipelines_dir, 'evals.csv')
 
+    # visualize the prediction results
     plot_hist_and_save(args, y_train, os.path.join(
         args.experiment_dir, 'y_train.png'), 'y_train', 'y', 'count')
     plot_hist_and_save(args, y_test, os.path.join(
@@ -534,4 +463,3 @@ if __name__ == '__main__':
     args = SimpleParser().parse_args()
     # print(args)
     pipe = build_pipeline(args)
-    # print(pipe)

@@ -49,36 +49,76 @@ LOG_DIR: str = os.path.join(HOME_DIR, 'logs')  # log home
 
 SUPPORTED_AGGS = ['count', 'sum', 'avg', 'min', 'max', 'median', 'var', 'std']
 
-sql_template_example = """
-SELECT 
-count(*) as count_1h, 
-avg(trip_duration) as avg_trip_duration_1h, 
-avg(trip_distance) as avg_trip_distance_1h, 
-avg(fare_amount) as avg_fare_amount_1h, 
-avg(tip_amount) as avg_tip_amount_1h, 
-stddevPop(trip_duration) as std_trip_duration_1h, 
-stddevPop(trip_distance) as std_trip_distance_1h, 
-stddevPop(fare_amount) as std_fare_amount_1h, 
-stddevPop(tip_amount) as std_tip_amount_1h, 
-min(trip_duration) as min_trip_duration_1h, 
-min(trip_distance) as min_trip_distance_1h, 
-min(fare_amount) as min_fare_amount_1h, 
-min(tip_amount) as min_tip_amount_1h, 
-max(trip_duration) as max_trip_duration_1h, 
-max(trip_distance) as max_trip_distance_1h, 
-max(fare_amount) as max_fare_amount_1h, 
-max(tip_amount) as max_tip_amount_1h, 
-median(trip_duration) as median_trip_duration_1h, 
-median(trip_distance) as median_trip_distance_1h, 
-median(fare_amount) as median_fare_amount_1h, 
-median(tip_amount) as median_tip_amount_1h 
-FROM trips 
-WHERE (pickup_datetime >= (toDateTime('{pickup_datetime}') - toIntervalHour(1))) 
-AND (pickup_datetime < '{pickup_datetime}') 
-AND (dropoff_datetime <= '{pickup_datetime}') 
-AND (passenger_count = {passenger_count}) 
-AND (pickup_ntaname = '{pickup_ntaname}') 
-"""
+
+def is_agg_feature(fname: str):
+    return fname.find('_') > 0 and fname.split('_', 1)[0] in SUPPORTED_AGGS
+
+
+def feature_dtype_inference(df: pd.DataFrame, keycol: str, target: str):
+    num_features = []
+    cat_features = []
+    dt_features = []
+    for col in df.columns:
+        if col == keycol or col == target:
+            continue
+        dtype = df[col].dtype
+        if dtype == 'object':
+            if 'datetime' in col:
+                dt_features.append(col)
+            else:
+                cat_features.append(col)
+        elif dtype == 'int64' or dtype == 'float64':
+            # for low cardinality, treat as categorical
+            if df[col].nunique() < 10:
+                # if the col is aggregation feature, treat it as numerical and warn
+                if is_agg_feature(col):
+                    print(
+                        f'WARNING: col={col} is low cardinality, but it is an aggregation feature, treat it as numerical')
+                    num_features.append(col)
+                else:
+                    cat_features.append(col)
+            else:
+                num_features.append(col)
+        else:
+            raise Exception(f'Unknown dtype={dtype} for col={col}')
+    # print(f'feature_type_inference: num_features={num_features}')
+    # print(f'feature_type_inference: dt_features={dt_features}')
+    print(f'feature_type_inference: cat_features={cat_features}')
+    return num_features, cat_features, dt_features
+
+
+def feature_ctype_inference(cols: list, keycol: str, target: str):
+    agg_features = []
+    nonagg_features = []
+    for col in cols:
+        if col == keycol or col == target:
+            continue
+        # if col starts with '{agg}_', where agg is in [count, avg, sum, var, std, min, max, median], it is an aggregated feature
+        if is_agg_feature(col):
+            agg_features.append(col)
+        else:
+            nonagg_features.append(col)
+    # print(f'feature_type_inference: agg_features={agg_features}')
+    print(f'feature_type_inference: nonagg_features={nonagg_features}')
+    return agg_features, nonagg_features
+
+
+def feature_type_inference(df: pd.DataFrame, keycol: str, target: str):
+    # print(f'feature_type_inference: df.columns={df.columns}')
+    typed_features = {'num_features': [], 'cat_features': [], 'dt_features': [],
+                      'agg_features': [], 'nonagg_features': [],
+                      'keycol': keycol, 'target': target,
+                      }
+    num_features, cat_features, dt_features = feature_dtype_inference(
+        df, keycol, target)
+    typed_features['num_features'] = num_features
+    typed_features['cat_features'] = cat_features
+    typed_features['dt_features'] = dt_features
+    agg_features, nonagg_features = feature_ctype_inference(
+        df.columns.to_list(), keycol, target)
+    typed_features['agg_features'] = agg_features
+    typed_features['nonagg_features'] = nonagg_features
+    return typed_features
 
 
 def load_sql_templates(filename: str):
@@ -137,6 +177,67 @@ def approximation_rewrite(sql_template: str, sample: float = None):
         return template
 
 
+def aggfname_rewrite(template: str, qcols: list) -> str:
+    """ rewrite the sql template, such only fname in qcols will be returned
+    the sql template will be like select fop as fname, ... from table
+    we only keep the col that is in qcols
+    """
+    if len(qcols) == 0:
+        return ""
+
+    assert 'select ' in template or 'SELECT ' in template
+    template = template.replace('select ', 'SELECT ')
+    template = template.replace('from ', 'FROM ')
+    select_ = template.split('SELECT ')[1].split('FROM ')[0]
+    if (len(template.split('SELECT ')[1].split('FROM ')) > 1):
+        from_ = " FROM " + template.split('SELECT ')[1].split('FROM ')[1]
+    else:
+        from_ = ""
+
+    fop_as_fnames = [fop_as_fname.strip()
+                     for fop_as_fname in select_.split(',')]
+
+    new_fop_as_fnames = []
+    for i, fop_as_fname in enumerate(fop_as_fnames):
+        fop, fname = fop_as_fname.split(' as ')
+        fop, fname = fop.strip(), fname.strip()
+        if fname in qcols:
+            new_fop_as_fnames.append(fop_as_fname)
+
+    new_select = 'SELECT ' + ', '.join(new_fop_as_fnames)
+    new_template = new_select + from_
+
+    return new_template.strip()
+
+
+def compute_valid_qcols(qtemplates: list[str], valid_fcols: list[str]) -> list:
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qcols = [[] for _ in range(len(qtemplates))]
+    for fcol in valid_fcols:
+        qid = f2q_map[fcol]
+        qcols[qid].append(fcol)
+    return qcols
+
+
+def compuet_query_importance(qtemplates: list[str], fcols: list[str], fimps: list[float]) -> list[float]:
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qimps = np.zeros(len(qtemplates))
+    for fcol, fimp in zip(fcols, fimps):
+        qid = f2q_map[fcol]
+        qimps[qid] += fimp
+    return qimps.tolist()
+
+
+def compuet_query_agg_importance(qtemplates: list[str], fcols: list[str], fimps: list[float]) -> list[float]:
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qimps = np.zeros(len(qtemplates))
+    for fcol, fimp in zip(fcols, fimps):
+        qid = f2q_map[fcol]
+        if is_agg_feature(fcol):
+            qimps[qid] += fimp
+    return qimps.tolist()
+
+
 def get_query_feature_map(templates: list[str]):
     query_feature_map = {}
     feature_query_map = {}
@@ -186,10 +287,12 @@ class SQLTemplates:
 
 
 def to_sample(string: str) -> Union[float, str]:
-    if string.startswith('auto'):
-        return string
-    else:
+    # if the string represent a float, return the float
+    # otherwise return the string directly
+    try:
         return float(string)
+    except:
+        return string
 
 
 class SimpleParser(Tap):

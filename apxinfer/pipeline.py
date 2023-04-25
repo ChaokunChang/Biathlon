@@ -190,40 +190,37 @@ def compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=T
         return X.columns, permutation_importance(pipe[-1], X, y, n_repeats=10, max_samples=min(1000, len(X)), random_state=0, n_jobs=-1).importances_mean
 
 
-def _get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y):
+def _get_feature_importance(pipe: Pipeline, X, y):
     model = pipe[-1]
-    if args.model_name == 'lgbm':
+    if isinstance(model, (LGBMRegressor, LGBMClassifier)):
         return model.feature_name_, model.feature_importances_
-    elif args.model_name == 'xgb':
+    elif isinstance(model, (XGBRegressor, XGBClassifier)):
         return model.feature_names_in_, model.feature_importances_
-    elif args.model_name == 'rf':
+    elif isinstance(model, (RandomForestRegressor, RandomForestClassifier)):
         return model.feature_names_in_, model.feature_importances_
-    elif args.model_name == 'dt':
+    elif isinstance(model, (DecisionTreeRegressor, DecisionTreeClassifier)):
         return model.feature_names_in_, model.feature_importances_
-    elif args.model_name == 'lr':
+    elif isinstance(model, (LinearRegression, LogisticRegression)):
         return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
-    elif args.model_name == 'svr':
+    elif isinstance(model, (SVC, SVR)):
         return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
-    elif args.model_name == 'knn':
+    elif isinstance(model, (KNeighborsRegressor, KNeighborsClassifier)):
         return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
-    elif args.model_name == 'mlp':
+    elif isinstance(model, (MLPRegressor, MLPClassifier)):
         return compute_permuation_importance(pipe, X, y, random_state=0, use_pipe_feature=True)
     else:
         raise ValueError("model name not supported")
 
 
-def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y, fcols: list) -> pd.DataFrame:
-    fnames, imps = _get_feature_importance(args, pipe, X, y)
+def get_feature_importance(pipe: Pipeline, X:pd.DataFrame, y) -> pd.DataFrame:
+    fnames, imps = _get_feature_importance(pipe, X, y)
     fimps = pd.DataFrame({'feature': fnames, 'importance': imps})
-    # in fimps,
-    # for feature in fcols, keep that row;
-    # for feature not in fcols, but starts with a col in fols,
-    #  keep that row, and add a new row with feature name as the col name, and importance as the sum of all features that starts with that col name.
-    # for feature not in fcols, and not starts with a col in fcols,
-    #  keep that row, and add a new row with feature name as 'other', and importance as the sum of all features that not starts with a col in fcols.
-    # end
 
+    fcols = X.columns.to_list()
+    # note that the fnames may contain derived features, thus different with fcols
     def _get_fname(x):
+        # we use this function to get the pipline input fname
+        # given the model input fname
         fname = x['feature']
         if fname in fcols:
             return fname
@@ -232,6 +229,16 @@ def get_feature_importance(args: SimpleParser, pipe: Pipeline, X, y, fcols: list
                 if fname.startswith(fcol):
                     return fcol
         return 'other'
+
+    """ in fimps,
+        for feature in fcols, keep that row;
+        for feature not in fcols, but starts with a col in fols,
+        keep that row, and add a new row with feature name as the col name, and importance as the sum of all features that starts with that col name.
+        for feature not in fcols, and not starts with a col in fcols,
+        keep that row, and add a new row with feature name as 'other', and importance as the sum of all features that not starts with a col in fcols.
+        end
+    """
+
     fimps['fname'] = fimps.apply(_get_fname, axis=1)
     fimps = fimps.groupby('fname').agg(
         {'feature': lambda x: '+'.join(x), 'importance': 'sum'}).reset_index()
@@ -281,6 +288,7 @@ def _evaluate_classifier_pipeline(args: SimpleParser, pipe: Pipeline, X, y, tag,
     y_pred = pipe.predict(X)
     y_score = pipe.predict_proba(X)
     if not args.multi_class:
+        # TODO: remove the dependency to args
         y_score = y_score[:, 1]
 
     acc = metrics.accuracy_score(y, y_pred)
@@ -356,7 +364,7 @@ def datetime_processing(df: pd.DataFrame, method='drop'):
     return df
 
 
-def load_features(args: SimpleParser, dropna=True, sort_by=None, kids=None, cols=None) -> pd.DataFrame:
+def load_features(args: SimpleParser, dropna=True, sort_by:str=None, kids=None, cols=None) -> pd.DataFrame:
     features = load_from_csv(args.feature_dir, f'{args.ffile_prefix}.csv')
     if kids is not None:
         features = features[features[args.keycol].isin(kids)]
@@ -494,8 +502,7 @@ def build_pipeline(args: SimpleParser):
     pipe.fit(X_train, y_train)
     save_pipeline(pipe, args.pipelines_dir, 'pipeline.pkl')
 
-    fcols = X_train.columns.tolist()
-    fimps = get_feature_importance(args, pipe, X_train, y_train, fcols)
+    fimps = get_feature_importance(pipe, X_train, y_train)
     save_to_csv(fimps, args.pipelines_dir, 'feature_importance.csv')
 
     topk_fnames = fimps.sort_values(by='importance', ascending=False).head(

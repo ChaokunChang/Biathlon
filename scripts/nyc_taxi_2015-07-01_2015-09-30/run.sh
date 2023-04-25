@@ -35,8 +35,9 @@ cfg4="--data $data_name --task is_night --keycol hourstamp --sort_by hourstamp -
 # regression tasks
 cfg5="--data $data_name --task fare_prediction_2015-08-01_2015-08-15_10000 --keycol trip_id --sort_by pickup_datetime --target fare_amount --sql_templates_file fare_prediction_2015-08-01_2015-08-15_10000/templates.sql --model_type regressor --model_name $model"
 cfg6="--data $data_name --task duration_prediction_2015-08-01_2015-08-15_10000 --keycol trip_id --sort_by pickup_datetime --target trip_duration --sql_templates_file duration_prediction_2015-08-01_2015-08-15_10000/templates.sql --model_type regressor --model_name $model"
+cfg7="--data $data_name --task fare_prediction_2015-08-01_2015-08-15_100 --keycol trip_id --sort_by pickup_datetime --target fare_amount --sql_templates_file fare_prediction_2015-08-01_2015-08-15_100/templates.sql --model_type regressor --model_name $model"
 
-cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6"
+cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6|$cfg7"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
 echo $cfg
@@ -57,6 +58,7 @@ if [ $sample == 0 ]; then
 else
     # if $sample starts with auto
     if [[ $sample == auto* ]]; then
+        echo "run with auto"
         python $apxinfer_dir/test_auto_sampling.py $cfg --sample $sample
     else
         python $apxinfer_dir/fextractor.py $cfg --sample $sample

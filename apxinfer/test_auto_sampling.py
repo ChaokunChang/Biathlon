@@ -12,26 +12,6 @@ def load_apx_pipeline(pipelines_dir, sample):
     return apx_pipe
 
 
-def allocate_sampling_rate(args: SimpleParser):
-    avg_sample: str = args.sample
-    fcols: list = args.fcols
-    agg_features, nonagg_features = feature_ctype_inference(
-        fcols, args.keycol, args.target)
-    sampling_imps = args.fimps
-    # if the feature is not aggregation feature, set importance to 0
-    for i in range(len(fcols)):
-        if fcols[i] not in agg_features:
-            sampling_imps[i] = 0
-    assert np.sum(sampling_imps) > 0, 'no aggregation feature is selected'
-
-    avg_sample = float(avg_sample[len('auto'):])
-    sample_rates = avg_sample * np.array(sampling_imps) / np.sum(sampling_imps)
-    # sample_rates must be in 0.01, 0.02, ... 0.09, 0.10, 0.11, ... 0.99, 1.00
-    sample_rates = np.round(sample_rates * 100) / 100
-    assert len(sample_rates) == len(fcols)
-    return sample_rates
-
-
 def aggfname_rewrite(template: str, qcols: list) -> str:
     """ rewrite the sql template, such only fname in qcols will be returned
     the sql template will be like select fop as fname, ... from table
@@ -67,42 +47,74 @@ def aggfname_rewrite(template: str, qcols: list) -> str:
     return new_template.strip()
 
 
-def load_auto_apx_features(args: SimpleParser) -> pd.DataFrame:
+def compute_valid_qcols(qtemplates: list[str], valid_fcols: list[str]):
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qcols = [[] for _ in range(len(qtemplates))]
+    for fcol in valid_fcols:
+        qid = f2q_map[fcol]
+        qcols[qid].append(fcol)
+    return qcols
+
+
+def compuet_query_importance(qtemplates: list[str], fcols: list[str], fimps: list[float]):
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qimps = np.zeros(len(qtemplates))
+    for fcol, fimp in zip(fcols, fimps):
+        qid = f2q_map[fcol]
+        qimps[qid] += fimp
+    return qimps
+
+
+def compuet_query_agg_importance(qtemplates: list[str], fcols: list[str], fimps: list[float]):
+    q2f_map, f2q_map = get_query_feature_map(qtemplates)
+    qimps = np.zeros(len(qtemplates))
+    for fcol, fimp in zip(fcols, fimps):
+        qid = f2q_map[fcol]
+        if is_agg_feature(fcol):
+            qimps[qid] += fimp
+    return qimps
+
+
+def allocate_qsamples(avg_sample: float, qimps: list[float]):
+    # allocate sampling rate according to query importance
+    # count number of non-zero element in qimps
+    sum_sample = avg_sample * np.sum(qimps > 0)
+    qsamples = sum_sample * np.array(qimps) / np.sum(qimps)
+    qsamples = [np.round(qsample * 100) / 100 for qsample in qsamples]
+    return qsamples
+
+
+def load_auto_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame:
     """ load approximate features from csv files, extract if not exists
-    1 compute query importance = sum(importance of agg features from this query)
+    1 compute query importance = sum(importance of valid agg features from this query)
     2 allocate sampling rate according to query importance
     3 transform the original query templates to approximate query templates
     4 execute the queries to extract features, and save it to csv
     5 load the features from csv and process nan values
     6 return apx features
     """
-    avg_sample = float(args.sample[len('auto'):])
-    fcols = args.fcols
-    fimps = args.fimps
     sql_templates = args.templator.templates
-    q2f_map, f2q_map = get_query_feature_map(sql_templates)
-    qimps = np.zeros(len(sql_templates))
-    qcols = [[] for _ in range(len(sql_templates))]
-    for fcol, fimp in zip(fcols, fimps):
-        qid = f2q_map[fcol]
-        qcols[qid].append(fcol)
-        if is_agg_feature(fcol):
-            qimps[qid] += fimp
+    avg_sample = float(args.sample[len('auto'):])
 
-    # allocate sampling rate according to query importance
-    # count number of non-zero element in qimps
-    sum_sample = avg_sample * np.sum(qimps > 0)
-    qsamples = sum_sample * np.array(qimps) / np.sum(qimps)
-    # qsamples = [np.round(qsample * 1000) / 1000 for qsample in qsamples]
+    fimportance = load_from_csv(args.pipelines_dir, 'feature_importance.csv')
+    fimportance = fimportance[fimportance['fname'].isin(fcols)]
+    fcols = fimportance['fname'].values.tolist()
+    fimps = fimportance['importance'].values.tolist()
+
+    # rewrite the sql template, such only valid feas (fname in qcols) will be returned
+    qcols = compute_valid_qcols(sql_templates, fcols)
+    sql_templates = [aggfname_rewrite(template, qcols[i])
+                     for i, template in enumerate(sql_templates)]
+
+    qagg_imps = compuet_query_agg_importance(sql_templates, fcols, fimps)
+    qsamples = allocate_qsamples(avg_sample, qagg_imps)
+    print(f'qimps={compuet_query_importance(sql_templates, fcols, fimps)}')
+    print(f'qagg_imps={qagg_imps}')
     print(f'qsamples={qsamples}')
 
     # rewrite the sql template to be approximate templates
     sql_templates = [approximation_rewrite(
         template, qsamples[i]) for i, template in enumerate(sql_templates)]
-
-    # rewrite the sql template, such only fname in qcols will be returned
-    sql_templates = [aggfname_rewrite(template, qcols[i])
-                     for i, template in enumerate(sql_templates)]
 
     # extract features
     feature_dir = args.feature_dir
@@ -116,8 +128,14 @@ def load_auto_apx_features(args: SimpleParser) -> pd.DataFrame:
 
 def run(args: SimpleParser):
     """ run pipeline with automatically sampled features.
+    We assume 
+        exact pipeline is pre-built
+        feature importances on exact pipeline are available
+        test workload is available
+        apx pipeline built with avg_sample is available as baseline
     If sampled features are not available, extract it directly.
     args.sample with be set to 'auto{avg_sample}'
+    Workflow:
     1. load pipeline
     2. load apx pipeline built with avg_sample
     3. load test_X, test_y, test_kids
@@ -141,8 +159,11 @@ def run(args: SimpleParser):
     test_y = pd.read_csv(os.path.join(args.pipelines_dir, 'test_y.csv'))
     test_kids = pd.read_csv(os.path.join(args.pipelines_dir, 'test_kids.csv'))
 
+    assert sorted(pipe.feature_names_in_.tolist()) == sorted(
+        apx_pipe.feature_names_in_.tolist())
     # load apx features
-    apx_features = load_auto_apx_features(args)
+    apx_features = load_auto_apx_features(
+        args, pipe.feature_names_in_.tolist())
 
     # merge test_kids and test_apx_features
     apx_X = pd.merge(test_kids, apx_features, on=args.keycol, how='left')
@@ -153,13 +174,24 @@ def run(args: SimpleParser):
 
     evals = []
     test_pred = pipe.predict(test_X)
-    evals.append(evaluate_pipeline(args, pipe, test_X, test_y, 'ext'))
-    evals.append(evaluate_pipeline(args, pipe, exp_X, test_y, 'b0a'))
-    evals.append(evaluate_pipeline(args, pipe, exp_X, test_pred, 'b0s'))
-    evals.append(evaluate_pipeline(args, apx_pipe, apx_X, test_y, 'b1a'))
-    evals.append(evaluate_pipeline(args, apx_pipe, apx_X, test_pred, 'b1s'))
-    evals.append(evaluate_pipeline(args, pipe, apx_X, test_y, 'apx'))
-    evals.append(evaluate_pipeline(args, pipe, apx_X, test_pred, 'sim'))
+    evals.append(evaluate_pipeline(
+        args, pipe, test_X, test_y, 'extP-extF-acc'))
+    evals.append(evaluate_pipeline(
+        args, pipe, exp_X, test_y, 'extP-bs0F-acc'))
+    evals.append(evaluate_pipeline(
+        args, pipe, exp_X, test_pred, 'extP-bs0F-sim'))
+    evals.append(evaluate_pipeline(
+        args, apx_pipe, apx_X, test_y, 'apxP-apxF-acc'))
+    evals.append(evaluate_pipeline(
+        args, apx_pipe, apx_X, test_pred, 'apxP-apxF-sim'))
+    evals.append(evaluate_pipeline(
+        args, apx_pipe, test_X, test_y, 'apxP-extF-acc'))
+    evals.append(evaluate_pipeline(
+        args, apx_pipe, test_X, test_pred, 'apxP-extF-sim'))
+    evals.append(evaluate_pipeline(
+        args, pipe, apx_X, test_y, 'extP-apxF-acc'))
+    evals.append(evaluate_pipeline(
+        args, pipe, apx_X, test_pred, 'extP-apxF-acc'))
 
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)

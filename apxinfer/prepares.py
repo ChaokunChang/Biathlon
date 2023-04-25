@@ -17,7 +17,7 @@ def prepare_fare_prediction(args: PrepareParser):
     from_date = prediction_from.split(' ')[0]
     to_date = prediction_to.split(' ')[0]
     suffix = f'_{from_date}_{to_date}_{num_samples}'
-    if not args.task_dir.endswith(suffix):
+    if not args.task_dir.endswith(f'_{num_samples}'):
         args.task_dir += suffix
 
     fcols = ['passenger_count', 'trip_distance', 'pickup_datetime',
@@ -58,7 +58,7 @@ def prepare_duration_prediction(args: PrepareParser):
     from_date = prediction_from.split(' ')[0]
     to_date = prediction_to.split(' ')[0]
     suffix = f'_{from_date}_{to_date}_{num_samples}'
-    if not args.task_dir.endswith(suffix):
+    if not args.task_dir.endswith(f'_{num_samples}'):
         args.task_dir += suffix
 
     fcols = ['passenger_count', 'trip_distance', 'pickup_datetime',

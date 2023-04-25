@@ -51,12 +51,16 @@ def extract(task_dir: str, feature_dir: str, ffile_prefix: str, keycol: str, sql
 
     allfeas = []
     for i, sql_template in enumerate(sql_templates):
+        if sql_template.strip() == "":
+            print(f'Warning: sql_template is null, skip')
+            continue
         print(f'Extracting features with sql template: {sql_template}')
         extractor = FeatureExtractor(sql_template, key=keycol)
         features = extractor.extract_with_df(reqs, parallel=True)
         save_to_csv(features, feature_dir,
                     output_name=f'{ffile_prefix}_{i}.csv')
         allfeas.append(features)
+    assert len(allfeas) > 0
     # merge features in to one file, remove duplicate columns
     features = pd.concat(allfeas, axis=1)
     features = features.loc[:, ~features.columns.duplicated()]

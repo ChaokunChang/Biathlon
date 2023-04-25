@@ -150,7 +150,7 @@ def approximation_rewrite(sql_template: str, sample: float = None):
         return sql_template
     else:
         assert sample > 0 and sample <= 1
-        assert 'SAMPLE' not in sql_template
+        assert 'SAMPLE' not in sql_template, f'sql_template={sql_template} already has SAMPLE clause'
         # repalce the 'from table' and 'FROM table' with 'FROM table_w_samples SAMPLE {sample}'
         template = re.sub(
             r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', sql_template)
@@ -336,6 +336,7 @@ class SimpleParser(Tap):
 
         assert self.sql_templates_file is not None, 'sql_templates_file is required'
         self.templator = SQLTemplates().from_file(self.sql_templates_file)
+        self.sql_templates = [t for t in self.templator.templates]
         if isinstance(self.sample, float):
             self.templator = self.templator.apx_transform(self.sample)
 
@@ -350,19 +351,23 @@ class SimpleParser(Tap):
                 topkfimps = fimps_df.sort_values(
                     by='importance', ascending=False).head(self.topk_features)
                 self.fcols = topkfimps['fname'].values.tolist()
-                self.fimps = topkfimps['importance'].values.tolist()
+                # self.fimps = topkfimps['importance'].values.tolist()
                 self.experiment_dir = os.path.join(
                     RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
+                self.feature_dir = os.path.join(
+                    self.feature_dir, f'{self.model_name}_top{self.topk_features}')
             else:
                 # fcols is a list of feature names and imps splited by ,
                 # each element will be fname:fimp
                 self.fcols_imps = self.fcols.split(',')
                 self.fcols = [fcol_imp.split(':')[0]
                               for fcol_imp in self.fcols_imps]
-                self.fimps = [float(fcol_imp.split(':')[1]) if len(
-                    fcol_imp.split(':')) > 1 else 0.0 for fcol_imp in self.fcols_imps]
+                # self.fimps = [float(fcol_imp.split(':')[1]) if len(
+                #     fcol_imp.split(':')) > 1 else 0.0 for fcol_imp in self.fcols_imps]
                 self.experiment_dir = os.path.join(
                     RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
+                self.feature_dir = os.path.join(
+                    self.feature_dir, f'{self.model_name}_num{len(self.fcols)}')
             assert len(self.fcols) > 0, f'fcols is empty'
         else:
             self.experiment_dir = os.path.join(

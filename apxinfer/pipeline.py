@@ -404,7 +404,7 @@ def build_pipeline(args: SimpleParser):
     Xy = datetime_processing(Xy, 'drop')
 
     X_train, X_test, y_train, y_test, kids_train, kids_test = train_test_split(Xy.drop(
-        columns=[args.target]), Xy[args.target], Xy[args.keycol],
+        columns=[args.keycol, args.target]), Xy[args.target], Xy[args.keycol],
         test_size=args.model_test_size, random_state=args.random_state, shuffle=args.split_shuffle)
 
     # save test X, y, kids
@@ -418,8 +418,7 @@ def build_pipeline(args: SimpleParser):
         ('preprocessor', ColumnTransformer([
             ('num', StandardScaler(), typed_fnames['num_features']),
             ('cat', OneHotEncoder(sparse_output=False,
-             handle_unknown='ignore'), typed_fnames['cat_features']),
-            ('drop', 'drop', args.keycol)
+             handle_unknown='ignore'), typed_fnames['cat_features'])
         ], remainder='passthrough', verbose=True, verbose_feature_names_out=False)),
         ('model', model),
     ])

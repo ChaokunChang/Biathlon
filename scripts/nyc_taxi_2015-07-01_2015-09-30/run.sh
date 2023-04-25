@@ -15,7 +15,7 @@ mode=$4
 
 # if we have the forth argument, it will be fcols option
 if [ $# -eq 5 ]; then
-    fcols="--fcols $4"
+    fcols="--fcols $5"
 else
     fcols=""
 fi
@@ -42,7 +42,6 @@ cfg7="--data $data_name --task fare_prediction_2015-08-01_2015-08-15_100 --keyco
 cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6|$cfg7"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
-echo $cfg
 
 if [ $sample == -1 ]; then
     # prepare stage
@@ -51,6 +50,7 @@ if [ $sample == -1 ]; then
 fi
 
 cfg="$cfg $fcols"
+echo $cfg
 if [ $sample == 0 ]; then
     if [ $mode == "build" ]; then
         # feature extraction stage
@@ -63,7 +63,7 @@ else
     # if $sample starts with auto
     if [[ $sample == auto* ]]; then
         echo "run with auto"
-        python $apxinfer_dir/test_auto_sampling.py $cfg --sample $sample
+        python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
     else
         if [ $mode == "build" ]; then
             python $apxinfer_dir/fextractor.py $cfg --sample $sample

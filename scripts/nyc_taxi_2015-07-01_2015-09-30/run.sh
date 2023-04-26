@@ -45,6 +45,10 @@ cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
 
 if [ $sample == -1 ]; then
     # prepare stage
+    # if cfg is cfg7, we add prediction_sample to the cfg
+    if [ $cfgid == 7 ]; then
+        cfg="$cfg --prediction_sample 100"
+    fi
     python $apxinfer_dir/prepares.py $cfg
     exit 0
 fi

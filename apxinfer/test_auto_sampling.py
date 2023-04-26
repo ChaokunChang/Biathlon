@@ -35,7 +35,7 @@ def load_auto_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame
         # extract the required features
         print(f'{fpath} does not exist, extract them')
 
-        sql_templates = args.sql_templates
+        sql_templates = args.templator.templates
         avg_sample = get_avg_sample(args.sample)
 
         fimportance = load_from_csv(

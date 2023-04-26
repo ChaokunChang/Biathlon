@@ -273,17 +273,12 @@ class SQLTemplates:
         self.q2f, self.f2q = get_query_feature_map(self.templates)
         return self
 
-    def apx_transform(self, samples: list[float] | float = None):
-        if samples is None:
-            return self
-        if isinstance(samples, float):
+    def get_apx_templates(self, samples: list[float] | float = None):
+        if not isinstance(samples, list):
             samples = [samples] * len(self.templates)
-        if len(samples) > 0:
-            # repalce the table with table_w_samples SAMPLE {sample}
-            for i, sample in enumerate(samples):
-                self.templates[i] = approximation_rewrite(
-                    self.templates[i], sample)
-        return self
+        transformed_templates = [approximation_rewrite(
+            template, sample) for template, sample in zip(self.templates, samples)]
+        return transformed_templates
 
 
 def to_sample(string: str) -> Union[float, str]:
@@ -336,9 +331,6 @@ class SimpleParser(Tap):
 
         assert self.sql_templates_file is not None, 'sql_templates_file is required'
         self.templator = SQLTemplates().from_file(self.sql_templates_file)
-        self.sql_templates = [t for t in self.templator.templates]
-        if isinstance(self.sample, float):
-            self.templator = self.templator.apx_transform(self.sample)
 
         self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample is None else os.path.join(
             self.task_dir, 'features', f'sample_{self.sample}')

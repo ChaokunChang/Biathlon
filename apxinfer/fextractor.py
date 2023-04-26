@@ -72,9 +72,8 @@ if __name__ == "__main__":
     args = SimpleParser().parse_args()
     assert args.sample is None or isinstance(args.sample, float)
     print(args)
-    templates = args.sql_templates
     # rewrite templates to be approximate templates
     # if args.sample is None, then nothing changed.
-    templates = [approximation_rewrite(t, args.sample) for t in templates]
+    templates = args.templator.get_apx_templates(args.sample)
     extract(args.task_dir, args.feature_dir, args.ffile_prefix,
-            args.keycol, args.templator.templates)
+            args.keycol, templates)

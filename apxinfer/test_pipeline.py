@@ -12,6 +12,8 @@ def allocate_qsamples(avg_sample: float, qimps: list[float]):
 
 
 def get_avg_sample(sample: Union[float, str]) -> float:
+    if sample is None:
+        return None
     if isinstance(sample, float):
         avg_sample = sample
     else:
@@ -42,7 +44,7 @@ def load_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame:
                          for i, template in enumerate(sql_templates)]
 
         # compute query sample rate
-        if isinstance(args.sample, float):
+        if args.sample is None or isinstance(args.sample, float):
             qsamples = [args.sample] * len(sql_templates)
         else:
             avg_sample = get_avg_sample(args.sample)

@@ -178,6 +178,50 @@ def prepare_is_night(args: PrepareParser):
     save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
+def prepare_trips_num_forecasting_1h(args: PrepareParser):
+    # forecasting the number of trips of next 1 hour
+    args.keycol = 'hourstamp'
+    args.target = 'trips_num'
+
+    dbconn = DBConnector()
+    sql = """
+    select DISTINCT (toDayOfYear(pickup_datetime) * 24 + toHour(pickup_datetime)) as {keycol},
+    count(*) as {target}
+    from trips
+    group by {keycol}
+    order by {keycol}
+    """.format(keycol=args.keycol, target=args.target)
+    df = dbconn.execute(sql)
+
+    reqs = df[[args.keycol]]
+    labels = df[[args.keycol, args.target]]
+
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
+
+
+def prepare_trips_num_forecasting_1d(args: PrepareParser):
+    # forecasting the number of trips of next 1 day
+    args.keycol = 'day_of_year'
+    args.target = 'trips_num'
+
+    dbconn = DBConnector()
+    sql = """
+    select DISTINCT toDayOfYear(pickup_datetime) as {keycol},
+    count(*) as {target}
+    from trips
+    group by {keycol}
+    order by {keycol}
+    """.format(keycol=args.keycol, target=args.target)
+    df = dbconn.execute(sql)
+
+    reqs = df[[args.keycol]]
+    labels = df[[args.keycol, args.target]]
+
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
+
+
 if __name__ == "__main__":
     args = PrepareParser().parse_args()
     if args.task.startswith('fare_prediction'):
@@ -192,5 +236,9 @@ if __name__ == "__main__":
         prepare_hourofday(args)
     elif args.task == 'is_night':
         prepare_is_night(args)
+    elif args.task == 'trips_num_forecasting_1h':
+        prepare_trips_num_forecasting_1h(args)
+    elif args.task == 'trips_num_forecasting_1d':
+        prepare_trips_num_forecasting_1d(args)
     else:
         print('Unknown task')

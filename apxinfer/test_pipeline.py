@@ -39,8 +39,7 @@ def load_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame:
 
         sql_templates = args.templator.templates
         # rewrite the sql template, such only valid feas (fname in qcols) will be returned
-        qcols = compute_valid_qcols(sql_templates, fcols)
-        sql_templates = [aggfname_rewrite(template, qcols[i])
+        sql_templates = [select_reduction_rewrite(template, fcols)
                          for i, template in enumerate(sql_templates)]
 
         # compute query sample rate

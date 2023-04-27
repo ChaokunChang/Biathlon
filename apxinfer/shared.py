@@ -145,12 +145,25 @@ def load_from_csv(feature_dir: str, input_name: str = 'features.csv') -> pd.Data
     return features
 
 
+def keywords_rewrite(template: str) -> str:
+    # rewrite the keywords in template to uppercase
+    keywords = ['with', 'select', 'from', 'where',
+                'group by', 'order by', 'limit',
+                'between', 'and', 'in', 'from',
+                'to', 'as', 'by']
+    for keyword in keywords:
+        template = re.sub(rf'\b{keyword}\b', keyword.upper(), template)
+
+    return template
+
+
 def approximation_rewrite(sql_template: str, sample: float = None):
     if sample is None or sample == 0:
         return sql_template
     else:
         assert sample > 0 and sample <= 1
         assert 'SAMPLE' not in sql_template, f'sql_template={sql_template} already has SAMPLE clause'
+
         # repalce the 'from table' and 'FROM table' with 'FROM table_w_samples SAMPLE {sample}'
         template = re.sub(
             r'FROM\s+(\w+)', fr'FROM \1_w_samples SAMPLE {sample}', sql_template)
@@ -158,56 +171,100 @@ def approximation_rewrite(sql_template: str, sample: float = None):
             r'from\s+(\w+)', fr'from \1_w_samples SAMPLE {sample}', template)
 
         scale = 1 / sample
-        # replace the count(*) with count(*) * {scale}
-        template = re.sub(
-            r'count\(\*\)', fr'count(*) * {scale}', template)
         # replace the count(col) with count(col) * {scale}
         template = re.sub(
-            r'count\((\w+)\)', fr'count(\1) * {scale}', template)
-        # replace the sum(col) with sum(col) * {scale}
+            r'count\(([\w|\*|\,|\s]*)\)', fr'count(\1) * {scale}', template)
+        # replace the countIf(col) with count(col) * {scale}
         template = re.sub(
-            r'sum\((\w+)\)', fr'sum(\1) * {scale}', template)
+            r'countIf\(([\w|\*|\,|\s]*)\)', fr'countIf(\1) * {scale}', template)
+        # replace the sum(col) with sum(col) * {scale}
+        template = re.sub(r'sum\(([\w|\*|\,|\s]*)\)',
+                          fr'sum(\1) * {scale}', template)
+        # replace the sumIf(col) with sumIf(col) * {scale}
+        template = re.sub(r'sumIf\(([\w|\*|\,|\s]*)\)',
+                          fr'sumIf(\1) * {scale}', template)
+
         # replace the varPop(col) with varSamp(col)
         template = re.sub(
-            r'varPop\((\w+)\)', fr'varSamp(\1)', template)
+            r'varPop\(([\w|\*|\,|\s]*)\)', fr'varSamp(\1)', template)
+        # replace the varPopIf(col) with varSampIf(col)
+        template = re.sub(
+            r'varPopIf\(([\w|\*|\,|\s]*)\)', fr'varSampIf(\1)', template)
         # replace the stddevPop(col) with stddevSamp(col)
         template = re.sub(
-            r'stddevPop\((\w+)\)', fr'stddevSamp(\1)', template)
+            r'stddevPop\(([\w|\*|\,|\s]*)\)', fr'stddevSamp(\1)', template)
+        # replace the stddevPopIf(col) with stddevSampIf(col)
+        template = re.sub(
+            r'stddevPopIf\(([\w|\*|\,|\s]*)\)', fr'stddevSampIf(\1)', template)
 
         return template
 
 
-def aggfname_rewrite(template: str, qcols: list) -> str:
-    """ rewrite the sql template, such only fname in qcols will be returned
-    the sql template will be like select fop as fname, ... from table
-    we only keep the col that is in qcols
+def get_select_clause(template: str) -> str:
+    """ get the select clause from sql template
     """
-    if len(qcols) == 0:
-        return ""
-
-    assert 'select ' in template or 'SELECT ' in template
-    template = template.replace('select ', 'SELECT ')
-    template = template.replace('from ', 'FROM ')
+    assert 'SELECT ' in template
     select_ = template.split('SELECT ')[1].split('FROM ')[0]
-    if (len(template.split('SELECT ')[1].split('FROM ')) > 1):
-        from_ = " FROM " + template.split('SELECT ')[1].split('FROM ')[1]
-    else:
-        from_ = ""
+    return select_
 
-    fop_as_fnames = [fop_as_fname.strip()
-                     for fop_as_fname in select_.split(',')]
 
-    new_fop_as_fnames = []
-    for i, fop_as_fname in enumerate(fop_as_fnames):
-        fop, fname = fop_as_fname.split(' as ')
-        fop, fname = fop.strip(), fname.strip()
-        if fname in qcols:
-            new_fop_as_fnames.append(fop_as_fname)
+def get_expr_alias_pairs(select_clause: str) -> str:
+    # get all select ret as list of str, can not split by , becuase there could be , in expr
+    # split by AS first
+    by_AS = select_clause.split(' AS ')
+    # in each by_AS, what before the first "," is alias, what after the first "," is expr
+    exprs, aliases = [], []
+    for i, by_as in enumerate(by_AS):
+        if i == 0:
+            exprs.append(by_as.strip())
+        elif i == len(by_AS) - 1:
+            aliases.append(by_as.strip())
+        else:
+            assert ',' in by_as, f'by_as={by_as} must contain ","'
+            last_alias, expr = by_as.split(',', 1)
+            exprs.append(expr.strip())
+            aliases.append(last_alias.strip())
+    assert len(exprs) == len(
+        aliases), f'exprs={exprs} and aliases={aliases} must have same length'
 
-    new_select = 'SELECT ' + ', '.join(new_fop_as_fnames)
-    new_template = new_select + from_
+    return exprs, aliases
 
-    return new_template.strip()
+
+def select_reduction_rewrite(template: str, kept_cols: list) -> str:
+    """ rewrite the select clause, such that only columns in kept_select_ret are returned.
+    assume all keywords are in upper case.
+    Note that 
+        1. the template may contain WITH, SELECT, FROM, WHERE, GROUP, ORDER BY, etc keywords
+        2. there could be multiple newlines between keywords and expr in expr_list
+    """
+    if len(kept_cols) == 0:
+        return ""
+    select_clause = get_select_clause(template)
+
+    kept_select_ret = []
+    exprs, aliases = get_expr_alias_pairs(select_clause)
+    for expr, alias in zip(exprs, aliases):
+        if alias in kept_cols:
+            kept_select_ret.append(f'{expr} AS {alias}')
+
+    new_template = template.replace(
+        select_clause, ', '.join(kept_select_ret)+" ")
+
+    return new_template
+
+
+def get_query_feature_map(templates: list[str]):
+    query_feature_map = {}
+    feature_query_map = {}
+    for i, template in enumerate(templates):
+        # get the feature name, which is the last word after 'as' or 'AS'
+        select_clause = get_select_clause(template)
+        exprs, aliases = get_expr_alias_pairs(select_clause)
+        query_feature_map[i] = aliases
+        for feature in aliases:
+            assert feature not in feature_query_map, f'{feature} is duplicated'
+            feature_query_map[feature] = i
+    return query_feature_map, feature_query_map
 
 
 def compute_valid_qcols(qtemplates: list[str], valid_fcols: list[str]) -> list:
@@ -238,21 +295,6 @@ def compuet_query_agg_importance(qtemplates: list[str], fcols: list[str], fimps:
     return qimps.tolist()
 
 
-def get_query_feature_map(templates: list[str]):
-    query_feature_map = {}
-    feature_query_map = {}
-    for i, template in enumerate(templates):
-        # get the feature name, which is the last word after 'as' or 'AS'
-        features = re.findall(r'\s+as\s+(\w+)', template)
-        features += re.findall(r'\s+AS\s+(\w+)', template)
-        # print(features)
-        query_feature_map[i] = features
-        for feature in features:
-            assert feature not in feature_query_map, f'{feature} is duplicated'
-            feature_query_map[feature] = i
-    return query_feature_map, feature_query_map
-
-
 class SQLTemplates:
     def __init__(self) -> None:
         self.templates: list[str] = None
@@ -263,14 +305,18 @@ class SQLTemplates:
     def from_file(self, input_file: str):
         with open(input_file, 'r') as f:
             self.templates = f.read().split(';')
-        # remove the comments in sql_template
-        self.templates = [re.sub(r'--.*', '', sql_template)
-                          for sql_template in self.templates]
-        self.templates = [sql_template.replace(r'\s+', ' ').strip()
-                          for sql_template in self.templates]
+        # remove the comments in template
+        self.templates = [re.sub(r'--.*', '', template)
+                          for template in self.templates]
+        # remove the newlines in template
+        self.templates = [re.sub(r'\s+', ' ', template).strip()
+                          for template in self.templates]
+        # remove empty query
         self.templates = [
-            sql_template for sql_template in self.templates if sql_template != '']
-        self.q2f, self.f2q = get_query_feature_map(self.templates)
+            template for template in self.templates if template != '']
+        # make sure that all keywords are upper case
+        self.templates = [keywords_rewrite(template)
+                          for template in self.templates]
         return self
 
     def get_apx_templates(self, samples: list[float] | float = None):

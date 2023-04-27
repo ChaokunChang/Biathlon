@@ -39,8 +39,9 @@ cfg5="--data $data_name --task fare_prediction_2015-08-01_2015-08-15_10000 --key
 cfg6="--data $data_name --task duration_prediction_2015-08-01_2015-08-15_10000 --keycol trip_id --sort_by pickup_datetime --target trip_duration --sql_templates_file duration_prediction_2015-08-01_2015-08-15_10000/templates.sql --model_type regressor --model_name $model"
 cfg7="--data $data_name --task fare_prediction_2015-08-01_2015-08-15_100 --keycol trip_id --sort_by pickup_datetime --target fare_amount --sql_templates_file fare_prediction_2015-08-01_2015-08-15_100/templates.sql --model_type regressor --model_name $model"
 cfg8="--data $data_name --task trips_num_forecasting_1h --keycol hourstamp --sort_by hourstamp --target trips_num --sql_templates_file trips_num_forecasting_1h/templates.sql --model_type regressor --model_name $model"
+cfg9="--data $data_name --task income_forecasting_1h --keycol hourstamp --sort_by hourstamp --target income --sql_templates_file income_forecasting_1h/templates.sql --model_type regressor --model_name $model"
 
-cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6|$cfg7|$cfg8"
+cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6|$cfg7|$cfg8|$cfg9"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
 

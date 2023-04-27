@@ -200,6 +200,28 @@ def prepare_trips_num_forecasting_1h(args: PrepareParser):
     save_to_csv(labels, args.task_dir, 'labels.csv')
 
 
+def prepare_income_forecasting_1h(args: PrepareParser):
+    # forecasting the number of trips of next 1 hour
+    args.keycol = 'hourstamp'
+    args.target = 'income'
+
+    dbconn = DBConnector()
+    sql = """
+    select DISTINCT (toDayOfYear(pickup_datetime) * 24 + toHour(pickup_datetime)) as {keycol},
+    sum(total_amount) as {target}
+    from trips
+    group by {keycol}
+    order by {keycol}
+    """.format(keycol=args.keycol, target=args.target)
+    df = dbconn.execute(sql)
+
+    reqs = df[[args.keycol]]
+    labels = df[[args.keycol, args.target]]
+
+    save_to_csv(reqs, args.task_dir, 'requests.csv')
+    save_to_csv(labels, args.task_dir, 'labels.csv')
+
+
 def prepare_trips_num_forecasting_1d(args: PrepareParser):
     # forecasting the number of trips of next 1 day
     args.keycol = 'day_of_year'
@@ -240,5 +262,7 @@ if __name__ == "__main__":
         prepare_trips_num_forecasting_1h(args)
     elif args.task == 'trips_num_forecasting_1d':
         prepare_trips_num_forecasting_1d(args)
+    elif args.task == 'income_forecasting_1h':
+        prepare_income_forecasting_1h(args)
     else:
         print('Unknown task')

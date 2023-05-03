@@ -318,6 +318,14 @@ class SQLTemplates:
         self.templates = [keywords_rewrite(template)
                           for template in self.templates]
         return self
+    
+    def get_all_fcols(self):
+        fcols = []
+        for template in self.templates:
+            select_clause = get_select_clause(template)
+            exprs, aliases = get_expr_alias_pairs(select_clause)
+            fcols.extend(aliases)
+        return fcols
 
     def get_apx_templates(self, samples: list[float] | float = None):
         if not isinstance(samples, list):
@@ -331,9 +339,10 @@ def to_sample(string: str) -> Union[float, str]:
     # if the string represent a float, return the float
     # otherwise return the string directly
     try:
-        return float(string)
+        sample = float(string)
+        return None if sample == 0 else sample
     except:
-        return string
+        return None if string == 'None' else string
 
 
 class SimpleParser(Tap):
@@ -408,18 +417,22 @@ class SimpleParser(Tap):
                     self.feature_dir, f'{self.model_name}_num{len(self.fcols)}')
             assert len(self.fcols) > 0, f'fcols is empty'
         else:
+            # fcols is None, means all feature columns are selected.
             self.experiment_dir = os.path.join(
                 RESULTS_HOME, self.data, self.task, self.model_name)
 
         self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample is None else os.path.join(
             self.experiment_dir, 'evals', f'sample_{self.sample}')
 
+        if self.sample is None and self.apx_training:
+            print(f'WARN: apx_training is disabled with None sample')
+            self.apx_training = False
+
         # pipelines_dir stores the built pipelines
         # for pipeline built with exact features, store in pipelines_dir
         self.pipelines_dir = os.path.join(self.experiment_dir, 'pipelines')
         if self.apx_training:
             # for pipeline built with approximate features, store in pipelines_dir/sample_{sample}
-            assert self.sample is not None, 'sample is required for apx_training'
             self.pipelines_dir = os.path.join(
                 self.pipelines_dir, f'sample_{self.sample}')
 

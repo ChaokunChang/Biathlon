@@ -1,17 +1,17 @@
 # make sure we have at least three arguments cfgid, model, and sample
 if [ $# -lt 4 ]; then
-    echo "Usage: $0 cfgid model sample"
-    echo "cfgid: 1-6"
+    echo "Usage: $0 cfgid model sample action"
+    echo "cfgid: 1-9"
     echo "model: lgbm, mlp, xgb, rf, etc"
     echo "sample: 0.001, 0.01, 0.1, 0.5, etc"
-    echo "mode: build, test"
+    echo "action: prep, feature, build, test"
     exit 1
 fi
 
 cfgid=$1
 model=$2
 sample=$3
-mode=$4
+action=$4
 
 # if we have the forth argument, it will be fcols option
 if [ $# -eq 5 ]; then
@@ -45,38 +45,26 @@ cfgs="$cfg1|$cfg2|$cfg3|$cfg4|$cfg5|$cfg6|$cfg7|$cfg8|$cfg9"
 
 cfg=$(echo $cfgs | cut -d'|' -f$cfgid)
 
-if [ $sample == -1 ]; then
+if [ $action == "prep" ]; then
     # prepare stage
-    # if cfg is cfg7, we add prediction_sample to the cfg
     if [ $cfgid == 7 ]; then
         cfg="$cfg --prediction_sample 100"
     fi
     python $apxinfer_dir/prepares.py $cfg
     exit 0
-fi
-
-cfg="$cfg $fcols"
-echo $cfg
-if [ $sample == 0 ]; then
-    if [ $mode == "build" ]; then
-        # feature extraction stage
-        python $apxinfer_dir/fextractor.py $cfg
-        python $apxinfer_dir/pipeline.py $cfg
-    else
-        python $apxinfer_dir/test_pipeline.py $cfg
-    fi
+elif [ $action == "feature" ]; then
+    # feature extraction stage
+    python $apxinfer_dir/fextractor.py $cfg $fcols --sample $sample
+    exit 0
+elif [ $action == "build" ]; then
+    # build pipeline stage
+    python $apxinfer_dir/pipeline.py $cfg $fcols --sample $sample --apx_training
+    exit 0
+elif [ $action == "test" ]; then
+    # test pipline stage
+    python $apxinfer_dir/test_pipeline.py $cfg $fcols --sample $sample
+    exit 0
 else
-    # if $sample starts with auto
-    if [[ $sample == auto* ]]; then
-        echo "run with auto"
-        python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
-    else
-        if [ $mode == "build" ]; then
-            python $apxinfer_dir/fextractor.py $cfg --sample $sample
-            python $apxinfer_dir/pipeline.py $cfg
-            python $apxinfer_dir/pipeline.py $cfg --apx_training --sample $sample
-        else
-            python $apxinfer_dir/test_pipeline.py $cfg --sample $sample
-        fi
-    fi
+    echo "action should be one of prep, feature, build, test"
+    exit 1
 fi

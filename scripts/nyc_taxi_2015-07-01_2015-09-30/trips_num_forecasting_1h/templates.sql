@@ -1,3 +1,24 @@
+-- feature derived from request (which only contains hourstamp)
+-- we can dervie the day, the hour, is_night, weekday, from hourstamp
+WITH {hourstamp} AS target_hourstamp, 
+    dateAdd(HOUR, target_hourstamp  - 24, toDate('2015-01-01')) AS target_date -- day_of_year starts from 1
+SELECT  toDayOfYear(target_date) AS day_of_year,
+        target_hourstamp % 24 AS hour_of_day, 
+        toDayOfWeek(target_date) AS day_of_week,
+        toDayOfYear(target_date) AS dayofyear,
+        toDayOfWeek(target_date) BETWEEN 2 AND 6 AS is_weekday,
+        hour_of_day BETWEEN 20 AND 6 AS is_night,
+        hour_of_day BETWEEN 7 AND 9 AS is_morning,
+        hour_of_day BETWEEN 10 AND 16 AS is_afternoon,
+        hour_of_day BETWEEN 17 AND 19 AS is_evening,
+        hour_of_day BETWEEN 20 AND 23 AS is_late_evening,
+        hour_of_day BETWEEN 0 AND 6 AS is_early_morning,
+        target_date BETWEEN toDate('2015-07-01') AND toDate('2015-09-30') AS is_summer,
+        target_date BETWEEN toDate('2015-01-01') AND toDate('2015-03-31') AS is_winter,
+        target_date BETWEEN toDate('2015-04-01') AND toDate('2015-06-30') AS is_spring,
+        target_date BETWEEN toDate('2015-10-01') AND toDate('2015-12-31') AS is_autumn
+;
+
 -- feature of 1 hour window
 WITH 
     (toDayOfYear(pickup_datetime) * 24 + toHour(pickup_datetime) ) AS pickup_hourstamp,

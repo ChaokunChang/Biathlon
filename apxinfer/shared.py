@@ -388,44 +388,25 @@ class SimpleParser(Tap):
         self.label_src = os.path.join(self.task_dir, 'labels.csv')
 
         assert self.sql_templates_file is not None, 'sql_templates_file is required'
+        self.sql_name = os.path.basename(self.sql_templates_file).split('.')[0]
         self.templator = SQLTemplates().from_file(self.sql_templates_file)
 
-        self.feature_dir = os.path.join(self.task_dir, 'features') if self.sample is None else os.path.join(
-            self.task_dir, 'features', f'sample_{self.sample}')
+        # dir of this job, determined by task and sql_name
+        self.job_dir = os.path.join(self.task_dir, self.sql_name)
 
-        if self.fcols is not None:
-            if self.fcols.endswith('feature_importance.csv'):
-                # fcols is filename to feature_importance.csv
-                # we select topk features from feature_importance.csv
-                fimps_df = pd.read_csv(self.fcols)
-                topkfimps = fimps_df.sort_values(
-                    by='importance', ascending=False).head(self.topk_features)
-                self.fcols = topkfimps['fname'].values.tolist()
-                # self.fimps = topkfimps['importance'].values.tolist()
-                self.experiment_dir = os.path.join(
-                    RESULTS_HOME, self.data, self.task, f'{self.model_name}_top{self.topk_features}')
-                self.feature_dir = os.path.join(
-                    self.feature_dir, f'{self.model_name}_top{self.topk_features}')
-            else:
-                # fcols is a list of feature names and imps splited by ,
-                # each element will be fname:fimp
-                self.fcols_imps = self.fcols.split(',')
-                self.fcols = [fcol_imp.split(':')[0]
-                              for fcol_imp in self.fcols_imps]
-                # self.fimps = [float(fcol_imp.split(':')[1]) if len(
-                #     fcol_imp.split(':')) > 1 else 0.0 for fcol_imp in self.fcols_imps]
-                self.experiment_dir = os.path.join(
-                    RESULTS_HOME, self.data, self.task, f'{self.model_name}_num{len(self.fcols)}')
-                self.feature_dir = os.path.join(
-                    self.feature_dir, f'{self.model_name}_num{len(self.fcols)}')
-            assert len(self.fcols) > 0, f'fcols is empty'
-        else:
-            # fcols is None, means all feature columns are selected.
-            self.experiment_dir = os.path.join(
-                RESULTS_HOME, self.data, self.task, self.model_name)
+        # where feature are stored
+        self.feature_dir = os.path.join(self.job_dir, 'features')
+        if self.sample is not None:
+            self.feature_dir = os.path.join(
+                self.feature_dir, f'sample_{self.sample}')
 
-        self.evals_dir = os.path.join(self.experiment_dir, 'evals') if self.sample is None else os.path.join(
-            self.experiment_dir, 'evals', f'sample_{self.sample}')
+        self.experiment_dir = os.path.join(
+            RESULTS_HOME, self.data, self.task, self.sql_name, self.model_name)
+
+        self.evals_dir = os.path.join(self.experiment_dir, 'evals')
+        if self.sample is not None:
+            self.evals_dir = os.path.join(
+                self.evals_dir, f'sample_{self.sample}')
 
         if self.sample is None and self.apx_training:
             print(f'WARN: apx_training is disabled with None sample')

@@ -109,6 +109,7 @@ def run(args: SimpleParser):
     test_y = pd.read_csv(os.path.join(args.pipelines_dir, 'test_y.csv'))
     test_kids = pd.read_csv(os.path.join(args.pipelines_dir, 'test_kids.csv'))
 
+    # load feature names
     fnames = pipe.feature_names_in_.tolist()
 
     # load apx features
@@ -153,6 +154,8 @@ def run(args: SimpleParser):
         args.evals_dir, 'apx_y_test_pred.png'), 'apx_y_test_pred', 'y', 'count')
     plot_hist_and_save(args, pipe.predict(exp_X), os.path.join(
         args.evals_dir, 'bsl_y_test_pred.png'), 'bsl_y_test_pred', 'y', 'count')
+
+    return evals
 
 
 if __name__ == "__main__":

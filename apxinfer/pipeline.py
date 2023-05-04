@@ -398,7 +398,7 @@ def build_pipeline(args: SimpleParser):
     assert args.apx_training or args.sample is None, 'either apx_training or sample must not be set'
 
     features = load_features(
-        args, dropna=True, sort_by=args.sort_by, cols=args.fcols)
+        args, dropna=True, sort_by=args.sort_by, cols=None)
     labels = load_labels(args, features[args.keycol].values.tolist())
     Xy = pd.merge(features, labels, on=args.keycol, how='left')
     Xy = datetime_processing(Xy, 'drop')

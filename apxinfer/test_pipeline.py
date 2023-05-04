@@ -30,8 +30,10 @@ def load_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame:
     5 load the features from csv and process nan values
     6 return apx features
     """
-    feature_dir = args.feature_dir
     filename = f'{args.ffile_prefix}.csv'
+    feature_dir = args.feature_dir
+    if isinstance(args.sample, str) and args.sample.startswith('auto:'):
+        feature_dir = os.path.join(feature_dir, f'{args.model_name}')
     fpath = os.path.join(feature_dir, filename)
     if not os.path.exists(fpath):
         # extract the required features
@@ -66,7 +68,6 @@ def load_apx_features(args: SimpleParser, fcols: list[str]) -> pd.DataFrame:
             template, qsamples[i]) for i, template in enumerate(sql_templates)]
 
         # extract features
-        feature_dir = args.feature_dir
         extract(args.task_dir, feature_dir,
                 args.ffile_prefix, args.keycol, sql_templates)
 

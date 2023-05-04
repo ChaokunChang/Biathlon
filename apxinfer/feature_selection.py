@@ -1,7 +1,7 @@
 from pipeline import *
 
 
-def feature_selection_by_importance(pipelines_dir: str, sql_templates_file: str, topk: Union[float, int] = 10):
+def feature_selection_by_importance(pipelines_dir: str, sql_templates_file: str, topk: Union[float, int] = 10, must_include: list[str] = None):
     # load pipelines
     pipe = load_pipeline(pipelines_dir, 'pipeline.pkl')
 
@@ -26,11 +26,16 @@ def feature_selection_by_importance(pipelines_dir: str, sql_templates_file: str,
     candidates_df = candidates_df.iloc[:topk]
     fcols = candidates_df['fname'].values.tolist()
 
+    if must_include is not None:
+        for col in must_include:
+            if col is not None:
+                fcols.append(col)
+    print(f'fcols={fcols}')
     # improve the sql template files according to fcols
     templates_dir = os.path.dirname(sql_templates_file)
     templates_filename = os.path.basename(sql_templates_file).split('.')[0]
     new_template_file = os.path.join(
-        templates_dir, f'{templates_filename}_improved.sql')
+        templates_dir, f'{templates_filename}_selected_top{topk}.sql')
 
     templator = SQLTemplates().from_file(sql_templates_file)
     # rewrite the sql template, such only valid feas (fname in qcols) will be returned
@@ -46,4 +51,5 @@ def feature_selection_by_importance(pipelines_dir: str, sql_templates_file: str,
 if __name__ == "__main__":
     args = SimpleParser().parse_args()
     feature_selection_by_importance(args.pipelines_dir,
-                                    args.sql_templates_file, args.topk_features)
+                                    args.sql_templates_file, args.topk_features,
+                                    must_include=[args.sort_by])

@@ -103,8 +103,6 @@ def run(args: SimpleParser):
 
     # load pipelines
     pipe = load_pipeline(args.pipelines_dir, 'pipeline.pkl')
-    apx_pipe = load_apx_pipeline(
-        args.pipelines_dir, get_avg_sample(args.sample))
 
     # load test workload
     test_X = pd.read_csv(os.path.join(args.pipelines_dir, 'test_X.csv'))
@@ -112,7 +110,6 @@ def run(args: SimpleParser):
     test_kids = pd.read_csv(os.path.join(args.pipelines_dir, 'test_kids.csv'))
 
     fnames = pipe.feature_names_in_.tolist()
-    assert sorted(fnames) == sorted(apx_pipe.feature_names_in_.tolist())
 
     # load apx features
     apx_features = load_apx_features(args, fnames)
@@ -132,17 +129,21 @@ def run(args: SimpleParser):
     evals.append(evaluate_pipeline(
         args, pipe, exp_X, test_pred, 'extP-bs0F-sim'))
     evals.append(evaluate_pipeline(
-        args, apx_pipe, apx_X, test_y, 'apxP-apxF-acc'))
-    evals.append(evaluate_pipeline(
-        args, apx_pipe, apx_X, test_pred, 'apxP-apxF-sim'))
-    evals.append(evaluate_pipeline(
-        args, apx_pipe, test_X, test_y, 'apxP-extF-acc'))
-    evals.append(evaluate_pipeline(
-        args, apx_pipe, test_X, test_pred, 'apxP-extF-sim'))
-    evals.append(evaluate_pipeline(
         args, pipe, apx_X, test_y, 'extP-apxF-acc'))
     evals.append(evaluate_pipeline(
         args, pipe, apx_X, test_pred, 'extP-apxF-sim'))
+    if args.additional_baseline:
+        apx_pipe = load_apx_pipeline(
+            args.pipelines_dir, get_avg_sample(args.sample))
+        assert sorted(fnames) == sorted(apx_pipe.feature_names_in_.tolist())
+        evals.append(evaluate_pipeline(
+            args, apx_pipe, apx_X, test_y, 'apxP-apxF-acc'))
+        evals.append(evaluate_pipeline(args, apx_pipe,
+                     apx_X, test_pred, 'apxP-apxF-sim'))
+        evals.append(evaluate_pipeline(args, apx_pipe,
+                     test_X, test_y, 'apxP-extF-acc'))
+        evals.append(evaluate_pipeline(args, apx_pipe,
+                     test_X, test_pred, 'apxP-extF-sim'))
 
     # show evals as pandas dataframe
     evals_df = pd.DataFrame(evals)

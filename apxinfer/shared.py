@@ -318,7 +318,7 @@ class SQLTemplates:
         self.templates = [keywords_rewrite(template)
                           for template in self.templates]
         return self
-    
+
     def get_all_fcols(self):
         fcols = []
         for template in self.templates:
@@ -374,6 +374,9 @@ class SimpleParser(Tap):
     apx_training: bool = False  # whether to use approximation model
 
     topk_features: int = 10  # top k features to show
+
+    # whether to show additional baseline during test
+    additional_baseline: bool = False
 
     def configure(self):
         self.add_argument('--sample', type=to_sample)

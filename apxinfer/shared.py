@@ -19,6 +19,8 @@ from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.tree import plot_tree
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import metrics, pipeline, set_config, tree
+from scipy import stats as spstats
+from scipy.stats import entropy
 import sklearn
 import json
 import sys

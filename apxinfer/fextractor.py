@@ -31,7 +31,7 @@ class FeatureExtractor:
     def extract_once(self, x: pd.Series or pd.DataFrame):
         sql = self.sql_template.format(**x.to_dict())
         rows_df = DBConnector().execute(sql)
-        if self.key not in rows_df.columns:
+        if self.key is not None and self.key not in rows_df.columns:
             rows_df[self.key] = x[self.key]
         aggregations = rows_df.iloc[0]
         return aggregations

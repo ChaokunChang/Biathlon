@@ -34,7 +34,7 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 filecols = [f'sensor_{i}' for i in range(8)]
 
 datadir = os.path.join(DATA_HOME, 'machinery')
-database = 'machinery_more'
+database = 'machinery_more_log'
 work_dir = os.path.join(RESULTS_HOME, database)
 spectograms_dir = os.path.join(work_dir, 'spectograms')
 os.makedirs(spectograms_dir, exist_ok=True)
@@ -111,131 +111,65 @@ def prepare_file2bid():
     df.to_csv(os.path.join(work_dir, 'file2bid.csv'), index=False)
 
 
-def prepare_db(database='machinery_more'):
+def prepare_db(database):
     dbconn = clickhouse_connect.get_client(
         host='localhost', port=0, username='default', password='', session_id=f'session_{database}')
 
-    def create_tables(dbconn, database, table_name):
-        print(f'Create table {table_name} to store data from all (8x) sensors')
-        typed_signal = ', '.join([f'sensor_{i} Float32' for i in range(8)])
-        dbconn.command("""CREATE TABLE IF NOT EXISTS {database}.{table_name} 
-                        (rid UInt64, label UInt32, tag String, 
-                            bid UInt32, pid UInt32, 
-                            {typed_signal}) 
-                        ENGINE = MergeTree() 
-                        ORDER BY (bid, pid) 
-                        SETTINGS index_granularity = 1024
-                        """.format(database=database,
-                                   table_name=table_name,
-                                   typed_signal=typed_signal))
-
-    def insert_data_better(dbconn, database, table_name):
+    def prepare_logdb(dbconn, database, table_name):
         normal_file_names, imnormal_file_names_6g, imnormal_file_names_10g, imnormal_file_names_15g, imnormal_file_names_20g, imnormal_file_names_25g, imnormal_file_names_30g = get_all_file_names()
         all_file_names = normal_file_names + imnormal_file_names_6g + imnormal_file_names_10g + \
             imnormal_file_names_15g + imnormal_file_names_20g + \
             imnormal_file_names_25g + imnormal_file_names_30g
         typed_signal = ', '.join([f'sensor_{i} Float32' for i in range(8)])
+
         for bid, src in tqdm(enumerate(all_file_names)):
-            filename = os.path.basename(src)
-            tag = filename.split('.')[0]
-            dirname = os.path.basename(os.path.dirname(src))
-            label = ['normal', '6g', '10g', '15g',
-                     '20g', '25g', '30g'].index(dirname)
-            cnt = dbconn.command(
-                f'SELECT count(*) FROM {database}.{table_name}')
-            # print(f'dbsize={cnt}')
-            command = """
-                    clickhouse-client \
-                        --query \
-                        "INSERT INTO {database}.{table_name} \
-                            SELECT ({cnt} + row_number() OVER ()) AS rid, \
-                                    {label} AS label, {tag} AS tag, {bid} + floor(((row_number() OVER ()) - 1)/50000) AS bid,
-                                    ((row_number() OVER ()) - 1) % 50000 AS pid,
-                                    {values} \
-                            FROM input('{values_w_type}') \
-                            FORMAT CSV" \
-                            < {filepath}
+            for i in range(5):
+                tid = bid * 5 + i
+                dbconn.command("""CREATE TABLE IF NOT EXISTS {database}.{table_name} 
+                                ({typed_signal}) 
+                                ENGINE = Log 
+                                SETTINGS index_granularity = 32
+                                """.format(database=database,
+                                           table_name=f'{table_name}_{tid}',
+                                           typed_signal=typed_signal))
+                dbconn.command("""
+                    INSERT INTO {database}.{table_name} 
+                    SELECT {values}
+                    FROM machinery_more.sensors
+                    WHERE bid={bid}
                     """.format(database=database,
-                               table_name=table_name,
-                               cnt=cnt, label=label,
-                               tag=tag, bid=bid*5,
+                               table_name=f'{table_name}_{tid}',
                                values=', '.join(
                                    [f'sensor_{i} AS sensor_{i}' for i in range(8)]),
-                               values_w_type=', '.join(
-                                   [f'sensor_{i} Float32' for i in range(8)]),
-                               filepath=src)
-            # print(command)
-            os.system(command)
+                               bid=tid))
 
-        # prepare 8 tables for 8 sensors separately, insert from table_name table
-        for i in range(8):
-            sensor_table_name = f'{table_name}_sensor_{i}'
-            dbconn.command("""CREATE TABLE IF NOT EXISTS {database}.{sensor_table_name} 
-                            (rid UInt64, label UInt32, tag String, 
-                                bid UInt32, pid UInt32, 
-                                sensor_{i} Float32) 
-                            ENGINE = MergeTree() 
-                            ORDER BY (bid, pid) 
-                            SETTINGS index_granularity = 1024
-                            """.format(database=database,
-                                       sensor_table_name=sensor_table_name,
-                                       i=i))
-            dbconn.command(
-                f'INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}')
-
-    def insert_data_shuffle(dbconn, database, table_name):
+    def prepare_logdb_shuffle(dbconn, database, table_name):
         normal_file_names, imnormal_file_names_6g, imnormal_file_names_10g, imnormal_file_names_15g, imnormal_file_names_20g, imnormal_file_names_25g, imnormal_file_names_30g = get_all_file_names()
         all_file_names = normal_file_names + imnormal_file_names_6g + imnormal_file_names_10g + \
             imnormal_file_names_15g + imnormal_file_names_20g + \
             imnormal_file_names_25g + imnormal_file_names_30g
         typed_signal = ', '.join([f'sensor_{i} Float32' for i in range(8)])
+
         for bid, src in tqdm(enumerate(all_file_names)):
-            filename = os.path.basename(src)
-            tag = filename.split('.')[0]
-            dirname = os.path.basename(os.path.dirname(src))
-            label = ['normal', '6g', '10g', '15g',
-                     '20g', '25g', '30g'].index(dirname)
-            cnt = dbconn.command(
-                f'SELECT count(*) FROM {database}.{table_name}')
-            # print(f'dbsize={cnt}')
-            command = """
-                    clickhouse-client \
-                        --query \
-                        "INSERT INTO {database}.{table_name} \
-                            SELECT ({cnt} + row_number() OVER ()) AS rid, \
-                                    {label} AS label, {tag} AS tag, {bid} + floor(((row_number() OVER ()) - 1)/50000) AS bid,
-                                    (rand32() % 50000) AS pid,
-                                    {values} \
-                            FROM input('{values_w_type}') \
-                            FORMAT CSV" \
-                            < {filepath}
+            for i in range(5):
+                tid = bid * 5 + i
+                dbconn.command("""CREATE TABLE IF NOT EXISTS {database}.{table_name} 
+                                ({typed_signal}) 
+                                ENGINE = Log 
+                                SETTINGS index_granularity = 32
+                                """.format(database=database,
+                                           table_name=f'{table_name}_{tid}',
+                                           typed_signal=typed_signal))
+                dbconn.command("""
+                    INSERT INTO {database}.{table_name} 
+                    SELECT {values}
+                    FROM machinery_more.sensors_shuffle
+                    WHERE bid={bid}
                     """.format(database=database,
-                               table_name=table_name,
-                               cnt=cnt, label=label,
-                               tag=tag, bid=bid*5,
+                               table_name=f'{table_name}_{tid}',
                                values=', '.join(
                                    [f'sensor_{i} AS sensor_{i}' for i in range(8)]),
-                               values_w_type=', '.join(
-                                   [f'sensor_{i} Float32' for i in range(8)]),
-                               filepath=src)
-            # print(command)
-            os.system(command)
-
-        # prepare 8 tables for 8 sensors separately, insert from table_name table
-        for i in range(8):
-            sensor_table_name = f'{table_name}_sensor_{i}'
-            dbconn.command("""CREATE TABLE IF NOT EXISTS {database}.{sensor_table_name} 
-                            (rid UInt64, label UInt32, tag String, 
-                                bid UInt32, pid UInt32, 
-                                sensor_{i} Float32) 
-                            ENGINE = MergeTree() 
-                            ORDER BY (bid, pid) 
-                            SETTINGS index_granularity = 1024
-                            """.format(database=database,
-                                       sensor_table_name=sensor_table_name,
-                                       i=i))
-            dbconn.command(
-                f'INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}')
+                               bid=tid))
 
     # check whether the database exists
     if not dbconn.command(f"SHOW DATABASES LIKE '{database}'"):
@@ -244,13 +178,13 @@ def prepare_db(database='machinery_more'):
     else:
         return dbconn, database
 
+    print(f'Create table {database}.sensors')
     table_name = 'sensors'
-    create_tables(dbconn, database, table_name)
-    insert_data_better(dbconn, database, table_name)
+    prepare_logdb(dbconn, database, table_name)
 
+    print(f'Create table {database}.sensors_shuffle')
     table_name = 'sensors_shuffle'
-    create_tables(dbconn, database, table_name)
-    insert_data_shuffle(dbconn, database, table_name)
+    prepare_logdb_shuffle(dbconn, database, table_name)
 
 
 def compute_features(df: pd.DataFrame, nsample: int = 0):
@@ -400,7 +334,7 @@ def prepare_pipeline(task='binary_classification', fcols=[f'{col}_mean' for col 
         model = MLPClassifier(solver='adam', random_state=42,
                               max_iter=200, learning_rate_init=1e-1, verbose=True)
     elif model_name == 'svm':
-        model = SVC(random_state=42, probability=True)
+        model = SVC(random_state=42)
     elif model_name == 'knn':
         model = KNeighborsClassifier(n_neighbors=3)
     elif model_name == 'dt':

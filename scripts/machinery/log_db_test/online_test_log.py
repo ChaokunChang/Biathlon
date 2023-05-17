@@ -22,7 +22,7 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 
 class OnlineParser(Tap):
-    database = 'machinery_more'
+    database = 'machinery_more_log'
     segment_size = 50000
 
     # path to the task directory
@@ -36,7 +36,7 @@ class OnlineParser(Tap):
     sample_budget_each: float = 0.1  # sample budget each in avg
     low_conf_threshold: float = 0.8  # low confidence threshold
 
-    npoints_for_conf: int = 1000  # number of points for confidence
+    npoints_for_conf: int = 100  # number of points for confidence
 
     clear_cache: bool = False  # clear cache
 
@@ -159,17 +159,10 @@ def evaluate_feature(y, y_pred, tag, verbose=False):
 def allocate_qsamples(sample_each_in_avg: float, qimps: list[float]):
     # allocate sampling rate according to query importance
     # count number of non-zero element in qimps
-    budget = sample_each_in_avg * len([qimps for qimp in qimps if qimp > 0])
-    qsamples = np.zeros(len(qimps))
-    # allocate budget according to qimps
-    # allocate in order of importance
-    allocate_order = np.argsort(qimps)[::-1]
-    for i in allocate_order:
-        sample = budget * np.array(qimps[i]) / np.sum(qimps)
-        qsamples[i] = min(sample, 1.0)
-        budget -= qsamples[i]
-        qimps[i] = 0
-    # print(f'qsamples({np.sum(qsamples)}): {qsamples}')
+    sum_sample = sample_each_in_avg * \
+        len([qimp for qimp in qimps if qimp >= 0])
+    qsamples = sum_sample * np.array(qimps) / np.sum(qimps)
+    # qsamples = [np.round(qsample * 10000) / 10000 for qsample in qsamples]
     return qsamples
 
 
@@ -178,8 +171,8 @@ def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFram
     segment_size = args.segment_size
     # add new column sample to request
     reqs = requests.copy()
-    reqs.insert(0, 'nsample', sample_budget_each * segment_size)
-    reqs.insert(0, 'noffset', sample_offset * segment_size)
+    reqs.insert(0, 'nsample', int(sample_budget_each * segment_size))
+    reqs.insert(0, 'noffset', int(sample_offset * segment_size))
 
     feature_importance_path = os.path.join(
         job_dir, 'feature_importances.csv')
@@ -202,13 +195,15 @@ def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFram
             SELECT avgOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_mean,
                     countOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_count,
                     varSampOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_var
-            FROM {database}.sensors_sensor_{sensor_id}
-            WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsample})
+            FROM
+            (   SELECT sensor_{sensor_id} as sensor_{sensor_id} 
+                FROM {database}.sensors_{bid}
+                LIMIT {nsample} OFFSET {noffset}
+            )
         """.format(**req, sensor_id=sensor_id, database=database)
         st = time.time()
         rows_df = db_client.query_df(sql)
         load_time = time.time() - st
-        # os.system('echo 3 | sudo tee /proc/sys/vm/drop_caches')
         # print(f'rows={rows}')
         rows_df[f'load_time_{sensor_id}'] = load_time
         rows_df[f'compute_time_{sensor_id}'] = 0.0
@@ -220,7 +215,7 @@ def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFram
     features_list = []
     for sensor_id in range(8):
         st = time.time()
-        reqs['nsample'] = qsamples[sensor_id] * segment_size
+        reqs['nsample'] = int(qsamples[sensor_id] * segment_size)
         features = reqs.parallel_apply(
             lambda row: machinery_compute(row, args.database, sensor_id), axis=1)
         features_list.append(features)
@@ -277,8 +272,7 @@ def compute_approx_pconf(model, features, variances, cardinalities, n_samples=10
     central_preds = model.predict(features)
     m, p = features.shape
     means = features
-    cardinalities = np.where(cardinalities < 1, 1.0, cardinalities)
-    variances = np.where(cardinalities < 30, 0, variances)
+    cardinalities = np.where(cardinalities < 30, 1.0, cardinalities)
     scales = np.sqrt(np.where(cardinalities >= 250000,
                      0.0, variances) / cardinalities)
     # (n_samples, m, p)
@@ -386,13 +380,10 @@ def run(args: OnlineParser):
         else:
             print('no low confidence requests')
 
-    nrows_per_request = apx_features['nrows'].mean()
-
     print(f'load_cpu_time    = {load_cpu_time}')
     print(f'compute_cpu_time = {compute_cpu_time}')
     print(f'model_pred_time  = {pred_time}')
     print(f'pcconf_time      = {pconf_time}')
-    print(f'nrows_per_request= {nrows_per_request}')
 
     # save the prediction confidence
     is_same = (exact_pred == apx_pred)
@@ -453,7 +444,6 @@ def run(args: OnlineParser):
     evals_df['pred_time'] = pred_time
     evals_df['pconf_time'] = pconf_time
     evals_df['feature_time'] = load_cpu_time + compute_cpu_time
-    evals_df['nrows'] = nrows_per_request
     print(evals_df)
     evals_df.to_csv(os.path.join(
         feature_dir, f'evals_{args.sample_strategy}.csv'), index=False)
@@ -472,7 +462,6 @@ def run(args: OnlineParser):
     overall_eval['load_cpu_time'] = load_cpu_time
     overall_eval['compute_cpu_time'] = compute_cpu_time
     overall_eval['feature_time'] = load_cpu_time + compute_cpu_time
-    overall_eval['nrows'] = nrows_per_request
     fevals_df = pd.concat(
         [fevals_df, pd.DataFrame([overall_eval])], ignore_index=True)
     print(fevals_df)

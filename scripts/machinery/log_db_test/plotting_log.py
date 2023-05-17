@@ -12,7 +12,7 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 
 class OnlineParser(Tap):
-    database = 'machinery_more'
+    database = 'machinery_more_log'
     task: str = "binary_classification"  # task name
     model_name: str = 'xgb'  # model name
 
@@ -21,7 +21,7 @@ class OnlineParser(Tap):
     sample_nchunks: int = 10  # number of chunks to sample
     low_conf_threshold: float = 0.8  # low confidence threshold
 
-    npoints_for_conf: int = 1000  # number of points to compute confidence
+    npoints_for_conf: int = 100  # number of points to compute confidence
 
     def process_args(self) -> None:
         self.job_dir: str = os.path.join(
@@ -37,10 +37,10 @@ def collect_1(args: OnlineParser, all_samples):
                                         'pacc', 'pacc-sim', 'proc',
                                         'proc-sim', 'pconf', 'pconf-median',
                                         'feature_time', 'pred_time', 'pconf_time',
-                                        'cpu_time', 'nrows'])
+                                        'cpu_time'])
     for sample in tqdm(all_samples):
         command = f'/home/ckchang/anaconda3/envs/amd/bin/python \
-                /home/ckchang/ApproxInfer/scripts/machinery/binary_classification/online_test.py \
+                /home/ckchang/ApproxInfer/scripts/machinery/online_test_log.py \
                 --task {args.task} \
                 --model_name {args.model_name} \
                 --sample_strategy {sample_strategy} \
@@ -68,7 +68,6 @@ def collect_1(args: OnlineParser, all_samples):
         feature_time = evals.iloc[2]['feature_time']
         pred_time = evals.iloc[2]['pred_time']
         pconf_time = evals.iloc[2]['pconf_time']
-        nrows = evals.iloc[2]['nrows']
         row = {'sample': sample, 'oracle_acc': oracle_acc, 'oracle_roc': oracle_roc,
                'fr2': feature_r2, 'fmaxe': fmaxe,
                'pacc': pred_accuracy, 'pacc-sim': pred_similarity,
@@ -77,11 +76,9 @@ def collect_1(args: OnlineParser, all_samples):
                'feature_time': feature_time,
                'pred_time': pred_time,
                'pconf_time': pconf_time,
-               'cpu_time': feature_time + pred_time + pconf_time,
-               'nrows': nrows}
-        row_df = pd.DataFrame(row, index=[0])
-        print(row_df)
-        all_metrics = pd.concat([all_metrics, row_df])
+               'cpu_time': feature_time + pred_time + pconf_time}
+        print(row)
+        all_metrics = pd.concat([all_metrics, pd.DataFrame(row, index=[0])])
     all_metrics.to_csv(os.path.join(
         job_dir, f'machinery_metrics_{args.sample_strategy}.csv'))
 
@@ -102,14 +99,12 @@ def plot_1(args: OnlineParser):
                                         'feature_time',
                                         'pred_time',
                                         'pconf_time',
-                                        'cpu_time', 'nrows'])
+                                        'cpu_time'])
 
     all_samples = [0.001]
     all_samples += [i * 0.005 for i in range(1, 20)]
-    all_samples += [i * 1.0 / nchunks for i in range(1, nchunks)]
-    all_samples += [i * 1.0 / (5 * nchunks)
-                    for i in range(5*nchunks - 5 + 1, 5*nchunks + 1)]
-    collect_1(args, list(reversed(all_samples)))
+    all_samples += [i * 1.0 / nchunks for i in range(1, nchunks+1)]
+    collect_1(args, all_samples)
 
     all_metrics = pd.read_csv(os.path.join(
         job_dir, f'machinery_metrics_{args.sample_strategy}.csv'))
@@ -165,15 +160,14 @@ def plot_1(args: OnlineParser):
     axs[0].set_ylabel('time (s)')
     axs[0].legend()
 
-    # axs[1].plot(all_metrics['sample'], all_metrics['feature_time'] /
-    #             all_metrics['cpu_time'], label='feature_time')
-    # axs[1].plot(all_metrics['sample'], all_metrics['pred_time'] /
-    #             all_metrics['cpu_time'], label='pred_time')
-    # axs[1].plot(all_metrics['sample'], all_metrics['pconf_time'] /
-    #             all_metrics['cpu_time'], label='pconf_time')
-    axs[1].plot(all_metrics['sample'], all_metrics['nrows'], label='nrows')
+    axs[1].plot(all_metrics['sample'], all_metrics['feature_time'] /
+                all_metrics['cpu_time'], label='feature_time')
+    axs[1].plot(all_metrics['sample'], all_metrics['pred_time'] /
+                all_metrics['cpu_time'], label='pred_time')
+    axs[1].plot(all_metrics['sample'], all_metrics['pconf_time'] /
+                all_metrics['cpu_time'], label='pconf_time')
     axs[1].set_xlabel('sample rate')
-    axs[1].set_ylabel('nrows per request')
+    axs[1].set_ylabel('fraction of cpu time')
     axs[1].legend()
 
     plt.savefig(os.path.join(
@@ -188,54 +182,30 @@ def plot_1(args: OnlineParser):
         # we use scatter plot to show the trade-off
         colors = matplotlib.cm.rainbow(
             np.linspace(0, 1, len(all_metrics['sample'])))
-        fig, axs = plt.subplots(2, 2, figsize=(16, 12))
-        axs[0][0].scatter(equal_metrics['pacc'], equal_metrics['nrows'],
-                          label='equal', marker='x', color=colors)
-        axs[0][0].scatter(all_metrics['pacc'], all_metrics['nrows'],
-                          label=args.sample_strategy, marker='*', color=colors)
-        axs[0][0].plot(equal_metrics['pacc'], equal_metrics['nrows'],
-                       label='equal', linestyle='--')
-        axs[0][0].plot(all_metrics['pacc'], all_metrics['nrows'],
-                       label=args.sample_strategy)
-        axs[0][0].set_xlabel('accuracy')
-        axs[0][0].set_ylabel('cpu time (s)')
-        axs[0][0].legend()
+        fig, axs = plt.subplots(1, 2, figsize=(16, 6))
+        axs[0].scatter(equal_metrics['pacc'], equal_metrics['cpu_time'],
+                       label='equal', marker='x', color=colors)
+        axs[0].scatter(all_metrics['pacc'], all_metrics['cpu_time'],
+                       label=args.sample_strategy, marker='*', color=colors)
+        axs[0].plot(equal_metrics['pacc'], equal_metrics['cpu_time'],
+                    label='equal', linestyle='--')
+        axs[0].plot(all_metrics['pacc'], all_metrics['cpu_time'],
+                    label=args.sample_strategy)
+        axs[0].set_xlabel('accuracy')
+        axs[0].set_ylabel('cpu time (s)')
+        axs[0].legend()
 
-        axs[0][1].scatter(equal_metrics['pacc-sim'], equal_metrics['nrows'],
-                          label='equal', marker='x', color=colors)
-        axs[0][1].scatter(all_metrics['pacc-sim'], all_metrics['nrows'],
-                          label=args.sample_strategy, marker='*', color=colors)
-        axs[0][1].plot(equal_metrics['pacc-sim'],
-                       equal_metrics['nrows'], label='equal', linestyle='--')
-        axs[0][1].plot(all_metrics['pacc-sim'], all_metrics['nrows'],
-                       label=args.sample_strategy)
-        axs[0][1].set_xlabel('acc similarity')
-        axs[0][1].set_ylabel('load cpu time')
-        axs[0][1].legend()
-
-        axs[1][0].scatter(equal_metrics['proc'], equal_metrics['nrows'],
-                          label='equal', marker='x', color=colors)
-        axs[1][0].scatter(all_metrics['proc'], all_metrics['nrows'],
-                          label=args.sample_strategy, marker='*', color=colors)
-        axs[1][0].plot(equal_metrics['proc'], equal_metrics['nrows'],
-                       label='equal', linestyle='--')
-        axs[1][0].plot(all_metrics['proc'], all_metrics['nrows'],
-                       label=args.sample_strategy)
-        axs[1][0].set_xlabel('roc')
-        axs[1][0].set_ylabel('nrows')
-        axs[1][0].legend()
-
-        axs[1][1].scatter(equal_metrics['proc-sim'], equal_metrics['nrows'],
-                          label='equal', marker='x', color=colors)
-        axs[1][1].scatter(all_metrics['proc-sim'], all_metrics['nrows'],
-                          label=args.sample_strategy, marker='*', color=colors)
-        axs[1][1].plot(equal_metrics['proc-sim'],
-                       equal_metrics['nrows'], label='equal', linestyle='--')
-        axs[1][1].plot(all_metrics['proc-sim'], all_metrics['nrows'],
-                       label=args.sample_strategy)
-        axs[1][1].set_xlabel('roc similarity')
-        axs[1][1].set_ylabel('nrows')
-        axs[1][1].legend()
+        axs[1].scatter(equal_metrics['pacc-sim'], equal_metrics['cpu_time'],
+                       label='equal', marker='x', color=colors)
+        axs[1].scatter(all_metrics['pacc-sim'], all_metrics['cpu_time'],
+                       label=args.sample_strategy, marker='*', color=colors)
+        axs[1].plot(equal_metrics['pacc-sim'],
+                    equal_metrics['cpu_time'], label='equal', linestyle='--')
+        axs[1].plot(all_metrics['pacc-sim'], all_metrics['cpu_time'],
+                    label=args.sample_strategy)
+        axs[1].set_xlabel('similarity')
+        axs[1].set_ylabel('load cpu time')
+        axs[1].legend()
 
         plt.savefig(os.path.join(
             job_dir, f'machinery_cpu_time_{args.sample_strategy}_vs_equal.png'))

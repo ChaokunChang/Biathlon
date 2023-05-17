@@ -173,6 +173,27 @@ def allocate_qsamples(sample_each_in_avg: float, qimps: list[float]):
     return qsamples
 
 
+# compute features for machinery dataset
+def machinery_compute(req, database, sensor_id):
+    db_client = DBConnector().client
+    sql = """
+        SELECT avgOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_mean,
+                countOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_count,
+                varSampOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_var
+        FROM {database}.sensors_sensor_{sensor_id}
+        WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsample})
+    """.format(**req, sensor_id=sensor_id, database=database)
+    st = time.time()
+    rows_df = db_client.query_df(sql)
+    load_time = time.time() - st
+    # os.system('echo 3 | sudo tee /proc/sys/vm/drop_caches')
+    # print(f'rows={rows}')
+    rows_df[f'load_time_{sensor_id}'] = load_time
+    rows_df[f'compute_time_{sensor_id}'] = 0.0
+    rows_df[f'nrows_{sensor_id}'] = rows_df[f'sensor_{sensor_id}_count']
+    return rows_df.iloc[0]
+
+
 def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFrame, sample_budget_each: float, sample_strategy: str, sample_offset: float = 0) -> pd.DataFrame:
     assert sample_budget_each >= 0 and sample_budget_each <= 1
     segment_size = args.segment_size
@@ -194,26 +215,6 @@ def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFram
         qsamples = allocate_qsamples(sample_budget_each, [
                                      1.0 if imp > 0 else 0.0 for imp in feature_importances['importance'].tolist()])
     print(f'qsamples={qsamples} -> sum={np.sum(qsamples)}')
-
-    # compute features for machinery dataset
-    def machinery_compute(req, database, sensor_id):
-        db_client = DBConnector().client
-        sql = """
-            SELECT avgOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_mean,
-                    countOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_count,
-                    varSampOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_var
-            FROM {database}.sensors_sensor_{sensor_id}
-            WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsample})
-        """.format(**req, sensor_id=sensor_id, database=database)
-        st = time.time()
-        rows_df = db_client.query_df(sql)
-        load_time = time.time() - st
-        # os.system('echo 3 | sudo tee /proc/sys/vm/drop_caches')
-        # print(f'rows={rows}')
-        rows_df[f'load_time_{sensor_id}'] = load_time
-        rows_df[f'compute_time_{sensor_id}'] = 0.0
-        rows_df[f'nrows_{sensor_id}'] = rows_df[f'sensor_{sensor_id}_count']
-        return rows_df.iloc[0]
 
     # extract features now
     fextraction_time = 0
@@ -396,7 +397,7 @@ def run(args: OnlineParser):
 
     # save the prediction confidence
     is_same = (exact_pred == apx_pred)
-    is_label = (exact_pred == labels['label'])
+    is_label = (apx_pred == labels['label'])
     apx_pred_conf_df = pd.DataFrame(
         {'pred': apx_pred, 'conf': apx_pred_conf, 'is_same': is_same, 'is_label': is_label})
     apx_pred_conf_df.to_csv(os.path.join(

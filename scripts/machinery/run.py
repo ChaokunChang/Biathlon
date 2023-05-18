@@ -9,7 +9,7 @@ for model_name in ['mlp', 'knn', 'svm', 'xgb', 'dt', 'lgbm']:
     print("executing ", cmd)
     os.system(cmd)
 
-    for sample_strategy in ['equal', 'online', 'fimp', 'online_fimp'] + ['online_0.9', 'online_0.9_fimp']:
+    for sample_strategy in ['equal', 'online', 'fimp', 'online_fimp'] + ['online_0.9', 'online_0.9_fimp'] + ['softfimp', 'online_softfimp']:
         cmd = '/home/ckchang/anaconda3/envs/amd/bin/python ' \
             + plotting_script_path + ' ' \
             + f'--model_name {model_name}' + ' ' \

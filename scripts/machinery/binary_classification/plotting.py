@@ -39,20 +39,23 @@ def collect_1(args: OnlineParser, all_samples):
                                         'feature_time', 'pred_time', 'pconf_time',
                                         'cpu_time', 'nrows'])
     for sample in tqdm(all_samples):
-        command = f'/home/ckchang/anaconda3/envs/amd/bin/python \
-                /home/ckchang/ApproxInfer/scripts/machinery/binary_classification/online_test.py \
-                --task {args.task} \
-                --model_name {args.model_name} \
-                --sample_strategy {sample_strategy} \
-                --sample_budget_each {sample} \
-                --low_conf_threshold {args.low_conf_threshold} \
-                --npoints_for_conf {args.npoints_for_conf}'
-        command += ' > /dev/null'
-        os.system(command)
         feature_dir = os.path.join(job_dir, 'features', f'sample_{sample}')
         fevals_path = os.path.join(
             feature_dir, f'fevals_{sample_strategy}.csv')
         evals_path = os.path.join(feature_dir, f'evals_{sample_strategy}.csv')
+
+        if not (os.path.exists(fevals_path) and os.path.exists(evals_path)):
+            command = f'/home/ckchang/anaconda3/envs/amd/bin/python \
+                    /home/ckchang/ApproxInfer/scripts/machinery/binary_classification/online_test.py \
+                    --task {args.task} \
+                    --model_name {args.model_name} \
+                    --sample_strategy {sample_strategy} \
+                    --sample_budget_each {sample} \
+                    --low_conf_threshold {args.low_conf_threshold} \
+                    --npoints_for_conf {args.npoints_for_conf}'
+            command += ' > /dev/null'
+            os.system(command)
+
         fevals = pd.read_csv(fevals_path)
         evals = pd.read_csv(evals_path)
 

@@ -209,8 +209,10 @@ def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFram
         f'feature_importances={feature_importances[["fname", "importance"]]}')
 
     if sample_strategy.endswith('fimp'):
-        qsamples = allocate_qsamples(
-            sample_budget_each, feature_importances['importance'].tolist())
+        fimp = feature_importances['importance'].to_numpy()
+        if sample_strategy.endswith('softfimp'):
+            fimp = np.exp(fimp) / np.sum(np.exp(fimp))
+        qsamples = allocate_qsamples(sample_budget_each, fimp.tolist())
     else:
         qsamples = allocate_qsamples(sample_budget_each, [
                                      1.0 if imp > 0 else 0.0 for imp in feature_importances['importance'].tolist()])
@@ -364,8 +366,11 @@ def run(args: OnlineParser):
             if os.path.exists(low_conf_feature_path):
                 low_conf_features = pd.read_csv(low_conf_feature_path)
             else:
-                low_conf_features = compute_apx_features(args,
-                                                         args.job_dir, low_conf_requests, 1.0, args.sample_strategy)
+                low_conf_features = compute_apx_features(args, args.job_dir,
+                                                         low_conf_requests,
+                                                         sample_budget_each=1.0,
+                                                         sample_strategy='equal',
+                                                         sample_offset=0)
                 low_conf_features.to_csv(low_conf_feature_path, index=False)
             load_cpu_time += low_conf_features['load_time'].sum(
             ) - apx_features.iloc[low_conf_df.index]['load_time'].sum()

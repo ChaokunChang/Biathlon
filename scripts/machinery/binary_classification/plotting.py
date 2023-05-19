@@ -19,7 +19,7 @@ class OnlineParser(Tap):
     sample_strategy: str = 'equal'  # sample strategy
     # sample_budget_each: float = 0.1  # sample budget each in avg
     sample_nchunks: int = 10  # number of chunks to sample
-    low_conf_threshold: float = 0.8  # low confidence threshold
+    low_conf_threshold: float = 1.0  # low confidence threshold
 
     npoints_for_conf: int = 1000  # number of points to compute confidence
 
@@ -41,8 +41,9 @@ def collect_1(args: OnlineParser, all_samples):
     for sample in tqdm(all_samples):
         feature_dir = os.path.join(job_dir, 'features', f'sample_{sample}')
         fevals_path = os.path.join(
-            feature_dir, f'fevals_{sample_strategy}.csv')
-        evals_path = os.path.join(feature_dir, f'evals_{sample_strategy}.csv')
+            feature_dir, f'fevals_{sample_strategy}_{args.low_conf_threshold}.csv')
+        evals_path = os.path.join(
+            feature_dir, f'evals_{sample_strategy}_{args.low_conf_threshold}.csv')
 
         if not (os.path.exists(fevals_path) and os.path.exists(evals_path)):
             command = f'/home/ckchang/anaconda3/envs/amd/bin/python \
@@ -86,7 +87,7 @@ def collect_1(args: OnlineParser, all_samples):
         print(row_df)
         all_metrics = pd.concat([all_metrics, row_df])
     all_metrics.to_csv(os.path.join(
-        job_dir, f'machinery_metrics_{args.sample_strategy}.csv'))
+        job_dir, f'machinery_metrics_{args.sample_strategy}_{args.low_conf_threshold}.csv'))
 
 
 def plot_1(args: OnlineParser):
@@ -115,7 +116,7 @@ def plot_1(args: OnlineParser):
     collect_1(args, list(reversed(all_samples)))
 
     all_metrics = pd.read_csv(os.path.join(
-        job_dir, f'machinery_metrics_{args.sample_strategy}.csv'))
+        job_dir, f'machinery_metrics_{args.sample_strategy}_{args.low_conf_threshold}.csv'))
     oracle_acc = all_metrics.loc[0, 'oracle_acc']
     oracle_roc = all_metrics.loc[0, 'oracle_roc']
 
@@ -184,7 +185,7 @@ def plot_1(args: OnlineParser):
 
     if args.sample_strategy != 'equal':
         equal_metrics = pd.read_csv(os.path.join(
-            job_dir, f'machinery_metrics_equal.csv'))
+            job_dir, f'machinery_metrics_equal_{args.low_conf_threshold}.csv'))
         # equal is the baseline strategy, if not equal, we need to compare with the equal strategy
         # we want to the trade-off between accuracy and cpu time, on different sample rates
         # the x-axis is accuracy (acc and roc), the y-axis is cpu time, the color indicates sample rate

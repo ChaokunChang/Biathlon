@@ -34,7 +34,7 @@ class OnlineParser(Tap):
 
     sample_strategy: str = 'equal'  # sample strategy
     sample_budget_each: float = 0.1  # sample budget each in avg
-    low_conf_threshold: float = 0.8  # low confidence threshold
+    low_conf_threshold: float = 1.0  # low confidence threshold
 
     npoints_for_conf: int = 1000  # number of points for confidence
 
@@ -173,104 +173,8 @@ def allocate_qsamples(sample_each_in_avg: float, qimps: list[float]):
     return qsamples
 
 
-# compute features for machinery dataset
-def machinery_compute(req, database, sensor_id):
-    db_client = DBConnector().client
-    sql = """
-        SELECT avgOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_mean,
-                countOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_count,
-                varSampOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_var
-        FROM {database}.sensors_sensor_{sensor_id}
-        WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsample})
-    """.format(**req, sensor_id=sensor_id, database=database)
-    st = time.time()
-    rows_df = db_client.query_df(sql)
-    load_time = time.time() - st
-    # os.system('echo 3 | sudo tee /proc/sys/vm/drop_caches')
-    # print(f'rows={rows}')
-    rows_df[f'load_time_{sensor_id}'] = load_time
-    rows_df[f'compute_time_{sensor_id}'] = 0.0
-    rows_df[f'nrows_{sensor_id}'] = rows_df[f'sensor_{sensor_id}_count']
-    return rows_df.iloc[0]
-
-
-def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFrame, sample_budget_each: float, sample_strategy: str, sample_offset: float = 0) -> pd.DataFrame:
-    assert sample_budget_each >= 0 and sample_budget_each <= 1
-    segment_size = args.segment_size
-    # add new column sample to request
-    reqs = requests.copy()
-    reqs.insert(0, 'nsample', sample_budget_each * segment_size)
-    reqs.insert(0, 'noffset', sample_offset * segment_size)
-
-    feature_importance_path = os.path.join(
-        job_dir, 'feature_importances.csv')
-    feature_importances = pd.read_csv(feature_importance_path)
-    print(
-        f'feature_importances={feature_importances[["fname", "importance"]]}')
-
-    if sample_strategy.endswith('fimp'):
-        fimp = feature_importances['importance'].to_numpy()
-        if sample_strategy.endswith('softfimp'):
-            fimp = np.exp(fimp) / np.sum(np.exp(fimp))
-        qsamples = allocate_qsamples(sample_budget_each, fimp.tolist())
-    else:
-        qsamples = allocate_qsamples(sample_budget_each, [
-                                     1.0 if imp > 0 else 0.0 for imp in feature_importances['importance'].tolist()])
-    print(f'qsamples={qsamples} -> sum={np.sum(qsamples)}')
-
-    # extract features now
-    fextraction_time = 0
-    features_list = []
-    for sensor_id in range(8):
-        st = time.time()
-        reqs['nsample'] = qsamples[sensor_id] * segment_size
-        features = reqs.parallel_apply(
-            lambda row: machinery_compute(row, args.database, sensor_id), axis=1)
-        features_list.append(features)
-        fextraction_time += time.time() - st
-    print(f'feature extraction only takes {fextraction_time} seconds')
-    features = pd.concat(features_list, axis=1)
-    # load_time = load_time_0 + load_time_1 + load_time_2 + ... + load_time_7
-    features['load_time'] = features[[
-        f'load_time_{i}' for i in range(8)]].sum(axis=1)
-    features['compute_time'] = features[[
-        f'compute_time_{i}' for i in range(8)]].sum(axis=1)
-    features['nrows'] = features[[f'nrows_{i}' for i in range(8)]].sum(axis=1)
-    return features
-
-
-def get_apx_features(args: OnlineParser, job_dir, requests, sample_budget_each, sample_strategy, clear_cache=False):
-    feature_dir = os.path.join(
-        job_dir, 'features', f'sample_{sample_budget_each}')
-    os.makedirs(feature_dir, exist_ok=True)
-    apx_feature_path = os.path.join(
-        feature_dir, f'apx_features_{sample_strategy}.csv')
-    if clear_cache or not os.path.exists(apx_feature_path):
-        st = time.time()
-        apx_features = compute_apx_features(args,
-                                            job_dir, requests, sample_budget_each, sample_strategy)
-        print(f'compute apx_features takes {time.time() - st} seconds')
-        apx_features.to_csv(apx_feature_path, index=False)
-    else:
-        st = time.time()
-        apx_features = pd.read_csv(apx_feature_path)
-        print(f'load apx_features from disk takes {time.time() - st} seconds')
-    return apx_features
-
-
-def get_prediction_confidence(apx_f, apx_se=None, n_samples=100):
-    """ compute the confidence interval of prediction according to the apx_f, apx_se
-        each sensor feature is distributed following N(apx_feature, apx_se)
-        For each request, we sample a set of random points (100x by default) according to the distribution of every sensor feature
-        Then we compute the prediction of these random points and compute the confidence interval
-        The confidence interval is computed as the 5th and 95th percentile of the prediction of these random points
-        The confidence interval is used to compute the confidence of prediction
-    """
-    pass
-
-
 def compute_approx_pconf(model, features, variances, cardinalities, n_samples=100, seed=7077):
-    """ 
+    """
     feature: (m, p) = (m, kc)
     variance: (m, p) = (m, kc)
     cardinality: (m, p) = (m, kc)
@@ -296,6 +200,118 @@ def compute_approx_pconf(model, features, variances, cardinalities, n_samples=10
     pconf = np.count_nonzero(
         spreds.T == central_preds.reshape(-1, 1), axis=1) / n_samples
     return pconf
+
+
+# compute features for machinery dataset
+def machinery_compute(req, database, sensor_id):
+    db_client = DBConnector().client
+    sql = """
+        SELECT avgOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_mean,
+                countOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_count,
+                varSampOrDefault(sensor_{sensor_id}) as sensor_{sensor_id}_var
+        FROM {database}.sensors_sensor_{sensor_id}
+        WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsample})
+    """.format(**req, sensor_id=sensor_id, database=database)
+    st = time.time()
+    rows_df = db_client.query_df(sql)
+    load_time = time.time() - st
+    # os.system('echo 3 | sudo tee /proc/sys/vm/drop_caches')
+    # print(f'rows={rows}')
+    rows_df[f'load_time_{sensor_id}'] = load_time
+    rows_df[f'compute_time_{sensor_id}'] = 0.0
+    rows_df[f'nrows_{sensor_id}'] = rows_df[f'sensor_{sensor_id}_count']
+    return rows_df.iloc[0]
+
+
+def compute_apx_features(args: OnlineParser, job_dir: str, requests: pd.DataFrame, sample_budget_each: float, sample_strategy: str, sample_offset: float = 0) -> pd.DataFrame:
+    assert sample_budget_each >= 0 and sample_budget_each <= 1
+
+    feature_importance_path = os.path.join(
+        job_dir, 'feature_importances.csv')
+    feature_importances = pd.read_csv(feature_importance_path)
+    print(
+        f'feature_importances={feature_importances[["fname", "importance"]]}')
+
+    if sample_strategy.endswith('fimp'):
+        fimp = feature_importances['importance'].to_numpy()
+        if sample_strategy.endswith('softfimp'):
+            fimp = np.exp(fimp) / np.sum(np.exp(fimp))
+        qsamples = allocate_qsamples(sample_budget_each, fimp.tolist())
+    else:
+        # allocate samples equally
+        qsamples = allocate_qsamples(sample_budget_each, [
+                                     1.0 if imp > 0 else 0.0 for imp in feature_importances['importance'].tolist()])
+    print(f'qsamples={qsamples} -> sum={np.sum(qsamples)}')
+
+    # add new column sample to request
+    segment_size = args.segment_size
+    reqs = requests.copy()
+    # reqs.insert(0, 'nsample', sample_budget_each * segment_size)
+    # reqs.insert(0, 'noffset', sample_offset * segment_size)
+
+    # extract features now
+    fextraction_time = 0
+    features_list = []
+    for sensor_id in range(8):
+        st = time.time()
+        reqs['noffset'] = sample_offset * segment_size
+        reqs['nsample'] = qsamples[sensor_id] * segment_size
+        features = reqs.parallel_apply(
+            lambda row: machinery_compute(row, args.database, sensor_id), axis=1)
+        features_list.append(features)
+        fextraction_time += time.time() - st
+    print(f'feature extraction only takes {fextraction_time} seconds')
+    features = pd.concat(features_list, axis=1)
+    # load_time = load_time_0 + load_time_1 + load_time_2 + ... + load_time_7
+    features['load_time'] = features[[
+        f'load_time_{i}' for i in range(8)]].sum(axis=1)
+    features['compute_time'] = features[[
+        f'compute_time_{i}' for i in range(8)]].sum(axis=1)
+    features['nrows'] = features[[f'nrows_{i}' for i in range(8)]].sum(axis=1)
+    return features
+
+
+def get_apx_features(args: OnlineParser, job_dir, requests, sample_budget_each, sample_strategy, clear_cache=False):
+    feature_dir = os.path.join(
+        job_dir, 'features', f'sample_{sample_budget_each}')
+    os.makedirs(feature_dir, exist_ok=True)
+    apx_feature_path = os.path.join(
+        feature_dir, f'apx_features_{sample_strategy}_{args.low_conf_threshold}.csv')
+    if clear_cache or not os.path.exists(apx_feature_path):
+        st = time.time()
+        apx_features = compute_apx_features(args, job_dir, requests,
+                                            sample_budget_each, sample_strategy)
+        print(f'compute apx_features takes {time.time() - st} seconds')
+        apx_features.to_csv(apx_feature_path, index=False)
+    else:
+        st = time.time()
+        apx_features = pd.read_csv(apx_feature_path)
+        print(f'load apx_features from disk takes {time.time() - st} seconds')
+    return apx_features
+
+
+def compute_feature_influence(model, features, variances, cardinalities, n_samples=100, seed=7077):
+    central_preds = model.predict(features)
+    m, p = features.shape
+    means = features
+    cardinalities = np.where(cardinalities < 1, 1.0, cardinalities)
+    variances = np.where(cardinalities < 30, 0, variances)
+    scales = np.sqrt(np.where(cardinalities >= 250000,
+                     0.0, variances) / cardinalities)
+    # (n_samples, m, p)
+    np.random.seed(seed)
+    influences = np.zeros((m, p))
+    for fid in range(p):
+        fid_scales = np.zeros((m, p))
+        fid_scales[:, fid] = scales[:, fid]
+        samples = np.random.normal(means, scales, size=(n_samples, m, p))
+        # (n_samples * m, p)
+        spreds = model.predict(samples.reshape(-1, p)).reshape(n_samples, m)
+        # (m, )
+        pconf = np.count_nonzero(
+            spreds.T == central_preds.reshape(-1, 1), axis=1) / n_samples
+        influences[:, fid] = pconf
+    return influences
 
 
 def run(args: OnlineParser):
@@ -325,8 +341,10 @@ def run(args: OnlineParser):
     os.makedirs(feature_dir, exist_ok=True)
 
     # load approximate features
-    apx_features = get_apx_features(args,
-                                    args.job_dir, requests, args.sample_budget_each, args.sample_strategy, args.clear_cache)
+    apx_features = get_apx_features(args, args.job_dir, requests,
+                                    args.sample_budget_each,
+                                    args.sample_strategy,
+                                    args.clear_cache)
 
     # get time measurements
     load_cpu_time = apx_features['load_time'].sum()
@@ -358,11 +376,11 @@ def run(args: OnlineParser):
         low_conf_df = apx_pred_conf_df[apx_pred_conf_df['conf']
                                        < low_conf_threshold]
         low_conf_df.to_csv(os.path.join(
-            feature_dir, f'low_conf_{args.sample_strategy}.csv'), index=False)
+            feature_dir, f'low_conf_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
         low_conf_requests = requests.iloc[low_conf_df.index]
         if len(low_conf_requests) > 0:
             low_conf_feature_path = os.path.join(
-                feature_dir, f'low_conf_features_{args.sample_strategy}.csv')
+                feature_dir, f'low_conf_features_{args.sample_strategy}_{args.low_conf_threshold}.csv')
             if os.path.exists(low_conf_feature_path):
                 low_conf_features = pd.read_csv(low_conf_feature_path)
             else:
@@ -392,12 +410,72 @@ def run(args: OnlineParser):
         else:
             print('no low confidence requests')
 
+    # compute the feature influence to prediction
+    st = time.time()
+    feature_influences = compute_feature_influence(pipe,
+                                                   apx_features[feature_cols].values,
+                                                   apx_features[fea_var_cols].values,
+                                                   apx_features[fea_cnt_cols].values,
+                                                   n_samples=args.npoints_for_conf)
+    finf_time = time.time() - st
+
+    if args.sample_strategy.startswith('finf') and args.sample_budget_each < 1.0:
+        low_finf_threshold = args.low_conf_threshold
+        apx_pred_finf_df = pd.DataFrame(
+            feature_influences, columns=feature_cols)
+        apx_pred_finf_df.insert(0, 'pred', apx_pred)
+        apx_pred_finf_df.insert(
+            1, 'min_finf', apx_pred_finf_df[feature_cols].min(axis=1))
+        apx_pred_finf_df.insert(
+            2, 'max_finf', apx_pred_finf_df[feature_cols].max(axis=1))
+        apx_pred_finf_df.to_csv(os.path.join(
+            feature_dir, f'apx_pred_finf_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
+
+        low_finf_df = apx_pred_finf_df[apx_pred_finf_df['min_finf']
+                                       < low_finf_threshold]
+
+        low_finf_df.to_csv(os.path.join(
+            feature_dir, f'low_finf_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
+        low_finf_requests = requests.iloc[low_finf_df.index]
+        if len(low_finf_requests) > 0:
+            low_finf_feature_path = os.path.join(
+                feature_dir, f'low_finf_features_{args.sample_strategy}_{args.low_conf_threshold}.csv')
+            if os.path.exists(low_finf_feature_path):
+                low_finf_features = pd.read_csv(low_finf_feature_path)
+            else:
+                low_finf_features = compute_apx_features(args, args.job_dir,
+                                                         low_finf_requests,
+                                                         sample_budget_each=1.0,
+                                                         sample_strategy='equal',
+                                                         sample_offset=0)
+                low_finf_features.to_csv(low_finf_feature_path, index=False)
+            load_cpu_time += low_finf_features['load_time'].sum(
+            ) - apx_features.iloc[low_finf_df.index]['load_time'].sum()
+            compute_cpu_time += 0.0
+            # - apx_features.iloc[low_conf_df.index]['compute_time'].sum()
+            print(
+                f'new load_cpu_time={load_cpu_time}, compute_cpu_time={compute_cpu_time}')
+            apx_features.iloc[low_finf_df.index] = low_finf_features
+
+            st = time.time()
+            apx_pred = pipe.predict(apx_features[feature_cols])
+            pred_time += time.time() - st
+
+            # apx_pred_conf = pipe.predict_proba(apx_features[feature_cols]).max(axis=1)
+            st = time.time()
+            apx_pred_conf = compute_approx_pconf(
+                pipe, apx_features[feature_cols].values, apx_features[fea_var_cols].values, apx_features[fea_cnt_cols].values)
+            pconf_time += time.time() - st
+        else:
+            print('no low influence requests')
+
     nrows_per_request = apx_features['nrows'].mean()
 
     print(f'load_cpu_time    = {load_cpu_time}')
     print(f'compute_cpu_time = {compute_cpu_time}')
     print(f'model_pred_time  = {pred_time}')
     print(f'pcconf_time      = {pconf_time}')
+    print(f'finf_time        = {finf_time}')
     print(f'nrows_per_request= {nrows_per_request}')
 
     # save the prediction confidence
@@ -406,7 +484,7 @@ def run(args: OnlineParser):
     apx_pred_conf_df = pd.DataFrame(
         {'pred': apx_pred, 'conf': apx_pred_conf, 'is_same': is_same, 'is_label': is_label})
     apx_pred_conf_df.to_csv(os.path.join(
-        feature_dir, f'apx_pred_conf_{args.sample_strategy}.csv'), index=False)
+        feature_dir, f'apx_pred_conf_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
     min_conf = apx_pred_conf_df['conf'].min()
     median_conf = apx_pred_conf_df['conf'].median()
     max_conf = apx_pred_conf_df['conf'].max()
@@ -458,11 +536,12 @@ def run(args: OnlineParser):
     evals_df['mean_conf'] = mean_conf
     evals_df['pred_time'] = pred_time
     evals_df['pconf_time'] = pconf_time
+    evals_df['finf_time'] = finf_time
     evals_df['feature_time'] = load_cpu_time + compute_cpu_time
     evals_df['nrows'] = nrows_per_request
     print(evals_df)
     evals_df.to_csv(os.path.join(
-        feature_dir, f'evals_{args.sample_strategy}.csv'), index=False)
+        feature_dir, f'evals_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
 
     # evaluate the approximate features
     fevals = [evaluate_feature(exact_features[fname], apx_features[fname],
@@ -483,7 +562,7 @@ def run(args: OnlineParser):
         [fevals_df, pd.DataFrame([overall_eval])], ignore_index=True)
     print(fevals_df)
     fevals_df.to_csv(os.path.join(
-        feature_dir, f'fevals_{args.sample_strategy}.csv'), index=False)
+        feature_dir, f'fevals_{args.sample_strategy}_{args.low_conf_threshold}.csv'), index=False)
 
 
 if __name__ == "__main__":

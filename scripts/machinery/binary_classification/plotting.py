@@ -5,7 +5,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from tap import Tap
-import seaborn as sns
+from typing import Literal
+# import seaborn as sns
 
 DATA_HOME = "/home/ckchang/ApproxInfer/data"
 RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
@@ -13,15 +14,31 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 class OnlineParser(Tap):
     database = 'machinery_more'
-    task: str = "binary_classification"  # task name
+    segment_size = 50000
+
+    # path to the task directory
+    task = "binary_classification"
+
     model_name: str = 'xgb'  # model name
+    model_type: Literal['regressor', 'classifier'] = 'classifier'  # model type
+    multi_class: bool = False  # multi class classification
 
-    sample_strategy: str = 'equal'  # sample strategy
-    # sample_budget_each: float = 0.1  # sample budget each in avg
+    max_sample_budget: float = 1.0  # max sample budget each in avg
+    init_sample_budget: float = 0.01  # initial sample budget each in avg
+    sample_budget: float = 0.1  # sample budget each in avg
+
+    init_sample_policy: str = 'equal'  # initial sample policy
+
+    prediction_estimator: Literal['joint_distribution', 'feature_distribution'] = 'joint_distribution'  # prediction estimator
+    prediction_estimator_thresh: float = 0.0  # prediction estimator threshold
+    prediction_estimation_nsamples: int = 1000  # number of points for prediction estimation
+    
+    sample_step_policy: Literal['one_step', 'ten_steps_equal', 'exponential_increase', 'auto'] = 'one_step'  # policy to increase sample budget
+    sample_allocation_policy: Literal['equal', 'fimp', 'finf', 'auto'] = 'equal'  # sample allocation policy
+
+    clear_cache: bool = False  # clear cache
+
     sample_nchunks: int = 10  # number of chunks to sample
-    low_conf_threshold: float = 1.0  # low confidence threshold
-
-    npoints_for_conf: int = 1000  # number of points to compute confidence
 
     def process_args(self) -> None:
         self.job_dir: str = os.path.join(

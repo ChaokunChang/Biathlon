@@ -1,5 +1,55 @@
 import os
 
+class OnlineParser(Tap):
+    database = "machinery_more"
+    segment_size = 50000
+
+    # path to the task directory
+    task = "binary_classification"
+
+    model_name: str = "xgb"  # model name
+    model_type: Literal["regressor", "classifier"] = "classifier"  # model type
+    multi_class: bool = False  # multi class classification
+
+    num_agg_queries: int = 8  # number of aggregation queries
+
+    max_sample_budget: float = 1.0  # max sample budget each in avg
+    init_sample_budget: float = 0.01  # initial sample budget each in avg
+
+    init_sample_policy: Literal[
+        "uniform", "fimp", "finf", "auto"
+    ] = "uniform"  # initial sample policy
+
+    prediction_estimator: Literal[
+        "joint_distribution", "feature_distribution", "auto"
+    ] = "auto"  # prediction estimator
+    prediction_estimator_thresh: float = 0.0  # prediction estimator threshold
+    prediction_estimation_nsamples: int = (
+        100  # number of points for prediction estimation
+    )
+
+    feature_influence_estimator: Literal["shap", "lime", "auto"] = "auto"
+    feature_influence_estimator_thresh: float = 0.0
+    feature_influence_estimation_nsamples: int = 1000
+
+    # policy to increase sample to budget
+    sample_budget: float = 0.1  # sample budget each in avg
+    sample_refine_max_niters: int = 0  # nax number of iters to refine the sample budget
+    sample_refine_step_policy: Literal[
+        "uniform", "exponential"
+    ] = "uniform"  # sample refine step policy
+    sample_allocation_policy: Literal[
+        "uniform", "fimp", "finf", "auto"
+    ] = "uniform"  # sample allocation policy
+
+    seed = 7077  # random seed
+    clear_cache: bool = False  # clear cache
+
+    def process_args(self) -> None:
+        self.job_dir: str = os.path.join(
+            RESULTS_HOME, self.database, f"{self.task}_{self.model_name}"
+        )
+
 prepare_script_path = '/home/ckchang/ApproxInfer/scripts/machinery/prepare.py'
 plotting_script_path = '/home/ckchang/ApproxInfer/scripts/machinery/binary_classification/plotting.py'
 for model_name in ['mlp', 'knn', 'svm', 'xgb', 'dt', 'lgbm']:

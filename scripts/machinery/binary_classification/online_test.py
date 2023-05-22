@@ -123,6 +123,11 @@ class OnlineParser(Tap):
             self.init_feature_dir, f"init_finf_est_{finf_suffix}.csv"
         )
 
+    def update_args(self, new_args: dict) -> None:
+        for key, value in new_args.items():
+            setattr(self, key, value)
+        self.process_args()
+
 
 class DBConnector:
     def __init__(self, host="localhost", port=0, username="default", passwd="") -> None:

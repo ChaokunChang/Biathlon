@@ -824,7 +824,7 @@ def online_refinement(
     )
 
 
-def run(args: OnlineParser):
+def run(args: OnlineParser) -> Tuple[dict, dict]:
     """run online experiemnt with automatically sampled features."""
     time_eval_path = os.path.join(args.evals_dir, "time.csv")
     if os.path.exists(time_eval_path) and not args.clear_cache:
@@ -833,9 +833,15 @@ def run(args: OnlineParser):
         print(time_df)
         fevals_df = pd.read_csv(os.path.join(args.evals_dir, "fevals.csv"))
         print(fevals_df)
-        evals_df = pd.read_csv(os.path.join(args.evals_dir, "ppl_evals.csv"))
-        print(evals_df)
-        return
+        ppl_evals_df = pd.read_csv(os.path.join(args.evals_dir, "ppl_evals.csv"))
+        print(ppl_evals_df)
+        return {
+            "feat_est": pd.read_csv(os.path.join(args.evals_dir, "features.csv")),
+            "pred_est": pd.read_csv(os.path.join(args.evals_dir, "preds.csv")),
+            "finf_est": pd.read_csv(
+                os.path.join(args.evals_dir, "feature_influence.csv")
+            ),
+        }, {"time_eval": time_df, "feat_eval": fevals_df, "ppl_eval": ppl_evals_df}
 
     # load the pipeline
     pipeline_path = os.path.join(args.job_dir, "pipeline.pkl")
@@ -978,6 +984,12 @@ def run(args: OnlineParser):
     ppl_evals_df = pd.DataFrame(ppl_evals)
     ppl_evals_df.to_csv(os.path.join(evals_dir, "ppl_evals.csv"), index=False)
     print(ppl_evals_df)
+
+    return {
+        "feat_est": apx_features_w_estimation,
+        "pred_est": apx_preds_w_estimation,
+        "finf_est": apx_feature_influence,
+    }, {"time_eval": time_df, "feat_eval": fevals_df, "ppl_eval": ppl_evals_df}
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ import os
 import warnings
 import copy
 import matplotlib.pyplot as plt
+import itertools
 
 from online_test import OnlineParser
 from online_test import run as run_online_test
@@ -38,21 +39,81 @@ os.makedirs(PLOTTING_HOME, exist_ok=True)
 def plotting_func_1(df, axes, xcol, ycols):
     for i, col in enumerate(ycols):
         ax = axes[i]
-        df.plot(x=xcol, y=col, kind="scatter", ax=ax)
-        df.plot(x=xcol, y=col, kind="line", ax=ax)
+        color = next(ax._get_lines.prop_cycler)["color"]
+        df.plot(x=xcol, y=col, kind="scatter", ax=ax, color=color, legend=True)
+        df.plot(x=xcol, y=col, kind="line", ax=ax, color=color, legend=True)
         ax.set_title(col)
 
 
-def plotting_1(settings: list, evals_list: list, setting_name: str):
+def prepare_typed_all_evals(
+    evals_list: list, keycols: pd.DataFrame, plotting_dir: str, tag: str
+):
+    all_time_df = pd.concat(
+        [evals["time_eval"] for evals in evals_list], axis=0, ignore_index=True
+    )
+    all_time_df = pd.concat([keycols, all_time_df], axis=1)
+    all_time_df.to_csv(os.path.join(plotting_dir, f"time_{tag}.csv"), index=False)
+
+    all_fvals_df = pd.concat(
+        [evals["feat_eval"].iloc[-1:] for evals in evals_list],
+        axis=0,
+        ignore_index=True,
+    )
+    all_fvals_df = pd.concat([keycols, all_fvals_df], axis=1)
+    all_fvals_df.to_csv(os.path.join(plotting_dir, f"fevals_{tag}.csv"), index=False)
+
+    all_ppl_acc_evals_df = pd.concat(
+        [evals["ppl_eval"].iloc[-2:-1] for evals in evals_list],
+        axis=0,
+        ignore_index=True,
+    )
+    all_ppl_acc_evals_df = pd.concat([keycols, all_ppl_acc_evals_df], axis=1)
+    all_ppl_acc_evals_df.to_csv(
+        os.path.join(plotting_dir, f"ppl_acc_evals_{tag}.csv"), index=False
+    )
+
+    all_ppl_sim_evals_df = pd.concat(
+        [evals["ppl_eval"].iloc[-1:] for evals in evals_list], axis=0, ignore_index=True
+    )
+    # add suffix _sim to all columns
+    all_ppl_sim_evals_df = all_ppl_sim_evals_df.add_suffix("_sim")
+    all_ppl_sim_evals_df = pd.concat([keycols, all_ppl_sim_evals_df], axis=1)
+    all_ppl_sim_evals_df.to_csv(
+        os.path.join(plotting_dir, f"ppl_sim_evals_{tag}.csv"), index=False
+    )
+
+    # concat all evals on gby_df and setting_name
+    all_evals_df = pd.merge(
+        all_time_df,
+        all_fvals_df,
+        on=keycols.columns,
+        how="outer",
+    )
+    all_evals_df = pd.merge(
+        all_evals_df,
+        all_ppl_acc_evals_df,
+        on=keycols.columns,
+        how="outer",
+    )
+    all_evals_df = pd.merge(
+        all_evals_df,
+        all_ppl_sim_evals_df,
+        on=keycols.columns,
+        how="outer",
+    )
+    all_evals_df.to_csv(os.path.join(plotting_dir, f"all_evals_{tag}.csv"), index=False)
+
+    return all_evals_df
+
+
+def plotting_1(settings: list, evals_list: list, setting_name: str, tag: str = "tmp"):
     plotting_dir = os.path.join(PLOTTING_HOME, setting_name)
     os.makedirs(plotting_dir, exist_ok=True)
 
     all_time_df = pd.concat([evals["time_eval"] for evals in evals_list], axis=0)
     # add settings to the first column
     all_time_df.insert(0, setting_name, settings)
-    all_time_df.to_csv(
-        os.path.join(plotting_dir, f"{setting_name}_time.csv"), index=False
-    )
+    all_time_df.to_csv(os.path.join(plotting_dir, f"time_{tag}.csv"), index=False)
     print(all_time_df)
 
     # all columns in all_time_df now:
@@ -73,16 +134,14 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
             "total_feature_influence_time",
         ],
     )
-    fig.savefig(os.path.join(plotting_dir, f"{setting_name}_time.png"))
+    fig.savefig(os.path.join(plotting_dir, f"time_{tag}.png"))
 
     all_fevals_df = pd.concat(
         [evals["feat_eval"].iloc[-1:] for evals in evals_list], axis=0
     )
     # add settings to the first column
     all_fevals_df.insert(0, setting_name, settings)
-    all_fevals_df.to_csv(
-        os.path.join(plotting_dir, f"{setting_name}_fevals.csv"), index=False
-    )
+    all_fevals_df.to_csv(os.path.join(plotting_dir, f"fevals_{tag}.csv"), index=False)
     print(all_fevals_df)
 
     # all columns in all_fevals_df now:
@@ -97,7 +156,7 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
         xcol=setting_name,
         ycols=["mse", "mae", "r2", "expv", "maxe"],
     )
-    fig.savefig(os.path.join(plotting_dir, f"{setting_name}_fevals.png"))
+    fig.savefig(os.path.join(plotting_dir, f"fevals_{tag}.png"))
 
     all_ppl_sim_evals_df = pd.concat(
         [evals["ppl_eval"].iloc[-1:] for evals in evals_list], axis=0
@@ -105,7 +164,7 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # add settings to the first column
     all_ppl_sim_evals_df.insert(0, setting_name, settings)
     all_ppl_sim_evals_df.to_csv(
-        os.path.join(plotting_dir, f"{setting_name}_ppl_sim_evals.csv"), index=False
+        os.path.join(plotting_dir, f"ppl_sim_evals_{tag}.csv"), index=False
     )
     print(all_ppl_sim_evals_df)
 
@@ -121,7 +180,7 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
         xcol=setting_name,
         ycols=["acc", "recall", "precision", "f1", "roc"],
     )
-    fig.savefig(os.path.join(plotting_dir, f"{setting_name}_ppl_sim_evals.png"))
+    fig.savefig(os.path.join(plotting_dir, f"ppl_sim_evals_{tag}.png"))
 
     all_ppl_acc_evals_df = pd.concat(
         [evals["ppl_eval"].iloc[-2:-1] for evals in evals_list], axis=0
@@ -129,7 +188,7 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # add settings to the first column
     all_ppl_acc_evals_df.insert(0, setting_name, settings)
     all_ppl_acc_evals_df.to_csv(
-        os.path.join(plotting_dir, f"{setting_name}_ppl_acc_evals.csv"), index=False
+        os.path.join(plotting_dir, f"ppl_acc_evals_{tag}.csv"), index=False
     )
 
     # all columns in all_ppl_acc_evals_df now:
@@ -144,7 +203,226 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
         xcol=setting_name,
         ycols=["acc", "recall", "precision", "f1", "roc"],
     )
-    fig.savefig(os.path.join(plotting_dir, f"{setting_name}_ppl_acc_evals.png"))
+    fig.savefig(os.path.join(plotting_dir, f"ppl_acc_evals_{tag}.png"))
+
+
+def plotting_gby(
+    evals_list: list,
+    setting_name: str,
+    setting_values: list,
+    gby_cols: list,
+    gby_values_list: list,
+    tag: str = "tmp",
+):
+    plotting_dir = os.path.join(
+        PLOTTING_HOME, setting_name, "gby_" + "-".join(gby_cols)
+    )
+    os.makedirs(plotting_dir, exist_ok=True)
+    num_groups = len(gby_values_list)
+    # create dataframe storing groupby values and setting values
+    gby_df = pd.DataFrame(
+        {
+            col: [
+                gby_values[cid]
+                for gby_values in gby_values_list
+                for _ in setting_values
+            ]
+            for cid, col in enumerate(gby_cols)
+        }
+    )
+    gby_df.insert(0, setting_name, setting_values * num_groups)
+
+    all_time_df = pd.concat(
+        [evals["time_eval"] for evals in evals_list], axis=0, ignore_index=True
+    )
+    all_time_df = pd.concat([gby_df, all_time_df], axis=1)
+    all_time_df.to_csv(os.path.join(plotting_dir, f"time_{tag}.csv"), index=False)
+
+    all_fvals_df = pd.concat(
+        [evals["feat_eval"].iloc[-1:] for evals in evals_list],
+        axis=0,
+        ignore_index=True,
+    )
+    all_fvals_df = pd.concat([gby_df, all_fvals_df], axis=1)
+    all_fvals_df.to_csv(os.path.join(plotting_dir, f"fevals_{tag}.csv"), index=False)
+
+    all_ppl_acc_evals_df = pd.concat(
+        [evals["ppl_eval"].iloc[-2:-1] for evals in evals_list],
+        axis=0,
+        ignore_index=True,
+    )
+    all_ppl_acc_evals_df = pd.concat([gby_df, all_ppl_acc_evals_df], axis=1)
+    all_ppl_acc_evals_df.to_csv(
+        os.path.join(plotting_dir, f"ppl_acc_evals_{tag}.csv"), index=False
+    )
+
+    all_ppl_sim_evals_df = pd.concat(
+        [evals["ppl_eval"].iloc[-1:] for evals in evals_list], axis=0, ignore_index=True
+    )
+    # add suffix _sim to all columns
+    all_ppl_sim_evals_df = all_ppl_sim_evals_df.add_suffix("_sim")
+    all_ppl_sim_evals_df = pd.concat([gby_df, all_ppl_sim_evals_df], axis=1)
+    all_ppl_sim_evals_df.to_csv(
+        os.path.join(plotting_dir, f"ppl_sim_evals_{tag}.csv"), index=False
+    )
+
+    # concat all evals on gby_df and setting_name
+    all_evals_df = pd.merge(
+        all_time_df,
+        all_fvals_df,
+        on=gby_cols + [setting_name],
+        how="outer",
+    )
+    all_evals_df = pd.merge(
+        all_evals_df,
+        all_ppl_acc_evals_df,
+        on=gby_cols + [setting_name],
+        how="outer",
+    )
+    all_evals_df = pd.merge(
+        all_evals_df,
+        all_ppl_sim_evals_df,
+        on=gby_cols + [setting_name],
+        how="outer",
+    )
+    all_evals_df.to_csv(os.path.join(plotting_dir, f"all_evals_{tag}.csv"), index=False)
+
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    axes = axes.flatten()
+    ycols = [
+        "total_feature_loading_frac",
+        "total_feature_time",
+        "total_feature_estimation_time",
+        "total_prediction_estimation_time",
+        "total_feature_influence_time",
+    ]
+    gby_time_df = all_time_df.groupby(gby_cols)
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        for name, group in gby_time_df:
+            color = next(ax._get_lines.prop_cycler)["color"]
+            group.plot(
+                x=setting_name, y=col, kind="scatter", ax=ax, color=color, legend=True
+            )
+            group.plot(
+                x=setting_name,
+                y=col,
+                kind="line",
+                ax=ax,
+                label=name,
+                color=color,
+                legend=True,
+            )
+    fig.savefig(os.path.join(plotting_dir, f"time_{tag}.png"))
+
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    axes = axes.flatten()
+    ycols = ["mse", "mae", "r2", "expv", "maxe"]
+    gby_time_df = all_fvals_df.groupby(gby_cols)
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        for name, group in gby_time_df:
+            color = next(ax._get_lines.prop_cycler)["color"]
+            group.plot(
+                x=setting_name, y=col, kind="scatter", ax=ax, color=color, legend=True
+            )
+            group.plot(
+                x=setting_name,
+                y=col,
+                kind="line",
+                ax=ax,
+                label=name,
+                color=color,
+                legend=True,
+            )
+    fig.savefig(os.path.join(plotting_dir, "fvals_{tag}.png"))
+
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    axes = axes.flatten()
+    ycols = ["acc", "recall", "precision", "f1", "roc"]
+    gby_time_df = all_ppl_acc_evals_df.groupby(gby_cols)
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        for name, group in gby_time_df:
+            color = next(ax._get_lines.prop_cycler)["color"]
+            group.plot(
+                x=setting_name, y=col, kind="scatter", ax=ax, color=color, legend=True
+            )
+            group.plot(
+                x=setting_name,
+                y=col,
+                kind="line",
+                ax=ax,
+                label=name,
+                color=color,
+                legend=True,
+            )
+    fig.savefig(os.path.join(plotting_dir, f"ppl_acc_evals_{tag}.png"))
+
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    axes = axes.flatten()
+    ycols = ["acc_sim", "recall_sim", "precision_sim", "f1_sim", "roc_sim"]
+    gby_time_df = all_ppl_sim_evals_df.groupby(gby_cols)
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        for name, group in gby_time_df:
+            color = next(ax._get_lines.prop_cycler)["color"]
+            group.plot(
+                x=setting_name, y=col, kind="scatter", ax=ax, color=color, legend=True
+            )
+            group.plot(
+                x=setting_name,
+                y=col,
+                kind="line",
+                ax=ax,
+                label=name,
+                color=color,
+                legend=True,
+            )
+    fig.savefig(os.path.join(plotting_dir, f"ppl_sim_evals_{tag}.png"))
+
+    # plot acc-efficiency tradeoff for each setting
+    # we choose prediction accuracy and prediction simialrity for acc
+    # we choose loading_frac, total_feature_time, three estimation times for efficiency
+    fig, axes = plt.subplots(2, 5, figsize=(50, 30))
+    xcols = ["acc", "acc_sim"]
+    ycols = [
+        "total_feature_loading_frac",
+        "total_feature_time",
+        "total_feature_estimation_time",
+        "total_prediction_estimation_time",
+        "total_feature_influence_time",
+    ]
+    gby_time_df = all_evals_df.groupby(gby_cols)
+    for i, xcol in enumerate(xcols):
+        for j, ycol in enumerate(ycols):
+            ax = axes[i][j]
+            for name, group in gby_time_df:
+                # sort group by setting_name
+                group = group.sort_values(by=setting_name)
+                # use setting_value as font size
+                size = group[setting_name] * 100
+                # use same color for line and scatter
+                color = next(ax._get_lines.prop_cycler)["color"]
+                group.plot(
+                    x=xcol,
+                    y=ycol,
+                    kind="line",
+                    ax=ax,
+                    label=name,
+                    color=color,
+                    legend=True,
+                )
+                group.plot(
+                    x=xcol,
+                    y=ycol,
+                    kind="scatter",
+                    ax=ax,
+                    s=size,
+                    color=color,
+                    legend=True,
+                )
+    fig.savefig(os.path.join(plotting_dir, f"acc-efficiency-tradef-off_{tag}.png"))
 
 
 class Collector:
@@ -232,352 +510,92 @@ class Collector:
         )
         return ret
 
+    def vary_init_sample_policy(self, init_sample_policy=["uniform", "fimp"]):
+        ret = []
+        for policy in init_sample_policy:
+            new_args = copy.deepcopy(self.args)
+            new_args.init_sample_policy = policy
+            new_args.process_args()
+            ests, evals = run_online_test(new_args)
+            ret.append(evals)
+        plotting_1(init_sample_policy, ret, "init_sample_policy")
 
-# def collect_1(args: OnlineParser, all_samples):
-#     sample_strategy = args.sample_strategy
-#     job_dir = args.job_dir
+    def vary_setting(self, setting_name: str, setting_values: list):
+        ret = []
+        for value in setting_values:
+            new_args = copy.deepcopy(self.args)
+            setattr(new_args, setting_name, value)
+            new_args.process_args()
+            ests, evals = run_online_test(new_args)
+            ret.append(evals)
+        plotting_1(setting_values, ret, setting_name)
 
-#     # columns: sample, feature_r2, prediction_accuracy, feature_time, pred_time, pconf_time
-#     all_metrics = pd.DataFrame(
-#         columns=[
-#             "sample",
-#             "fr2",
-#             "fmaxe",
-#             "pacc",
-#             "pacc-sim",
-#             "proc",
-#             "proc-sim",
-#             "pconf",
-#             "pconf-median",
-#             "feature_time",
-#             "pred_time",
-#             "pconf_time",
-#             "cpu_time",
-#             "nrows",
-#         ]
-#     )
-#     for sample in tqdm(all_samples):
-#         feature_dir = os.path.join(job_dir, "features", f"sample_{sample}")
-#         fevals_path = os.path.join(
-#             feature_dir, f"fevals_{sample_strategy}_{args.low_conf_threshold}.csv"
-#         )
-#         evals_path = os.path.join(
-#             feature_dir, f"evals_{sample_strategy}_{args.low_conf_threshold}.csv"
-#         )
-
-#         if not (os.path.exists(fevals_path) and os.path.exists(evals_path)):
-#             command = f"/home/ckchang/anaconda3/envs/amd/bin/python \
-#                     /home/ckchang/ApproxInfer/scripts/machinery/binary_classification/online_test.py \
-#                     --task {args.task} \
-#                     --model_name {args.model_name} \
-#                     --sample_strategy {sample_strategy} \
-#                     --sample_budget_each {sample} \
-#                     --low_conf_threshold {args.low_conf_threshold} \
-#                     --npoints_for_conf {args.npoints_for_conf}"
-#             command += " > /dev/null"
-#             os.system(command)
-
-#         fevals = pd.read_csv(fevals_path)
-#         evals = pd.read_csv(evals_path)
-
-#         feature_r2 = fevals.iloc[-1]["r2"]
-#         fmaxe = fevals.iloc[:-1]["maxe"].max()
-
-#         oracle_acc = evals.iloc[0]["acc"]
-#         oracle_roc = evals.iloc[0]["roc"]
-#         pred_accuracy = evals.iloc[1]["acc"]
-#         pconf = evals.iloc[1]["mean_conf"]
-#         pconf_median = evals.iloc[1]["median_conf"]
-#         pred_similarity = evals.iloc[2]["acc"]
-#         feature_time = evals.iloc[2]["feature_time"]
-#         pred_time = evals.iloc[2]["pred_time"]
-#         pconf_time = evals.iloc[2]["pconf_time"]
-#         nrows = evals.iloc[2]["nrows"]
-#         row = {
-#             "sample": sample,
-#             "oracle_acc": oracle_acc,
-#             "oracle_roc": oracle_roc,
-#             "fr2": feature_r2,
-#             "fmaxe": fmaxe,
-#             "pacc": pred_accuracy,
-#             "pacc-sim": pred_similarity,
-#             "proc": evals.iloc[1]["roc"],
-#             "proc-sim": evals.iloc[2]["roc"],
-#             "pconf": pconf,
-#             "pconf-median": pconf_median,
-#             "feature_time": feature_time,
-#             "pred_time": pred_time,
-#             "pconf_time": pconf_time,
-#             "cpu_time": feature_time + pred_time + pconf_time,
-#             "nrows": nrows,
-#         }
-#         row_df = pd.DataFrame(row, index=[0])
-#         print(row_df)
-#         all_metrics = pd.concat([all_metrics, row_df])
-#     all_metrics.to_csv(
-#         os.path.join(
-#             job_dir,
-#             f"machinery_metrics_{args.sample_strategy}_{args.low_conf_threshold}.csv",
-#         )
-#     )
-
-
-# def plot_1(args: OnlineParser):
-#     """
-#     Plot the metrics with different sample rates.
-#     metrics include: feature_r2, prediction_accuracy, feature_time, pred_time, pconf_time
-#     """
-#     nchunks = args.sample_nchunks
-#     job_dir = args.job_dir
-
-#     # columns: sample, feature_r2, prediction_accuracy, feature_time, pred_time, pconf_time
-#     all_metrics = pd.DataFrame(
-#         columns=[
-#             "sample",
-#             "fr2",
-#             "fmaxe",
-#             "pacc",
-#             "pacc-sim",
-#             "proc",
-#             "proc-sim",
-#             "pconf",
-#             "pconf-median",
-#             "feature_time",
-#             "pred_time",
-#             "pconf_time",
-#             "cpu_time",
-#             "nrows",
-#         ]
-#     )
-
-#     all_samples = [0.001]
-#     all_samples += [i * 0.005 for i in range(1, 20)]
-#     all_samples += [i * 1.0 / nchunks for i in range(1, nchunks)]
-#     all_samples += [
-#         i * 1.0 / (5 * nchunks) for i in range(5 * nchunks - 5 + 1, 5 * nchunks + 1)
-#     ]
-#     collect_1(args, list(reversed(all_samples)))
-
-#     all_metrics = pd.read_csv(
-#         os.path.join(
-#             job_dir,
-#             f"machinery_metrics_{args.sample_strategy}_{args.low_conf_threshold}.csv",
-#         )
-#     )
-#     oracle_acc = all_metrics.loc[0, "oracle_acc"]
-#     oracle_roc = all_metrics.loc[0, "oracle_roc"]
-
-#     # plotting
-#     fig, axs = plt.subplots(2, 2, figsize=(16, 12))
-#     axs[0, 0].plot(all_metrics["sample"], all_metrics["fr2"], label="feature_r2")
-#     axs[0, 0].plot(
-#         all_metrics["sample"],
-#         [1.0] * len(all_metrics["sample"]),
-#         label="oracle",
-#         linestyle="--",
-#     )
-
-#     axs[0, 1].plot(
-#         all_metrics["sample"],
-#         [oracle_acc] * len(all_metrics["sample"]),
-#         label="oracle_acc",
-#         linestyle="--",
-#     )
-#     axs[0, 1].plot(
-#         all_metrics["sample"],
-#         [oracle_roc] * len(all_metrics["sample"]),
-#         label="oracle_roc",
-#         linestyle="--",
-#     )
-#     axs[0, 1].plot(all_metrics["sample"], all_metrics["pacc"], label="pacc")
-#     axs[0, 1].plot(all_metrics["sample"], all_metrics["proc"], label="proc")
-
-#     axs[1, 0].plot(all_metrics["sample"], all_metrics["pconf"], label="pconf")
-#     axs[1, 0].plot(
-#         all_metrics["sample"], all_metrics["pconf-median"], label="pconf-median"
-#     )
-#     axs[1, 0].plot(
-#         all_metrics["sample"],
-#         [1.0] * len(all_metrics["sample"]),
-#         label="oracle_conf",
-#         linestyle="--",
-#     )
-
-#     axs[1, 1].plot(all_metrics["sample"], all_metrics["pacc-sim"], label="pacc-sim")
-#     axs[1, 1].plot(all_metrics["sample"], all_metrics["proc-sim"], label="proc-sim")
-#     axs[1, 1].plot(
-#         all_metrics["sample"],
-#         [1.0] * len(all_metrics["sample"]),
-#         label="oracle_sim",
-#         linestyle="--",
-#     )
-
-#     for i in range(2):
-#         for j in range(2):
-#             axs[i, j].set_xlabel("sample rate")
-#             axs[i, j].set_ylabel("metrics")
-#             axs[i, j].legend()
-
-#     plt.savefig(os.path.join(job_dir, f"machinery_metrics_{args.sample_strategy}.png"))
-#     plt.show()
-
-#     # plot time measurements, cpu_time = feature_time + pred_time + pconf_time
-#     fig, axs = plt.subplots(1, 2, figsize=(16, 6))
-#     axs[0].plot(
-#         all_metrics["sample"], all_metrics["feature_time"], label="feature_time"
-#     )
-#     axs[0].plot(all_metrics["sample"], all_metrics["pred_time"], label="pred_time")
-#     axs[0].plot(all_metrics["sample"], all_metrics["pconf_time"], label="pconf_time")
-#     axs[0].set_xlabel("sample rate")
-#     axs[0].set_ylabel("time (s)")
-#     axs[0].legend()
-
-#     # axs[1].plot(all_metrics['sample'], all_metrics['feature_time'] /
-#     #             all_metrics['cpu_time'], label='feature_time')
-#     # axs[1].plot(all_metrics['sample'], all_metrics['pred_time'] /
-#     #             all_metrics['cpu_time'], label='pred_time')
-#     # axs[1].plot(all_metrics['sample'], all_metrics['pconf_time'] /
-#     #             all_metrics['cpu_time'], label='pconf_time')
-#     axs[1].plot(all_metrics["sample"], all_metrics["nrows"], label="nrows")
-#     axs[1].set_xlabel("sample rate")
-#     axs[1].set_ylabel("nrows per request")
-#     axs[1].legend()
-
-#     plt.savefig(os.path.join(job_dir, f"machinery_cpu_time_{args.sample_strategy}.png"))
-
-#     if args.sample_strategy != "equal":
-#         equal_metrics = pd.read_csv(
-#             os.path.join(
-#                 job_dir, f"machinery_metrics_equal_{args.low_conf_threshold}.csv"
-#             )
-#         )
-#         # equal is the baseline strategy, if not equal, we need to compare with the equal strategy
-#         # we want to the trade-off between accuracy and cpu time, on different sample rates
-#         # the x-axis is accuracy (acc and roc), the y-axis is cpu time, the color indicates sample rate
-#         # we use scatter plot to show the trade-off
-#         colors = matplotlib.cm.rainbow(np.linspace(0, 1, len(all_metrics["sample"])))
-#         fig, axs = plt.subplots(2, 2, figsize=(16, 12))
-#         axs[0][0].scatter(
-#             equal_metrics["pacc"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             marker="x",
-#             color=colors,
-#         )
-#         axs[0][0].scatter(
-#             all_metrics["pacc"],
-#             all_metrics["nrows"],
-#             label=args.sample_strategy,
-#             marker="*",
-#             color=colors,
-#         )
-#         axs[0][0].plot(
-#             equal_metrics["pacc"], equal_metrics["nrows"], label="equal", linestyle="--"
-#         )
-#         axs[0][0].plot(
-#             all_metrics["pacc"], all_metrics["nrows"], label=args.sample_strategy
-#         )
-#         axs[0][0].set_xlabel("accuracy")
-#         axs[0][0].set_ylabel("cpu time (s)")
-#         axs[0][0].legend()
-
-#         axs[0][1].scatter(
-#             equal_metrics["pacc-sim"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             marker="x",
-#             color=colors,
-#         )
-#         axs[0][1].scatter(
-#             all_metrics["pacc-sim"],
-#             all_metrics["nrows"],
-#             label=args.sample_strategy,
-#             marker="*",
-#             color=colors,
-#         )
-#         axs[0][1].plot(
-#             equal_metrics["pacc-sim"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             linestyle="--",
-#         )
-#         axs[0][1].plot(
-#             all_metrics["pacc-sim"], all_metrics["nrows"], label=args.sample_strategy
-#         )
-#         axs[0][1].set_xlabel("acc similarity")
-#         axs[0][1].set_ylabel("load cpu time")
-#         axs[0][1].legend()
-
-#         axs[1][0].scatter(
-#             equal_metrics["proc"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             marker="x",
-#             color=colors,
-#         )
-#         axs[1][0].scatter(
-#             all_metrics["proc"],
-#             all_metrics["nrows"],
-#             label=args.sample_strategy,
-#             marker="*",
-#             color=colors,
-#         )
-#         axs[1][0].plot(
-#             equal_metrics["proc"], equal_metrics["nrows"], label="equal", linestyle="--"
-#         )
-#         axs[1][0].plot(
-#             all_metrics["proc"], all_metrics["nrows"], label=args.sample_strategy
-#         )
-#         axs[1][0].set_xlabel("roc")
-#         axs[1][0].set_ylabel("nrows")
-#         axs[1][0].legend()
-
-#         axs[1][1].scatter(
-#             equal_metrics["proc-sim"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             marker="x",
-#             color=colors,
-#         )
-#         axs[1][1].scatter(
-#             all_metrics["proc-sim"],
-#             all_metrics["nrows"],
-#             label=args.sample_strategy,
-#             marker="*",
-#             color=colors,
-#         )
-#         axs[1][1].plot(
-#             equal_metrics["proc-sim"],
-#             equal_metrics["nrows"],
-#             label="equal",
-#             linestyle="--",
-#         )
-#         axs[1][1].plot(
-#             all_metrics["proc-sim"], all_metrics["nrows"], label=args.sample_strategy
-#         )
-#         axs[1][1].set_xlabel("roc similarity")
-#         axs[1][1].set_ylabel("nrows")
-#         axs[1][1].legend()
-
-#         plt.savefig(
-#             os.path.join(
-#                 job_dir, f"machinery_cpu_time_{args.sample_strategy}_vs_equal.png"
-#             )
-#         )
+    def vary_setting_gby(
+        self,
+        setting_name="sample_refine_max_niters",
+        setting_values=[0, 1, 2, 3, 4, 5],
+        gby_cols=["init_sample_policy", "sample_allocation_policy"],
+        gby_cols_values=[["uniform", "fimp"], ["uniform", "fimp", "finf"]],
+    ):
+        gby_values_list = list(itertools.product(*gby_cols_values))
+        ret = []
+        for gby_values in gby_values_list:
+            for value in setting_values:
+                new_args = copy.deepcopy(self.args)
+                # set gby values
+                for gby_col, gby_value in zip(gby_cols, gby_values):
+                    setattr(new_args, gby_col, gby_value)
+                setattr(new_args, setting_name, value)
+                new_args.process_args()
+                ests, evals = run_online_test(new_args)
+                ret.append(evals)
+        plotting_gby(ret, setting_name, setting_values, gby_cols, gby_values_list)
 
 
 if __name__ == "__main__":
     args = OnlineParser().parse_args()
     print(f"running plotting.py with {args}")
     collector = Collector(args)
-    collector.vary_sample_refine_max_niters()
 
-    # use max_niters = 5 for following experiments
+    collector.vary_setting(
+        "init_sample_budget", [0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.5, 0.7, 1.0]
+    )
+    collector.vary_setting("init_sample_policy", ["uniform", "fimp"])
+
+    collector.vary_setting("feature_estimator", ["closed_form", "bootstrap"])
+    # collector.vary_setting("feature_estimation_nsamples", [100, 1000, 10000])
+
+    collector.vary_setting(
+        "prediction_estimator",
+        ["joint_distribution", "independent_distribution", "auto"],
+    )
+    collector.vary_setting("prediction_estimation_nsamples", [100, 1000, 10000])
+
+    # collector.vary_setting("feature_influence_estimator", ["shap", "lime", "auto"])
+    collector.vary_setting("feature_influence_estimation_nsamples", [800, 8000, 80000])
+
+    collector.vary_setting(
+        "sample_budget", [0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.5, 0.7, 1.0]
+    )
+    collector.vary_setting("sample_refine_max_niters", [0, 1, 2, 3, 4, 5, 7, 9, 10])
+    collector.vary_setting(
+        "sample_refine_step_policy", ["uniform", "exponential", "exponential_rev"]
+    )
+    collector.vary_setting("sample_allocation_policy", ["uniform", "fimp", "finf"])
+
+    collector.vary_setting_gby(
+        setting_name="sample_refine_max_niters",
+        setting_values=[0, 1, 2, 3, 4, 5, 7, 9, 10],
+        gby_cols=["init_sample_policy", "sample_allocation_policy"],
+        gby_cols_values=[["uniform", "fimp"], ["uniform", "fimp", "finf"]],
+    )
+
+    # set sample_refine_max_niters as 5
     collector.args.sample_refine_max_niters = 5
     collector.args.process_args()
-
-    collector.vary_init_budget()
-    collector.vary_sample_budget()
-
-    collector.vary_prediction_estimation_nsamples()
-    collector.vary_feature_influence_estimation_nsamples()
+    collector.vary_setting_gby(
+        setting_name="init_sample_budget",
+        setting_values=[0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.5, 0.7, 1.0],
+        gby_cols=["init_sample_policy", "sample_allocation_policy"],
+        gby_cols_values=[["uniform", "fimp"], ["uniform", "fimp", "finf"]],
+    )

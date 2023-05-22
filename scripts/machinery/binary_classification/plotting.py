@@ -35,6 +35,14 @@ PLOTTING_HOME = os.path.join(RESULTS_HOME, "plotting")
 os.makedirs(PLOTTING_HOME, exist_ok=True)
 
 
+def plotting_func_1(df, axes, xcol, ycols):
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        df.plot(x=xcol, y=col, kind="scatter", ax=ax)
+        df.plot(x=xcol, y=col, kind="line", ax=ax)
+        ax.set_title(col)
+
+
 def plotting_1(settings: list, evals_list: list, setting_name: str):
     plotting_dir = os.path.join(PLOTTING_HOME, setting_name)
     os.makedirs(plotting_dir, exist_ok=True)
@@ -53,19 +61,18 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # plot setting_name-total_feature_loading_frac, setting_name-total_feature_time, setting_name-total_feature_estimation_time, setting_name-total_prediction_estimation_time, setting_name-total_feature_influence_time
     fig, axes = plt.subplots(2, 3, figsize=(30, 15))
     axes = axes.flatten()
-    for i, col in enumerate(
-        [
+    plotting_func_1(
+        all_time_df,
+        axes=axes,
+        xcol=setting_name,
+        ycols=[
             "total_feature_loading_frac",
             "total_feature_time",
             "total_feature_estimation_time",
             "total_prediction_estimation_time",
             "total_feature_influence_time",
-        ]
-    ):
-        ax = axes[i]
-        all_time_df.plot(x=setting_name, y=col, kind="scatter", ax=ax)
-        all_time_df.plot(x=setting_name, y=col, kind="line", ax=ax)
-        ax.set_title(col)
+        ],
+    )
     fig.savefig(os.path.join(plotting_dir, f"{setting_name}_time.png"))
 
     all_fevals_df = pd.concat(
@@ -84,11 +91,12 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # plot setting_name-mse, setting_name-mae, setting_name-r2, setting_name-expv, setting_name-maxe
     fig, axes = plt.subplots(2, 3, figsize=(30, 15))
     axes = axes.flatten()
-    for i, col in enumerate(["mse", "mae", "r2", "expv", "maxe"]):
-        ax = axes[i]
-        all_fevals_df.plot(x=setting_name, y=col, kind="scatter", ax=ax)
-        all_fevals_df.plot(x=setting_name, y=col, kind="line", ax=ax)
-        ax.set_title(col)
+    plotting_func_1(
+        all_fevals_df,
+        axes=axes,
+        xcol=setting_name,
+        ycols=["mse", "mae", "r2", "expv", "maxe"],
+    )
     fig.savefig(os.path.join(plotting_dir, f"{setting_name}_fevals.png"))
 
     all_ppl_sim_evals_df = pd.concat(
@@ -107,11 +115,12 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # plot setting_name-acc, setting_name-recall, setting_name-precision, setting_name-f1, setting_name-roc
     fig, axes = plt.subplots(2, 3, figsize=(30, 15))
     axes = axes.flatten()
-    for i, col in enumerate(["acc", "recall", "precision", "f1", "roc"]):
-        ax = axes[i]
-        all_ppl_sim_evals_df.plot(x=setting_name, y=col, kind="scatter", ax=ax)
-        all_ppl_sim_evals_df.plot(x=setting_name, y=col, kind="line", ax=ax)
-        ax.set_title(col)
+    plotting_func_1(
+        all_ppl_sim_evals_df,
+        axes=axes,
+        xcol=setting_name,
+        ycols=["acc", "recall", "precision", "f1", "roc"],
+    )
     fig.savefig(os.path.join(plotting_dir, f"{setting_name}_ppl_sim_evals.png"))
 
     all_ppl_acc_evals_df = pd.concat(
@@ -129,11 +138,12 @@ def plotting_1(settings: list, evals_list: list, setting_name: str):
     # plot setting_name-acc, setting_name-recall, setting_name-precision, setting_name-f1, setting_name-roc
     fig, axes = plt.subplots(2, 3, figsize=(30, 15))
     axes = axes.flatten()
-    for i, col in enumerate(["acc", "recall", "precision", "f1", "roc"]):
-        ax = axes[i]
-        all_ppl_acc_evals_df.plot(x=setting_name, y=col, kind="scatter", ax=ax)
-        all_ppl_acc_evals_df.plot(x=setting_name, y=col, kind="line", ax=ax)
-        ax.set_title(col)
+    plotting_func_1(
+        all_ppl_acc_evals_df,
+        axes=axes,
+        xcol=setting_name,
+        ycols=["acc", "recall", "precision", "f1", "roc"],
+    )
     fig.savefig(os.path.join(plotting_dir, f"{setting_name}_ppl_acc_evals.png"))
 
 

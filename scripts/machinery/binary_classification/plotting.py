@@ -1,10 +1,13 @@
 from pandarallel import pandarallel
 
-# from tap import Tap
-# from typing import Literal, Tuple
+from tap import Tap
+
+from typing import List, Dict, Any
+
 # import numpy as np
 import pandas as pd
 import os
+import json
 
 # import time
 # from sklearn import metrics
@@ -34,19 +37,6 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results2"
 
 PLOTTING_HOME = os.path.join(RESULTS_HOME, "plotting")
 os.makedirs(PLOTTING_HOME, exist_ok=True)
-
-
-def plotting_func_1(
-    df: pd.DataFrame, axes: list, xcol: str, ycols: list, label: str = None
-):
-    for i, col in enumerate(ycols):
-        ax = axes[i]
-        color = next(ax._get_lines.prop_cycler)["color"]
-        df.plot(x=xcol, y=col, kind="scatter", ax=ax, color=color, legend=True)
-        df.plot(
-            x=xcol, y=col, kind="line", ax=ax, color=color, label=label, legend=True
-        )
-        ax.set_title(col)
 
 
 def prepare_typed_all_evals(
@@ -104,6 +94,19 @@ def prepare_typed_all_evals(
     all_evals_df.to_csv(os.path.join(plotting_dir, f"all_evals_{tag}.csv"), index=False)
 
     return all_evals_df
+
+
+def plotting_func_1(
+    df: pd.DataFrame, axes: list, xcol: str, ycols: list, label: str = None
+):
+    for i, col in enumerate(ycols):
+        ax = axes[i]
+        color = next(ax._get_lines.prop_cycler)["color"]
+        df.plot(x=xcol, y=col, kind="scatter", ax=ax, color=color, legend=True)
+        df.plot(
+            x=xcol, y=col, kind="line", ax=ax, color=color, label=label, legend=True
+        )
+        ax.set_title(col)
 
 
 def plotting_1(settings: list, evals_list: list, setting_name: str, tag: str):
@@ -259,6 +262,65 @@ def plotting_gby(
     fig.savefig(os.path.join(plotting_dir, f"acc-efficiency-tradef-off_{tag}.png"))
 
 
+def plotting_cfgs(
+    cfgs: List[Dict[str, Any]], evals_list: list, plotting_name: str, tag: str
+):
+    plotting_dir = os.path.join(PLOTTING_HOME, plotting_name)
+    os.makedirs(plotting_dir, exist_ok=True)
+    keycols = pd.DataFrame(cfgs)
+    print(keycols)
+    all_evals_df = prepare_typed_all_evals(evals_list, keycols, plotting_dir, tag)
+
+    measurements = ["total_feature_loading_frac", "mse", "acc", "acc_sim"]
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    axes = axes.flatten()
+    for mid, measurement in enumerate(measurements):
+        ax = axes[mid]
+        # plot bar chart to compare different settings(cfgs)
+        # the x axis is the cfg id, y axis is the measurement
+        all_evals_df.groupby(list(cfgs[0].keys()))[measurement].mean().plot(
+            kind="bar",
+            ax=ax,
+            rot=0,
+            legend=True,
+            xlabel="cfg_id",
+            ylabel=measurement,
+            xticks=range(len(cfgs)),
+        )
+        ax.set_title(measurement)
+    # for the last two axes, we plot the trade-off plot for (acc, total_feature_loading_frac) and (acc_sim, total_feature_loading_frac)
+    # add label to each point
+    markers = ["o", "x", "+", "s", "d", "^", "v", ">", "<", "p", "h", "D"]
+    for i, row in all_evals_df.iterrows():
+        x1, x2, y = row["acc"], row["acc_sim"], row["total_feature_loading_frac"]
+        color = next(ax._get_lines.prop_cycler)["color"]
+        axes[-2].scatter(
+            x1,
+            y,
+            alpha=0.7,
+            label=f"cfg-{i}",
+            color=color,
+            s=200,
+            marker=markers[i % len(markers)],
+        )
+        axes[-1].scatter(
+            x2,
+            y,
+            alpha=0.7,
+            label=f"cfg-{i}",
+            color=color,
+            s=200,
+            marker=markers[i % len(markers)],
+        )
+    axes[-2].set_title("acc v.s. total_feature_loading_frac")
+    axes[-1].set_title("acc_sim v.s. total_feature_loading_frac")
+    axes[-2].legend()
+    axes[-1].legend()
+
+    fig.savefig(os.path.join(plotting_dir, f"cfgs_{tag}.png"))
+    plt.close(fig)
+
+
 class Collector:
     def __init__(self, args: OnlineParser) -> None:
         self.args = copy.deepcopy(args)
@@ -299,28 +361,18 @@ class Collector:
                 ret.append(evals)
         plotting_gby(ret, setting_name, setting_values, gby_cols, gby_values_list, tag)
 
+    def vary_cfgs(self, cfgs: List[Dict[str, Any]], tag="tmp"):
+        ret = []
+        for cfg in cfgs:
+            new_args = copy.deepcopy(self.args)
+            new_args.update_args(cfg)
+            new_args.process_args()
+            ests, evals = run_online_test(new_args)
+            ret.append(evals)
+        plotting_cfgs(cfgs, ret, "cfgs", tag)
 
-if __name__ == "__main__":
-    args = OnlineParser().parse_args()
-    default_args_dict = {
-        "init_sample_budget": 0.01,
-        "init_sample_policy": "uniform",
-        "feature_estimator": "closed_form",
-        "feature_estimation_nsamples": 1000,
-        "prediction_estimator": "auto",
-        "prediction_estimator_thresh": 1.0,
-        "prediction_estimation_nsamples": 1000,
-        "feature_influence_estimator": "auto",
-        "feature_influence_estimator_thresh": 1.0,
-        "feature_influence_estimation_nsamples": 16000,
-        "sample_budget": 1.0,
-        "sample_refine_max_niters": 0,
-        "sample_refine_step_policy": "uniform",
-        "sample_allocation_policy": "uniform",
-    }
-    args.update_args(default_args_dict)
-    print(f"running plotting.py with {args}")
 
+def run_no_refinement(args: OnlineParser):
     """
     Let's see if we disable refinement,
     how different init_sample_budget and policy influences the performance
@@ -341,6 +393,8 @@ if __name__ == "__main__":
         tag=tag,
     )
 
+
+def run_refine_once(args: OnlineParser):
     """
     Let's see if we enable refinement, and refinement only once,
     how different init_sample_budget, init_policy, prediction_estimator, and online_policy influences the performance
@@ -384,6 +438,8 @@ if __name__ == "__main__":
         tag=tag,
     )
 
+
+def run_refine_rounds(args: OnlineParser):
     """
     Let's see the influence of different number of refinement round,
     with different init_sample_policy(uniform) and default sample_allocation_policy(uniform)
@@ -401,6 +457,40 @@ if __name__ == "__main__":
         tag=tag,
     )
 
+
+def run_refine_rounds_more(args: OnlineParser):
+    """
+    Let's see the influence of different number of refinement round,
+    with different init_sample_policy(uniform) and default sample_allocation_policy(uniform)
+    """
+    tag = "refine-rounds-more"
+    collector = Collector(args)
+    collector.args.update_args(
+        {"feature_influence_estimation_nsamples": 800, "init_sample_budget": 0.001}
+    )
+    collector.vary_setting(
+        "sample_refine_max_niters", [0, 1, 2, 3, 4, 5, 7, 9, 10, 100], tag
+    )
+    collector.vary_setting_gby(
+        setting_name="sample_refine_max_niters",
+        setting_values=[0, 1, 2, 3, 4, 5, 7, 9, 10, 100],
+        gby_cols=[
+            "init_sample_policy",
+            "sample_allocation_policy",
+            "sample_refine_step_policy",
+            "init_sample_budget",
+        ],
+        gby_cols_values=[
+            ["uniform"],
+            ["uniform", "finf"],
+            ["uniform"],
+            [0.001, 0.01, 0.1],
+        ],
+        tag=tag,
+    )
+
+
+def run_refine_rounds_iter(args: OnlineParser):
     """
     Let's see if we enable refinement, and refinement 3/5/10 round,
     how different budget and policy influences the performance
@@ -461,3 +551,71 @@ if __name__ == "__main__":
             ],
             tag=tag,
         )
+
+
+def load_cfgs(filepath: str) -> List[Dict[str, Any]]:
+    with open(filepath, "r") as f:
+        cfgs = json.load(f)
+    return cfgs
+
+
+def run_cgfs(args: OnlineParser, cfg_path: str):
+    """
+    Let's see the comparision of selected cfgs
+    """
+    tag = f"vary_cfgs_{os.path.basename(cfg_path)}"
+    cfgs = load_cfgs(cfg_path)
+    collector = Collector(args)
+    collector.vary_cfgs(cfgs, tag)
+
+
+class PlottingParser(Tap):
+    run_no_refinement: bool = False
+    run_refine_rounds: bool = False
+    run_refine_rounds_more: bool = False
+    run_refine_rounds_iter: bool = False
+
+    run_cfgs: str = None  # path to the cfg file
+
+    run_all: bool = False
+
+    def process_args(self) -> None:
+        if self.run_all:
+            self.run_no_refinement = True
+            self.run_refine_rounds = True
+            self.run_refine_rounds_more = True
+            self.run_refine_rounds_iter = True
+
+
+if __name__ == "__main__":
+    default_args_dict = {
+        "init_sample_budget": 0.01,
+        "init_sample_policy": "uniform",
+        "feature_estimator": "closed_form",
+        "feature_estimation_nsamples": 1000,
+        "prediction_estimator": "auto",
+        "prediction_estimator_thresh": 1.0,
+        "prediction_estimation_nsamples": 1000,
+        "feature_influence_estimator": "auto",
+        "feature_influence_estimator_thresh": 1.0,
+        "feature_influence_estimation_nsamples": 16000,
+        "sample_budget": 1.0,
+        "sample_refine_max_niters": 0,
+        "sample_refine_step_policy": "uniform",
+        "sample_allocation_policy": "uniform",
+    }
+    default_args = OnlineParser().from_dict(default_args_dict)
+    default_args.process_args()
+    print(f"running plotting.py with {default_args}")
+
+    plotting_args = PlottingParser().parse_args()
+    if plotting_args.run_no_refinement:
+        run_no_refinement(default_args)
+    if plotting_args.run_refine_rounds:
+        run_refine_rounds(default_args)
+    if plotting_args.run_refine_rounds_more:
+        run_refine_rounds_more(default_args)
+    if plotting_args.run_refine_rounds_iter:
+        run_refine_rounds_iter(default_args)
+    if plotting_args.run_cfgs:
+        run_cgfs(default_args, plotting_args.run_cfgs)

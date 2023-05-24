@@ -33,7 +33,7 @@ pandarallel.initialize(progress_bar=False)
 # pandarallel.initialize(progress_bar=False, nb_workers=1)
 
 DATA_HOME = "/home/ckchang/ApproxInfer/data"
-RESULTS_HOME = "/home/ckchang/ApproxInfer/results2"
+RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 PLOTTING_HOME = os.path.join(RESULTS_HOME, "plotting")
 os.makedirs(PLOTTING_HOME, exist_ok=True)

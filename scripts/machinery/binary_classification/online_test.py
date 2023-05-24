@@ -64,7 +64,7 @@ class OnlineParser(Tap):
         1.0  # feature influence estimator threshold
     )
     feature_influence_estimation_nsamples: int = (
-        16000  # number of points for feature influence estimation
+        8000  # number of points for feature influence estimation
     )
 
     # policy to increase sample to budget
@@ -81,14 +81,23 @@ class OnlineParser(Tap):
         "uniform", "fimp", "finf", "auto"
     ] = "uniform"  # sample allocation policy
 
-    seed = 7077  # random seed
+    seed: int = 7077  # random seed
     clear_cache: bool = False  # clear cache
+    reqs: list = None  # list of requests to process, default is all
 
     def process_args(self) -> None:
         self.job_dir: str = os.path.join(
             RESULTS_HOME, self.database, f"{self.task}_{self.model_name}"
         )
-        self.feature_dir = os.path.join(self.job_dir, "features")
+
+        if self.reqs is not None:
+            self.exp_dir = os.path.join(
+                self.job_dir, f"reqs_{','.join([f'{r}' for r in self.reqs])}"
+            )
+        else:
+            self.exp_dir = self.job_dir
+
+        self.feature_dir = os.path.join(self.exp_dir, "features")
         self.init_feature_dir = os.path.join(
             self.feature_dir,
             f"init_sample_{self.init_sample_budget}_{self.init_sample_policy}",
@@ -103,7 +112,7 @@ class OnlineParser(Tap):
             f"finf_est_{self.feature_influence_estimator}_{self.feature_influence_estimator_thresh}_{self.feature_influence_estimation_nsamples}",
         )
         self.evals_dir = os.path.join(
-            self.job_dir,
+            self.exp_dir,
             "evals",
             f"init_sample_{self.init_sample_budget}_{self.init_sample_policy}",
             f"feature_estimator_{self.feature_estimator}_{self.feature_estimation_nsamples}",
@@ -470,7 +479,12 @@ def compute_apx_features(
         reqs["sensor_id"] = np.arange(8)
         # allocate samples for each request
         reqs["nsample"] = np.ceil(total_chunks * allocation[i])
-        reqs["noffset"] = 0  # TODO add offset for incremental computation
+        np.random.seed(args.seed)  # fix random seed
+        reqs["noffset"] = [
+            np.random.randint(0, 1 + total_chunks - reqs["nsample"].values[j])
+            for j in range(8)
+        ]
+        # TODO add offset for incremental computation
         # compute features
         sensor_features = reqs.parallel_apply(
             lambda row: machinery_compute(
@@ -850,14 +864,24 @@ def online_refinement(
             args, ppl, iter_apx_features_w_estimation
         )
         prediction_estimation_time += time.time() - st
+        iter_apx_preds_w_estimation.to_csv(
+            os.path.join(args.online_feature_dir, f"online_pred_{iter_id}.csv")
+        )
 
         st = time.time()
         iter_apx_feature_influence = estimate_apx_feature_influence(
             args, ppl, iter_apx_features_w_estimation, iter_apx_preds_w_estimation
         )
         feature_influence_time += time.time() - st
+        iter_apx_feature_influence.to_csv(
+            os.path.join(args.online_feature_dir, f"online_finf_{iter_id}.csv")
+        )
 
         print(f"uncertain_idxs X{uncertain_idxs.shape[0]}: {uncertain_idxs}")
+        uncertain_idxs.to_series().to_csv(
+            os.path.join(args.online_feature_dir, f"online_idxs_{iter_id}.csv")
+        )
+
         # print(f"uncertain_requests: {uncertain_reqs}")
         # print(f"uncertain_features: {iter_apx_features_w_estimation}")
         # print(f"uncertain_preds: {iter_apx_preds_w_estimation}")
@@ -913,6 +937,12 @@ def run(args: OnlineParser) -> Tuple[dict, dict]:
     # load exact features as oracle features
     exact_features = pd.read_csv(os.path.join(args.job_dir, "test_features.csv"))
     feature_cols = exact_features.columns
+
+    # keep selected requests only
+    if args.reqs is not None:
+        requests = requests.iloc[args.reqs]
+        labels = labels.iloc[args.reqs]
+        exact_features = exact_features.iloc[args.reqs]
 
     # get oracle prediction results and time
     st = time.time()
@@ -995,10 +1025,12 @@ def run(args: OnlineParser) -> Tuple[dict, dict]:
         axis=1,
     )
     apx_preds_w_estimation["exact_pred"] = exact_pred
-    apx_preds_w_estimation["label"] = labels["label"]
-    apx_preds_w_estimation["same_pred"] = exact_pred == apx_preds_w_estimation["pred"]
+    apx_preds_w_estimation["label"] = labels["label"].values
+    apx_preds_w_estimation["same_pred"] = (
+        exact_pred == apx_preds_w_estimation["pred"].values
+    )
     apx_preds_w_estimation["correct_pred"] = (
-        labels["label"] == apx_preds_w_estimation["pred"]
+        labels["label"].values == apx_preds_w_estimation["pred"].values
     )
     apx_preds_w_estimation.to_csv(os.path.join(evals_dir, "preds.csv"), index=False)
     apx_feature_influence = pd.concat(

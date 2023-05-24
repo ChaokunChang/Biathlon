@@ -26,7 +26,7 @@ from tqdm import tqdm
 import clickhouse_connect
 
 DATA_HOME = "/home/ckchang/ApproxInfer/data"
-RESULTS_HOME = "/home/ckchang/ApproxInfer/results2"
+RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 filecols = [f"sensor_{i}" for i in range(8)]
 
 datadir = os.path.join(DATA_HOME, "machinery")

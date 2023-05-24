@@ -3,10 +3,12 @@ from tap import Tap
 from typing import Literal, Tuple
 import numpy as np
 import pandas as pd
+import scipy.stats
 import os
 import time
 from sklearn import metrics
 from sklearn.pipeline import Pipeline
+from lightgbm import LGBMClassifier, LGBMRegressor
 import clickhouse_connect
 import joblib
 from tqdm import tqdm
@@ -22,7 +24,7 @@ pandarallel.initialize(progress_bar=False)
 # pandarallel.initialize(progress_bar=False, nb_workers=1)
 
 DATA_HOME = "/home/ckchang/ApproxInfer/data"
-RESULTS_HOME = "/home/ckchang/ApproxInfer/results2"
+RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 
 class OnlineParser(Tap):
@@ -56,8 +58,8 @@ class OnlineParser(Tap):
     )
 
     feature_influence_estimator: Literal[
-        "shap", "lime", "auto"
-    ] = "auto"  # feature influence estimator
+        "shap", "lime", "auto", "joint_distribution", "independent_distribution"
+    ] = "independent_distribution"  # feature influence estimator, auto=independent_distribution
     feature_influence_estimator_thresh: float = (
         1.0  # feature influence estimator threshold
     )
@@ -69,7 +71,11 @@ class OnlineParser(Tap):
     sample_budget: float = 1.0  # sample budget each in avg
     sample_refine_max_niters: int = 0  # nax number of iters to refine the sample budget
     sample_refine_step_policy: Literal[
-        "uniform", "exponential", "exponential_rev"
+        "uniform",
+        "exponential",
+        "exponential_rev",
+        "exponential_auto",
+        "exponential_new",
     ] = "uniform"  # sample refine step policy
     sample_allocation_policy: Literal[
         "uniform", "fimp", "finf", "auto"
@@ -149,6 +155,14 @@ class DBConnector:
 
     def execute(self, sql):
         return self.client.query_df(sql)
+
+
+def get_feature_names(ppl: Pipeline):
+    model = ppl[-1]
+    if isinstance(model, (LGBMRegressor, LGBMClassifier)):
+        return model.feature_name_
+    else:
+        return model.feature_names_in_
 
 
 def _evaluate_regressor_pipeline(
@@ -322,6 +336,9 @@ def allocate_by_weight(
         assert (
             budget <= 1e-9
         ), f"budget={budget} is not fully allocated, allocation={allocation}"
+
+    # fix precision issues of allocation.
+    allocation = np.where(allocation <= (1.0 - 1.0 / 50000), allocation, 1.0)
     return allocation
 
 
@@ -452,7 +469,7 @@ def compute_apx_features(
         reqs["database"] = args.database
         reqs["sensor_id"] = np.arange(8)
         # allocate samples for each request
-        reqs["nsample"] = (total_chunks * allocation[i]).astype(int)
+        reqs["nsample"] = np.ceil(total_chunks * allocation[i])
         reqs["noffset"] = 0  # TODO add offset for incremental computation
         # compute features
         sensor_features = reqs.parallel_apply(
@@ -505,6 +522,8 @@ def get_init_apx_features(args: OnlineParser, requests: pd.DataFrame):
         # compute features
         st = time.time()
         apx_features = compute_apx_features(args, requests, init_allocation)
+        apx_features.insert(len(apx_features.columns), "refinement_iter", 0)
+        apx_features.insert(len(apx_features.columns), "refined_times", 0)
         compute_apx_features_time = time.time() - st
         print(f"compute apx_features takes {compute_apx_features_time} seconds")
         apx_features.to_csv(apx_feature_path, index=False)
@@ -530,7 +549,7 @@ def estimate_apx_prediction(
     every feature follows normal distribution with feature as mean, and variance/cardinality as scale
     We sample n_samples points for each request, each points has p features
     """
-    fnames = ppl.feature_names_in_
+    fnames = get_feature_names(ppl)
     means = apx_features_w_estimation[fnames].values
     scales = apx_features_w_estimation[
         [name.replace("_mean", "_feature_estimation") for name in fnames]
@@ -592,7 +611,7 @@ def estimate_apx_feature_influence(
     prediction_w_estimation: pd.DataFrame,
     verbose=False,
 ) -> pd.DataFrame:
-    fnames = ppl.feature_names_in_
+    fnames = get_feature_names(ppl)
 
     means = apx_features_w_estimation[fnames].values
     scales = apx_features_w_estimation[
@@ -605,20 +624,39 @@ def estimate_apx_feature_influence(
     m, p = means.shape
     n_samples = args.feature_influence_estimation_nsamples
 
-    influences = np.zeros((m, p))
-    dim_samples = n_samples // p
-    for fid in range(p):
-        fid_scales = np.zeros((m, p))
-        fid_scales[:, fid] = scales[:, fid]
-        samples = np.random.normal(means, scales, size=(dim_samples, m, p))
-        # (dim_samples * m, p)
-        spreds = ppl.predict(samples.reshape(-1, p)).reshape(dim_samples, m)
-        # (m, )
-        pconf = (
-            np.count_nonzero(spreds.T == apx_preds.reshape(-1, 1), axis=1) / dim_samples
+    if args.feature_influence_estimator == "independent_distribution":
+        influences = np.zeros((m, p))
+        dim_samples = n_samples // p
+        for fid in range(p):
+            fid_scales = np.zeros((m, p))
+            fid_scales[:, fid] = scales[:, fid]
+            samples = np.random.normal(means, scales, size=(dim_samples, m, p))
+            # (dim_samples * m, p)
+            spreds = ppl.predict(samples.reshape(-1, p)).reshape(dim_samples, m)
+            # (m, )
+            pconf = (
+                np.count_nonzero(spreds.T == apx_preds.reshape(-1, 1), axis=1)
+                / dim_samples
+            )
+            influences[:, fid] = 1.0 - pconf
+    elif args.feature_influence_estimator == "joint_distribution":
+        samples = np.random.normal(means, scales, size=(n_samples, m, p))
+        spreds = ppl.predict(samples.reshape(-1, p)).reshape(n_samples, m).T
+        influences = np.zeros((m, p))
+        for rid in range(m):
+            is_same = spreds[rid] == apx_preds[rid]  # (n_samples, )
+            for fid in range(p):
+                mean, scale = means[rid][fid], scales[rid][fid]
+                point = np.min(
+                    np.ma.masked_array(np.abs(samples[:, rid, fid] - mean), is_same)
+                )
+                influences[rid][fid] = 2 * (
+                    1.0 - scipy.stats.norm.cdf(point, mean, scale)
+                )
+    else:
+        raise ValueError(
+            f"feature_influence_estimator={args.feature_influence_estimator} not supported"
         )
-        influences[:, fid] = 1.0 - pconf
-
     return pd.DataFrame(
         influences, columns=[name.replace("_mean", "_finf") for name in fnames]
     )
@@ -702,6 +740,8 @@ def get_online_apx_feature(
         # compute features
         st = time.time()
         apx_features = compute_apx_features(args, requests, new_allocation)
+        apx_features.insert(len(apx_features.columns), "refinement_iter", iter_id + 1)
+        apx_features.insert(len(apx_features.columns), "refined_times", 1)
         compute_apx_features_time = time.time() - st
         print(
             f"Iter-{iter_id} compute apx_features takes {compute_apx_features_time} seconds"
@@ -779,6 +819,16 @@ def online_refinement(
                 factor = 2
                 base = (factor**niters) - 1
                 to_budget += refinement_budget * (factor**iter_id) / base
+            elif sample_refine_step_policy == "exponential_new":
+                # allocate exponentially, more on last iterations
+                base = np.power(
+                    args.sample_budget / args.init_sample_budget, 1.0 / niters
+                )
+                to_budget = args.init_sample_budget * np.power(base, iter_id + 1)
+            elif sample_refine_step_policy == "exponential_auto":
+                # allocate exponentially, more on last iterations
+                factor = 2
+                to_budget = min(to_budget * factor, args.sample_budget)
             else:
                 raise NotImplementedError()
         print(f"iter-{iter_id} allocate until budget: {to_budget}")
@@ -813,6 +863,10 @@ def online_refinement(
         # print(f"uncertain_preds: {iter_apx_preds_w_estimation}")
         # print(f"uncertain_finf: {iter_apx_feature_influence}")
 
+        # iter_apx_features_w_estimation.insert(len(iter_apx_features_w_estimation.columns), 'refined_times', apx_features_w_estimation.iloc[uncertain_idxs]['refined_times'])
+        iter_apx_features_w_estimation.loc[:, "refined_times"] = (
+            apx_features_w_estimation.loc[uncertain_idxs, "refined_times"].values + 1
+        )
         apx_features_w_estimation.iloc[uncertain_idxs] = iter_apx_features_w_estimation
         apx_preds_w_estimation.iloc[uncertain_idxs] = iter_apx_preds_w_estimation
         apx_feature_influence.iloc[uncertain_idxs] = iter_apx_feature_influence
@@ -933,7 +987,27 @@ def run(args: OnlineParser) -> Tuple[dict, dict]:
     apx_features_w_estimation.to_csv(
         os.path.join(evals_dir, "features.csv"), index=False
     )
+    apx_preds_w_estimation = pd.concat(
+        [
+            apx_preds_w_estimation,
+            apx_features_w_estimation[["refinement_iter", "refined_times"]],
+        ],
+        axis=1,
+    )
+    apx_preds_w_estimation["exact_pred"] = exact_pred
+    apx_preds_w_estimation["label"] = labels["label"]
+    apx_preds_w_estimation["same_pred"] = exact_pred == apx_preds_w_estimation["pred"]
+    apx_preds_w_estimation["correct_pred"] = (
+        labels["label"] == apx_preds_w_estimation["pred"]
+    )
     apx_preds_w_estimation.to_csv(os.path.join(evals_dir, "preds.csv"), index=False)
+    apx_feature_influence = pd.concat(
+        [
+            apx_feature_influence,
+            apx_features_w_estimation[["refinement_iter", "refined_times"]],
+        ],
+        axis=1,
+    )
     apx_feature_influence.to_csv(
         os.path.join(evals_dir, "feature_influence.csv"), index=False
     )

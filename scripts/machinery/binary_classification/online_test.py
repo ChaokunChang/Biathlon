@@ -19,6 +19,11 @@ warnings.filterwarnings(
     category=UserWarning,
     message=r"X does not have valid feature names, but (\w+) was fitted with feature names",
 )
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    # message="R^2 score is not well-defined with less than two samples.",  # doesn't work with msg
+)
 
 pandarallel.initialize(progress_bar=False)
 # pandarallel.initialize(progress_bar=False, nb_workers=1)

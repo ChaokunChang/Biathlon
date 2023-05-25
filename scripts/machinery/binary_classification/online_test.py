@@ -63,7 +63,19 @@ class OnlineParser(Tap):
     )
 
     feature_influence_estimator: Literal[
-        "shap", "lime", "auto", "joint_distribution", "independent_distribution"
+        "shap",
+        "lime",
+        "auto",
+        "joint_distribution",
+        "independent_distribution",
+        "fscale",
+        "fscale-grad",
+        "fvar",
+        "fvar-grad",
+        "pscale-delta",
+        "varSamp",
+        "stddevSamp",
+        "pscale-grad2fscale",
     ] = "independent_distribution"  # feature influence estimator, auto=independent_distribution
     feature_influence_estimator_thresh: float = (
         1.0  # feature influence estimator threshold
@@ -83,7 +95,7 @@ class OnlineParser(Tap):
         "exponential_new",
     ] = "uniform"  # sample refine step policy
     sample_allocation_policy: Literal[
-        "uniform", "fimp", "finf", "auto"
+        "uniform", "fimp", "finf", "fimp-maxall", "finf-maxall", "auto"
     ] = "uniform"  # sample allocation policy
 
     seed: int = 7077  # random seed
@@ -319,6 +331,7 @@ def allocate_by_weight(
     total_budget: float,
     max_budget_each: float = 1.0,
     allocated: np.array = None,
+    max_all: bool = False,
 ) -> np.array:
     if allocated is None:
         allocation = np.zeros(len(weights))
@@ -330,7 +343,10 @@ def allocate_by_weight(
     for i in allocation_order:
         if np.sum(wts) == 0 or budget <= 0:
             break
-        sample = budget * wts[i] / np.sum(wts)
+        if max_all:
+            sample = min(budget, max_budget_each - allocation[i])
+        else:
+            sample = budget * wts[i] / np.sum(wts)
         allocated_sample = min(sample, max_budget_each - allocation[i])
         allocation[i] += allocated_sample
         budget -= allocated_sample
@@ -636,6 +652,9 @@ def estimate_apx_feature_influence(
     scales = apx_features_w_estimation[
         [name.replace("_mean", "_feature_estimation") for name in fnames]
     ].values
+    cardinalities = apx_features_w_estimation[
+        [name.replace("_mean", "_feature_loading_nrows") for name in fnames]
+    ].values
     apx_preds = prediction_w_estimation["pred"].values
 
     # (n_samples, m, p)
@@ -666,12 +685,87 @@ def estimate_apx_feature_influence(
             is_same = spreds[rid] == apx_preds[rid]  # (n_samples, )
             for fid in range(p):
                 mean, scale = means[rid][fid], scales[rid][fid]
-                point = np.min(
-                    np.ma.masked_array(np.abs(samples[:, rid, fid] - mean), is_same)
-                )
-                influences[rid][fid] = 2 * (
-                    1.0 - scipy.stats.norm.cdf(point, mean, scale)
-                )
+                if scale == 0:
+                    print(f"scale is 0 for feature {fid} of request {rid}")
+                    influences[rid][fid] = 0.0
+                else:
+                    # left_mask = np.logical_not(np.logical_and(is_different, samples[:, rid, fid] <= mean))
+                    left_mask = np.logical_or(is_same, samples[:, rid, fid] > mean)
+                    if np.sum(left_mask) == 0:
+                        left_closed_dist = np.inf
+                    else:
+                        left_closed_dist = (
+                            np.ma.masked_array(
+                                np.abs(samples[:, rid, fid] - mean),
+                                left_mask,
+                            )
+                            .min()
+                            .item()
+                        )
+                    right_mask = np.logical_or(is_same, samples[:, rid, fid] <= mean)
+                    if np.sum(right_mask) == 0:
+                        right_closed_dist = np.inf
+                    else:
+                        right_closed_dist = (
+                            np.ma.masked_array(
+                                np.abs(samples[:, rid, fid] - mean),
+                                right_mask,
+                            )
+                            .min()
+                            .item()
+                        )
+                    print(
+                        f"left_closed_dist={left_closed_dist}, right_closed_dist={right_closed_dist}"
+                    )
+                    influences[rid][fid] = 1.0 - (
+                        scipy.stats.norm.cdf(right_closed_dist, 0, scale)
+                        - scipy.stats.norm.cdf(-left_closed_dist, 0, scale)
+                    )
+    elif args.feature_influence_estimator == "fscale":
+        influences = scales
+    elif args.feature_influence_estimator == "fvar":
+        influences = np.power(scales, 2)
+    elif args.feature_influence_estimator == "fscale-grad":
+        influences = (0.5) * scales / cardinalities
+    elif args.feature_influence_estimator == "fvar-grad":
+        influences = np.power(scales, 2) / cardinalities
+    elif args.feature_influence_estimator == "varSamp":
+        influences = np.power(scales, 2) * cardinalities
+    elif args.feature_influence_estimator == "stddevSamp":
+        influences = scales * np.sqrt(cardinalities)
+    elif args.feature_influence_estimator == "pscale-delta":
+        samples = np.random.normal(means, scales, size=(n_samples, m, p))
+        spreds = ppl.predict(samples.reshape(-1, p)).reshape(n_samples, m).T
+        spreds_std = np.std(spreds, axis=1)
+        influences = np.zeros((m, p))
+        for fid in range(p):
+            new_samples = np.copy(samples)
+            for sid in range(n_samples):
+                new_samples[sid, :, fid] = means[:, fid]
+            new_spreds = ppl.predict(new_samples.reshape(-1, p)).reshape(n_samples, m).T
+            new_spreds_std = np.std(new_spreds, axis=1)
+            influences[:, fid] = spreds_std - new_spreds_std
+        influences = np.maximum(
+            influences, 0
+        )  # if the preds_std increase, we set the influence to 0 instead of negative
+    elif args.feature_influence_estimator == "pscale-grad2fscale":
+        samples = np.random.normal(means, scales, size=(n_samples, m, p))
+        spreds = ppl.predict(samples.reshape(-1, p)).reshape(n_samples, m).T
+        spreds_std = np.std(spreds, axis=1)
+        influences = np.zeros((m, p))
+        for fid in range(p):
+            new_samples = np.copy(samples)
+            for sid in range(n_samples):
+                new_samples[sid, :, fid] = means[:, fid]
+            new_spreds = ppl.predict(new_samples.reshape(-1, p)).reshape(n_samples, m).T
+            new_spreds_std = np.std(new_spreds, axis=1)
+            influences[:, fid] = spreds_std - new_spreds_std
+        influences = np.maximum(
+            influences, 0
+        )  # if the preds_std increase, we set the influence to 0 instead of negative
+        influences = influences / scales
+    elif args.feature_influence_estimator == "auto":
+        raise ValueError("auto feature_influence_estimator not implemented yet")
     else:
         raise ValueError(
             f"feature_influence_estimator={args.feature_influence_estimator} not supported"
@@ -724,6 +818,29 @@ def online_sample_allocation(
                 total_budget - cur_allocation[i].sum(),
                 max_budget_each,
                 cur_allocation[i],
+            )
+    elif policy == "fimp-maxall":
+        feature_importance_path = os.path.join(args.job_dir, "feature_importances.csv")
+        feature_importances = pd.read_csv(feature_importance_path)
+        assert feature_importances.shape[0] == num_agg_queries
+        allocation = np.zeros((num_reqs, num_agg_queries))
+        for i in range(num_reqs):
+            allocation[i] = allocate_by_weight(
+                feature_importances,
+                total_budget - cur_allocation[i].sum(),
+                max_budget_each,
+                cur_allocation[i],
+                max_all=True,
+            )
+    elif policy == "finf-maxall":
+        allocation = np.zeros((num_reqs, num_agg_queries))
+        for i in range(num_reqs):
+            allocation[i] = allocate_by_weight(
+                finfs.values[i],
+                total_budget - cur_allocation[i].sum(),
+                max_budget_each,
+                cur_allocation[i],
+                max_all=True,
             )
     else:
         raise ValueError(f"policy={policy} not supported")
@@ -783,6 +900,10 @@ def online_refinement(
     verbose=False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, float, float, float]:
     """refine the apx_features_w_estimation, apx_preds_w_estimation, apx_feature_influence"""
+    if args.reqs is not None and len(args.reqs) == 1:
+        print(f"requests:: {requests.iloc[0].values}")
+        print(f"preds: {apx_preds_w_estimation.iloc[0].values}")
+        print(f"finf: {apx_feature_influence.iloc[0].values}")
     if args.sample_budget <= args.init_sample_budget:
         return (
             apx_features_w_estimation,
@@ -887,10 +1008,11 @@ def online_refinement(
             os.path.join(args.online_feature_dir, f"online_idxs_{iter_id}.csv")
         )
 
-        # print(f"uncertain_requests: {uncertain_reqs}")
-        # print(f"uncertain_features: {iter_apx_features_w_estimation}")
-        # print(f"uncertain_preds: {iter_apx_preds_w_estimation}")
-        # print(f"uncertain_finf: {iter_apx_feature_influence}")
+        if args.reqs is not None and len(args.reqs) == 1:
+            print(f"uncertain_requests: {uncertain_reqs.iloc[0].values}")
+            # print(f"uncertain_features: {iter_apx_features_w_estimation.iloc[0].values}")
+            print(f"uncertain_preds: {iter_apx_preds_w_estimation.iloc[0].values}")
+            print(f"uncertain_finf: {iter_apx_feature_influence.iloc[0].values}")
 
         # iter_apx_features_w_estimation.insert(len(iter_apx_features_w_estimation.columns), 'refined_times', apx_features_w_estimation.iloc[uncertain_idxs]['refined_times'])
         iter_apx_features_w_estimation.loc[:, "refined_times"] = (
@@ -948,6 +1070,9 @@ def run(args: OnlineParser) -> Tuple[dict, dict]:
         requests = requests.iloc[args.reqs]
         labels = labels.iloc[args.reqs]
         exact_features = exact_features.iloc[args.reqs]
+        print(
+            f"labels={labels.iloc[0].values}, exact_pred={ppl.predict(exact_features)[0]}"
+        )
 
     # get oracle prediction results and time
     st = time.time()

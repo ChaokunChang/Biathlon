@@ -268,6 +268,8 @@ def plotting_cfgs(
     plotting_dir = os.path.join(PLOTTING_HOME, plotting_name)
     os.makedirs(plotting_dir, exist_ok=True)
     keycols = pd.DataFrame(cfgs)
+    # add col cfg_id
+    keycols.insert(0, "cfg_id", range(len(cfgs)))
     print(keycols)
     all_evals_df = prepare_typed_all_evals(evals_list, keycols, plotting_dir, tag)
 
@@ -278,14 +280,14 @@ def plotting_cfgs(
         ax = axes[mid]
         # plot bar chart to compare different settings(cfgs)
         # the x axis is the cfg id, y axis is the measurement
-        all_evals_df.groupby(list(cfgs[0].keys()))[measurement].mean().plot(
-            kind="bar",
+        all_evals_df.plot.bar(
+            x="cfg_id",
+            y=measurement,
             ax=ax,
+            legend=False,
+            title=measurement,
             rot=0,
-            legend=True,
-            xlabel="cfg_id",
-            ylabel=measurement,
-            xticks=range(len(cfgs)),
+            color="C0",
         )
         ax.set_title(measurement)
     # for the last two axes, we plot the trade-off plot for (acc, total_feature_loading_frac) and (acc_sim, total_feature_loading_frac)
@@ -364,6 +366,7 @@ class Collector:
     def vary_cfgs(self, cfgs: List[Dict[str, Any]], tag="tmp"):
         ret = []
         for cfg in cfgs:
+            print(f'run with cfg={cfg}')
             new_args = copy.deepcopy(self.args)
             new_args.update_args(cfg)
             new_args.process_args()
@@ -563,7 +566,7 @@ def run_cgfs(args: OnlineParser, cfg_path: str):
     """
     Let's see the comparision of selected cfgs
     """
-    tag = f"vary_cfgs_{os.path.basename(cfg_path)}"
+    tag = f"{os.path.basename(cfg_path)}"
     cfgs = load_cfgs(cfg_path)
     collector = Collector(args)
     collector.vary_cfgs(cfgs, tag)
@@ -578,6 +581,8 @@ class PlottingParser(Tap):
     run_cfgs: str = None  # path to the cfg file
 
     run_all: bool = False
+
+    nrounds: int = 1  # number of rounds to run
 
     def process_args(self) -> None:
         if self.run_all:

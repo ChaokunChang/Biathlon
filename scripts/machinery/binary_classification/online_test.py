@@ -76,6 +76,7 @@ class OnlineParser(Tap):
         "varSamp",
         "stddevSamp",
         "pscale-grad2fscale",
+        "pscale-grad2cardinality",
     ] = "independent_distribution"  # feature influence estimator, auto=independent_distribution
     feature_influence_estimator_thresh: float = (
         1.0  # feature influence estimator threshold
@@ -764,6 +765,32 @@ def estimate_apx_feature_influence(
             influences, 0
         )  # if the preds_std increase, we set the influence to 0 instead of negative
         influences = influences / scales
+    elif args.feature_influence_estimator == "pscale-grad2cardinality":
+        samples = np.random.normal(means, scales, size=(n_samples, m, p))
+        max_cardinality = 50000
+        delta_cadinality = max_cardinality / 10
+        next_cardinalities = cardinalities + delta_cadinality
+        # next_cardinalities = np.minimum(next_cardinalities, max_cardinality)
+        tmp = np.where(scales > 0, np.sqrt(cardinalities / next_cardinalities), 1)
+        # tmp = np.where(next_cardinalities >= max_cardinality, 0, tmp)
+        spreds = ppl.predict(samples.reshape(-1, p)).reshape(n_samples, m).T
+        spreds_std = np.std(spreds, axis=1)
+        influences = np.zeros((m, p))
+        # print("samples:", np.isnan(samples))
+        for fid in range(p):
+            new_samples = np.copy(samples)
+            new_samples[:, :, fid] = (
+                new_samples[:, :, fid] * tmp[:, fid]
+                + (1.0 - tmp[:, fid]) * means[:, fid]
+            )
+            # print(f"new_samples({fid}): ", np.isnan(new_samples))
+            new_spreds = ppl.predict(new_samples.reshape(-1, p)).reshape(n_samples, m).T
+            new_spreds_std = np.std(new_spreds, axis=1)
+            influences[:, fid] = spreds_std - new_spreds_std
+        influences = np.maximum(
+            influences, 0
+        )  # if the preds_std increase, we set the influence to 0 instead of negative
+        influences = influences / (next_cardinalities - cardinalities)
     elif args.feature_influence_estimator == "auto":
         raise ValueError("auto feature_influence_estimator not implemented yet")
     else:

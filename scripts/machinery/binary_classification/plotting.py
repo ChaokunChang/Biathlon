@@ -267,9 +267,13 @@ def plotting_cfgs(
 ):
     plotting_dir = os.path.join(PLOTTING_HOME, plotting_name)
     os.makedirs(plotting_dir, exist_ok=True)
+    ncfgs, nevals = len(cfgs), len(evals_list)
+    nrounds = nevals // ncfgs
     keycols = pd.DataFrame(cfgs)
     # add col cfg_id
-    keycols.insert(0, "cfg_id", range(len(cfgs)))
+    keycols.insert(0, "cfg_id", range(ncfgs))
+    # repeat keycols nrounds times
+    keycols = pd.concat([keycols] * nrounds, ignore_index=True)
     print(keycols)
     all_evals_df = prepare_typed_all_evals(evals_list, keycols, plotting_dir, tag)
 
@@ -280,7 +284,7 @@ def plotting_cfgs(
         ax = axes[mid]
         # plot bar chart to compare different settings(cfgs)
         # the x axis is the cfg id, y axis is the measurement
-        all_evals_df.plot.bar(
+        all_evals_df.groupby("cfg_id").mean().reset_index().plot.bar(
             x="cfg_id",
             y=measurement,
             ax=ax,
@@ -293,7 +297,7 @@ def plotting_cfgs(
     # for the last two axes, we plot the trade-off plot for (acc, total_feature_loading_frac) and (acc_sim, total_feature_loading_frac)
     # add label to each point
     markers = ["o", "x", "+", "s", "d", "^", "v", ">", "<", "p", "h", "D"]
-    for i, row in all_evals_df.iterrows():
+    for i, row in all_evals_df.groupby("cfg_id").mean().reset_index().iterrows():
         x1, x2, y = row["acc"], row["acc_sim"], row["total_feature_loading_frac"]
         color = next(ax._get_lines.prop_cycler)["color"]
         axes[-2].scatter(
@@ -316,8 +320,8 @@ def plotting_cfgs(
         )
     axes[-2].set_title("acc v.s. total_feature_loading_frac")
     axes[-1].set_title("acc_sim v.s. total_feature_loading_frac")
-    axes[-2].legend()
-    axes[-1].legend()
+    axes[-2].legend(loc="upper left")
+    axes[-1].legend(loc="upper left")
 
     fig.savefig(os.path.join(plotting_dir, f"cfgs_{tag}.png"))
     plt.close(fig)
@@ -373,6 +377,7 @@ class Collector:
             ests, evals = run_online_test(new_args)
             ret.append(evals)
         plotting_cfgs(cfgs, ret, "cfgs", tag)
+        return ret
 
 
 def run_no_refinement(args: OnlineParser):
@@ -562,14 +567,26 @@ def load_cfgs(filepath: str) -> List[Dict[str, Any]]:
     return cfgs
 
 
-def run_cgfs(args: OnlineParser, cfg_path: str):
+def run_cfgs(args: OnlineParser, cfg_path: str, nrounds: int = 1):
     """
     Let's see the comparision of selected cfgs
     """
-    tag = f"{os.path.basename(cfg_path)}"
-    cfgs = load_cfgs(cfg_path)
-    collector = Collector(args)
-    collector.vary_cfgs(cfgs, tag)
+    tag = os.path.basename(cfg_path).split(".")[0]
+    all_rets = []
+    # all_cfgs = []
+    for i in range(nrounds):
+        cfgs = load_cfgs(cfg_path)
+        collector = Collector(args)
+        collector.args.update_args({
+            'fest_seed': i,
+            'pest_seed': i,
+            'finfest_seed': i,
+        })
+        ret = collector.vary_cfgs(cfgs, f'{tag}-{i}')
+        all_rets += ret
+        # all_cfgs += cfgs
+    plotting_cfgs(load_cfgs(cfg_path), all_rets, "cfgs", tag)
+    return all_rets
 
 
 class PlottingParser(Tap):
@@ -623,4 +640,4 @@ if __name__ == "__main__":
     if plotting_args.run_refine_rounds_iter:
         run_refine_rounds_iter(default_args)
     if plotting_args.run_cfgs:
-        run_cgfs(default_args, plotting_args.run_cfgs)
+        run_cfgs(default_args, plotting_args.run_cfgs, plotting_args.nrounds)

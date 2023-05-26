@@ -34,7 +34,6 @@ RESULTS_HOME = "/home/ckchang/ApproxInfer/results"
 
 class OnlineParser(Tap):
     database = "machinery_more"
-    segment_size = 50000
 
     # path to the task directory
     task = "binary_classification"
@@ -99,7 +98,10 @@ class OnlineParser(Tap):
         "uniform", "fimp", "finf", "fimp-maxall", "finf-maxall", "auto"
     ] = "uniform"  # sample allocation policy
 
-    seed: int = 7077  # random seed
+    fest_seed: int = 0  # random seed for feature estimation
+    pest_seed: int = 0  # random seed for prediction estimation
+    finfest_seed: int = 0  # random seed for feature influence estimation
+
     clear_cache: bool = False  # clear cache
     reqs: list = None  # list of requests to process, default is all
 
@@ -110,10 +112,10 @@ class OnlineParser(Tap):
 
         if self.reqs is not None:
             self.exp_dir = os.path.join(
-                self.job_dir, f"reqs_{','.join([f'{r}' for r in self.reqs])}"
+                self.job_dir, f"seed_{self.fest_seed}_{self.pest_seed}_{self.finfest_seed}", f"reqs_{','.join([f'{r}' for r in self.reqs])}"
             )
         else:
-            self.exp_dir = self.job_dir
+            self.exp_dir = os.path.join(self.job_dir, f"seed_{self.fest_seed}_{self.pest_seed}_{self.finfest_seed}", "all_reqs")
 
         self.feature_dir = os.path.join(self.exp_dir, "features")
         self.init_feature_dir = os.path.join(
@@ -501,7 +503,7 @@ def compute_apx_features(
         reqs["sensor_id"] = np.arange(8)
         # allocate samples for each request
         reqs["nsample"] = np.ceil(total_chunks * allocation[i])
-        np.random.seed(args.seed)  # fix random seed
+        np.random.seed(args.fest_seed)  # fix random seed
         reqs["noffset"] = [
             np.random.randint(0, 1 + total_chunks - reqs["nsample"].values[j])
             for j in range(8)
@@ -591,7 +593,7 @@ def estimate_apx_prediction(
         [name.replace("_mean", "_feature_estimation") for name in fnames]
     ].values
 
-    np.random.seed(args.seed)
+    np.random.seed(args.pest_seed)
     m, p = means.shape
     n_samples = args.prediction_estimation_nsamples
 
@@ -659,7 +661,7 @@ def estimate_apx_feature_influence(
     apx_preds = prediction_w_estimation["pred"].values
 
     # (n_samples, m, p)
-    np.random.seed(args.seed)
+    np.random.seed(args.finfest_seed)
     m, p = means.shape
     n_samples = args.feature_influence_estimation_nsamples
 

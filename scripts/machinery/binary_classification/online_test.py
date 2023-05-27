@@ -422,6 +422,9 @@ def estimate_feature_closed_form(rows: pd.DataFrame) -> np.array:
 def estimate_feature(
     rows: pd.DataFrame, feature_estimator: str, feature_estimation_nsamples: int
 ):
+    if rows.shape[0] == 0:
+        # no data, return 0.0, 1e9 as feature and scale
+        return 0.0, 1e9
     if feature_estimator == "closed_form":
         feature = extract_feature(rows)
         scale = estimate_feature_closed_form(rows)

@@ -54,7 +54,8 @@ class OnlineParser(Tap):
     feature_estimation_nsamples: int = 1000  # number of points for feature estimation
 
     prediction_estimator: Literal[
-        "joint_distribution", "independent_distribution", "auto"
+        "joint_distribution", "independent_distribution", "auto",
+        "6sigma",
     ] = "auto"  # prediction estimator
     prediction_estimator_thresh: float = 1.0  # prediction estimator threshold
     prediction_estimation_nsamples: int = (
@@ -72,6 +73,7 @@ class OnlineParser(Tap):
         "fvar",
         "fvar-grad",
         "pscale-delta",
+        "pconf-delta",
         "varSamp",
         "stddevSamp",
         "pscale-grad2fscale",
@@ -571,34 +573,37 @@ def get_init_apx_features(args: OnlineParser, requests: pd.DataFrame):
     else:
         st = time.time()
         apx_features = pd.read_csv(apx_feature_path)
-        print(f"load apx_features from disk takes {time.time() - st} seconds")
+        print(f"load apx_features from {apx_feature_path} takes {time.time() - st} seconds")
     return apx_features
 
 
-def estimate_apx_prediction(
-    args: OnlineParser,
-    ppl: Pipeline,
-    apx_features_w_estimation: pd.DataFrame,
-    verbose=False,
-) -> pd.DataFrame:
-    """
-    ppl: pipeline contains the model
-    apx_features_w_estimation: apx_features + feature_estimation
-    apx_features: all extracted features
-    feature_estimation: estimation of features
-
-    every feature follows normal distribution with feature as mean, and variance/cardinality as scale
-    We sample n_samples points for each request, each points has p features
-    """
-    fnames = get_feature_names(ppl)
-    means = apx_features_w_estimation[fnames].values
-    scales = apx_features_w_estimation[
-        [name.replace("_mean", "_feature_estimation") for name in fnames]
-    ].values
-
+def _prediction_estimation(args: OnlineParser, ppl: Pipeline, means: np.array, scales: np.array):
     np.random.seed(args.pest_seed)
     m, p = means.shape
     n_samples = args.prediction_estimation_nsamples
+
+    if args.prediction_estimator == "6sigma":
+        preds = ppl.predict(means)
+        preds_estimation = np.ones(m)
+        conf_deltas = [0.341343, 0.47725, 0.49865, 0.49997, 0.499999, 0.5]
+        for i in range(p):
+            left_samples = means.copy()
+            right_samples = means.copy()
+            left_confs = np.zeros(m)
+            right_confs = np.zeros(m)
+            for j in range(6):
+                left_samples[:, i] -= scales[:, i]
+                left_preds = ppl.predict(left_samples)
+                right_samples[:, i] += scales[:, i]
+                right_preds = ppl.predict(right_samples)
+                if j == 0:
+                    left_confs = np.where(left_preds == preds, conf_deltas[0], 0)
+                    right_confs = np.where(right_preds == preds, conf_deltas[0], 0)
+                else:
+                    left_confs = np.where(np.logical_and(left_preds == preds, left_confs == conf_deltas[j - 1]), conf_deltas[j], left_confs)
+                    right_confs = np.where(np.logical_and(right_preds == preds, right_confs == conf_deltas[j - 1]), conf_deltas[j], right_confs)
+            preds_estimation *= (left_confs + right_confs)
+        return preds, preds_estimation
 
     # samples \in (n_samples, m, p)
     if args.prediction_estimator == "joint_distribution":
@@ -642,6 +647,33 @@ def estimate_apx_prediction(
         preds_estimation[i] = np.max(pred_count) / n_samples
 
     # return prediction with estimation as DataFrame
+    return preds, preds_estimation
+
+
+def estimate_apx_prediction(
+    args: OnlineParser,
+    ppl: Pipeline,
+    apx_features_w_estimation: pd.DataFrame,
+    verbose=False,
+) -> pd.DataFrame:
+    """
+    ppl: pipeline contains the model
+    apx_features_w_estimation: apx_features + feature_estimation
+    apx_features: all extracted features
+    feature_estimation: estimation of features
+
+    every feature follows normal distribution with feature as mean, and variance/cardinality as scale
+    We sample n_samples points for each request, each points has p features
+    """
+    fnames = get_feature_names(ppl)
+    means = apx_features_w_estimation[fnames].values
+    scales = apx_features_w_estimation[
+        [name.replace("_mean", "_feature_estimation") for name in fnames]
+    ].values
+
+    preds, preds_estimation = _prediction_estimation(args, ppl, means, scales)
+
+    # return prediction with estimation as DataFrame
     return pd.DataFrame({"pred": preds, "pred_estimation": preds_estimation})
 
 
@@ -662,6 +694,7 @@ def estimate_apx_feature_influence(
         [name.replace("_mean", "_feature_loading_nrows") for name in fnames]
     ].values
     apx_preds = prediction_w_estimation["pred"].values
+    apx_preds_est = prediction_w_estimation["pred_estimation"].values
 
     # (n_samples, m, p)
     np.random.seed(args.finfest_seed)
@@ -751,6 +784,18 @@ def estimate_apx_feature_influence(
             new_spreds = ppl.predict(new_samples.reshape(-1, p)).reshape(n_samples, m).T
             new_spreds_std = np.std(new_spreds, axis=1)
             influences[:, fid] = spreds_std - new_spreds_std
+        influences = np.maximum(
+            influences, 0
+        )  # if the preds_std increase, we set the influence to 0 instead of negative
+    elif args.feature_influence_estimator == "pconf-delta":
+        spreds = apx_preds
+        spreds_ests = apx_preds_est
+        influences = np.zeros((m, p))
+        for fid in range(p):
+            new_scales = np.copy(scales)
+            new_scales[:, fid] = 0
+            new_spreds, new_spred_ests = _prediction_estimation(args, ppl, means, new_scales)
+            influences[:, fid] = new_spred_ests - spreds_ests
         influences = np.maximum(
             influences, 0
         )  # if the preds_std increase, we set the influence to 0 instead of negative

@@ -80,7 +80,10 @@ class OnlineExecutor:
     def __init__(self, fextractor: FeatureExtractor, ppl: Pipeline,
                  target_bound: float, target_conf: float,
                  time_budget: float, max_round: int,
-                 seed: int = 0, pest_nsamples: int = 1000) -> None:
+                 seed: int = 0,
+                 pest: str = 'monte_carlo',
+                 pest_nsamples: int = 1000,
+                 allocator: str = 'budget_pconf_delta') -> None:
         self.fextractor: FeatureExtractor = fextractor
         self.ppl: Pipeline = ppl
 
@@ -91,7 +94,9 @@ class OnlineExecutor:
         self.max_round: int = max_round
 
         self.seed = seed
+        self.pest = pest
         self.pest_nsamples = pest_nsamples
+        self.allocator = allocator
 
         self.fnames = [list(itertools.chain.from_iterable(qry.fnames)) for qry in self.fextractor.queries]
         self.queries: List[XIPQuery] = self.fextractor.queries
@@ -267,8 +272,10 @@ class OnlineExecutor:
         return next_qcfgs
 
     def get_next_qcfgs(self, qcfgs: np.array, features_estimation: dict, prediction_estimation: dict) -> np.array:
-        # return self.get_next_qcfgs_no_budget(qcfgs, features_estimation, prediction_estimation)
-        return self.get_next_qcfgs_v1(qcfgs, features_estimation, prediction_estimation)
+        if self.allocator == 'no_budget':
+            return self.get_next_qcfgs_no_budget(qcfgs, features_estimation, prediction_estimation)
+        elif self.allocator == 'budget_pconf_delta':
+            return self.get_next_qcfgs_v1(qcfgs, features_estimation, prediction_estimation)
 
     def serve(self, request: dict) -> dict:
         self.serve_start_time = time.time()
@@ -303,4 +310,16 @@ class OnlineExecutor:
 
         qcosts = np.array([self.queries[qid].cfgs_costs[cfg_id] for qid, cfg_id in enumerate(qcfgs)])
         ret = {"prediction": prediction_estimation, 'features': features_estimation, 'qcfgs': qcfgs, 'qcosts': qcosts}
+        return ret
+
+    def serve_exact(self, request: dict) -> dict:
+        self.serve_start_time = time.time()
+        qcfgs = np.array([len(pool) - 1 for pool in self.queries_cfgs_pools])
+        feature_estimations = self.fextractor.extract(request, qcfgs)
+        features = feature_estimations['features']
+        prediction_estimation = {"pred_value": self.ppl.predict([features])[0],
+                                 "pred_bound": 0.,
+                                 "pred_conf": 1.0}
+        qcosts = np.array([self.queries[qid].cfgs_costs[cfg_id] for qid, cfg_id in enumerate(qcfgs)])
+        ret = {"prediction": prediction_estimation, 'features': feature_estimations, 'qcfgs': qcfgs, 'qcosts': qcosts}
         return ret

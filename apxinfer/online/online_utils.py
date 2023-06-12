@@ -11,6 +11,7 @@ from typing import Tuple, Literal, List
 from sklearn import metrics
 from sklearn.pipeline import Pipeline
 import logging
+import warnings
 import pandas as pd
 import joblib
 
@@ -20,6 +21,11 @@ EXP_HOME = '/home/ckchang/.cache/apxinf'
 
 logging.basicConfig(level=logging.INFO)
 online_logger = logging.getLogger(__name__)
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning
+)
 
 
 class OnlineStageArgs(Tap):

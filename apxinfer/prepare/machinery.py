@@ -14,18 +14,18 @@ EXP_HOME = '/home/ckchang/.cache/apxinf'
 
 
 class PrepareStageArgs(Tap):
-    task: str = 'machinery'  # task name
     model: str = 'lgbm'  # model name
     seed: int = 0  # seed for prediction estimation
     multi_class: bool = False  # whether the task is multi-class classification
 
     raw_data_dir: str = '/home/ckchang/ApproxInfer/data/machinery'
 
-    def process_args(self) -> None:
-        self.task_dir = os.path.join(EXP_HOME, self.task)
-        self.model_dir = os.path.join(self.task_dir, self.model)
-        self.exp_dir = os.path.join(self.model_dir, f'seed-{self.seed}')
-        os.makedirs(self.exp_dir, exist_ok=True)
+
+def get_exp_dir(task: str, args: PrepareStageArgs) -> str:
+    task_dir = os.path.join(EXP_HOME, task)
+    model_dir = os.path.join(task_dir, args.model)
+    exp_dir = os.path.join(model_dir, f'seed-{args.seed}')
+    return exp_dir
 
 
 def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: str, num_sensors: int, seed: int) -> None:
@@ -172,7 +172,7 @@ def train_valid_test_split(data: pd.DataFrame, train_ratio: float, valid_ratio: 
     return train_set, valid_set, test_set
 
 
-def run(raw_data_dir: str, save_dir: str, seed: int, binary_classification: bool):
+def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classification: bool):
     """ in test.py: run, we create synthetic pipeline to test our system
     1. data pre-processing and save to clickhouse, with sampling supported // this is ingored in test.py
     2. prepare all requests and labels and save
@@ -218,7 +218,7 @@ def run(raw_data_dir: str, save_dir: str, seed: int, binary_classification: bool
     train_set, valid_set, test_set = train_valid_test_split(requests, 0.5, 0.3, seed)
 
     # train model with train_set, save the model and save with joblib
-    model = create_model('classifier', 'lgbm', random_state=seed)
+    model = create_model('classifier', model, random_state=seed)
     ppl = Pipeline(
         [
             ("model", model)
@@ -242,8 +242,16 @@ def run(raw_data_dir: str, save_dir: str, seed: int, binary_classification: bool
 
 if __name__ == '__main__':
     args = PrepareStageArgs().parse_args()
-    save_dir = os.path.join(args.exp_dir, 'prepare')
+
+    if args.multi_class:
+        exp_dir = get_exp_dir('machinery_multi_class', args)
+    else:
+        exp_dir = get_exp_dir('machinery', args)
+
+    save_dir = os.path.join(exp_dir, 'prepare')
     print(f'Save dir: {save_dir}')
     os.makedirs(save_dir, exist_ok=True)
+
     run(args.raw_data_dir, save_dir=save_dir, seed=args.seed,
+        model=args.model,
         binary_classification=not args.multi_class)

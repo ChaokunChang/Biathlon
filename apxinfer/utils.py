@@ -5,6 +5,12 @@ import numpy as np
 from typing import Literal, Tuple
 from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier, LGBMRegressor
+import xgboost as xgb
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.svm import SVR, SVC
+from sklearn.neural_network import MLPRegressor, MLPClassifier
 
 
 class DBConnector:
@@ -52,8 +58,20 @@ def executor_example(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
 
 
 SUPPORTED_MODELS = {
-    "regressor": {"lgbm": LGBMRegressor},
-    "classifier": {"lgbm": LGBMClassifier},
+    "regressor": {"lgbm": LGBMRegressor,
+                  "xgb": xgb.XGBRegressor,
+                  "lr": LinearRegression,
+                  "dt": DecisionTreeRegressor,
+                  "rf": RandomForestRegressor,
+                  "svm": SVR,
+                  "mlp": MLPRegressor},
+    "classifier": {"lgbm": LGBMClassifier,
+                   "xgb": xgb.XGBClassifier,
+                   "lr": LogisticRegression,
+                   "dt": DecisionTreeClassifier,
+                   "rf": RandomForestClassifier,
+                   "svm": SVC,
+                   "mlp": MLPClassifier},
 }
 
 

@@ -86,7 +86,7 @@ def evaluate_online_results(online_results: list, verbose=False) -> dict:
         'similarity': similarity,
         'avg_bound': avg_bound,
         'avg_conf': avg_conf,
-        'avg_qcosts': avg_qcosts,
+        'avg_qcosts': avg_qcosts.tolist(),
         'avg_qcosts_total': avg_qcosts_total,
     }
 
@@ -94,7 +94,7 @@ def evaluate_online_results(online_results: list, verbose=False) -> dict:
 def run_online_executor(online_executor: OnlineExecutor,
                         requests: list, features: np.array,
                         labels: np.array, preds: np.array,
-                        exact_version=False) -> Tuple[list, dict]:
+                        exact_version=False) -> Tuple[List[dict], dict]:
     # run the online stage
     online_results = []
     for request, feature, label, ext_pred in tqdm(zip(requests, features, labels, preds), desc="serving"):
@@ -113,7 +113,7 @@ def run_online_executor(online_executor: OnlineExecutor,
     return online_results, evals
 
 
-def run_online_stage(args: OnlineStageArgs, queries: List[XIPQuery], exp_dir: str) -> Tuple[list, dict]:
+def run_online_stage(args: OnlineStageArgs, queries: List[XIPQuery], exp_dir: str) -> Tuple[List[dict], dict]:
     """
     1. load the model
     2. load offline stage results
@@ -123,8 +123,6 @@ def run_online_stage(args: OnlineStageArgs, queries: List[XIPQuery], exp_dir: st
 
     prepare_dir = os.path.join(exp_dir, 'prepare')
     # offline_dir = os.path.join(exp_dir, 'offline')
-    online_dir = os.path.join(exp_dir, 'online')
-    os.makedirs(online_dir, exist_ok=True)
 
     # load pipeline
     ppl_path = os.path.join(prepare_dir, 'pipeline.pkl')

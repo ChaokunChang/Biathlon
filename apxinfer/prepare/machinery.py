@@ -6,6 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn import metrics
 from tap import Tap
 import glob
+import json
 from tqdm import tqdm
 
 from apxinfer.utils import DBConnector, create_model
@@ -238,6 +239,22 @@ def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classifi
     valid_acc = metrics.accuracy_score(valid_set['request_label'], valid_set['ppl_pred'])
     test_acc = metrics.accuracy_score(test_set['request_label'], test_set['ppl_pred'])
     print(f"valid_acc: {valid_acc}, test_acc: {test_acc}")
+
+    metrics_dict = {
+        'valid_acc': valid_acc,
+        'test_acc': test_acc,
+    }
+    with open(osp.join(save_dir, 'model_evals.json'), 'w') as f:
+        json.dump(metrics_dict, f)
+
+    val_report = metrics.classification_report(valid_set['request_label'], valid_set['ppl_pred'])
+    test_report = metrics.classification_report(test_set['request_label'], test_set['ppl_pred'])
+    print(f"valid_report: {val_report}")
+    print(f"test_report: {test_report}")
+
+    with open(osp.join(save_dir, 'model_reports.txt'), 'w') as f:
+        f.write(f"valid_report: {val_report}\n")
+        f.write(f"test_report: {test_report}\n")
 
 
 if __name__ == '__main__':

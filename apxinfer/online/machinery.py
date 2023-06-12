@@ -1,7 +1,9 @@
 from typing import Tuple
 import numpy as np
+import os
+import json
+import pickle
 # import pandas as pd
-# import os
 # from sklearn.pipeline import Pipeline
 # import joblib
 from joblib import Memory
@@ -206,6 +208,9 @@ if __name__ == "__main__":
     else:
         exp_dir = get_exp_dir(task='machinery', args=args)
 
+    online_dir = os.path.join(exp_dir, 'online')
+    os.makedirs(online_dir, exist_ok=True)
+
     cfgs = [
         {'sample': 0.1 * i, 'cost': 0.1 * i}
         for i in range(1, 10 + 1)
@@ -223,4 +228,14 @@ if __name__ == "__main__":
     queries = [XIPQuery(key=f'q{i}', fnames=[f'feature_{i}'], cfgs=cfgs, executor=executors[i])
                for i in range(8)]
 
-    run_online_stage(args, queries, exp_dir=exp_dir)
+    online_results, evals = run_online_stage(args, queries, exp_dir=exp_dir)
+
+    # save online results to online_dir as pickle
+    online_results_path = os.path.join(online_dir, 'online_results.pkl')
+    with open(online_results_path, 'wb') as f:
+        pickle.dump(online_results, f)
+
+    # save evals to online_dir as json
+    evals_path = os.path.join(online_dir, 'evals.json')
+    with open(evals_path, 'w') as f:
+        json.dump(evals, f, indent=4)

@@ -44,24 +44,41 @@ def executor_q0(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     return features, [('norm', features[i], 0.0) for i in range(features.shape[0])]
 
 
-def helper_func(sql: str, sample: float) -> Tuple[np.ndarray, list]:
+def base_executor(sample: float, where_condition: str) -> Tuple[np.ndarray, list]:
+    unique_dcols = ['passenger_count', 'payment_type', 'pickup_ntaname', 'dropoff_ntaname']
+    agg_dcols = ['trip_distance', 'fare_amount', 'tip_amount', 'trip_duration']
+    ret_dcols = unique_dcols + agg_dcols
+    n_uniques = len(unique_dcols)
+    num_dcols = len(unique_dcols) + len(agg_dcols)
+
+    sql = """
+        SELECT
+            {dcols}
+        FROM default.trips_w_samples SAMPLE {sample}
+        WHERE {condition}
+    """.format(
+        dcols=', '.join(ret_dcols),
+        sample=sample,
+        condition=where_condition,
+    )
     if sample > 0.0:
         db_client = DBConnector().client
         req_data = db_client.query_np(sql)  # (nsamples, 3)
         if req_data.shape[0] == 0:
-            req_data = np.array([[0, 0, 0, 0]])
+            req_data = np.array([[0] * num_dcols])
     else:
-        req_data = np.array([[0, 0, 0, 0]])
+        req_data = np.array([[0] * num_dcols])
 
     features, fests = FEstimator.merge_ffests(
         [
             FEstimator.estimate_count(req_data, p=sample),
-            FEstimator.estimate_sum(req_data, p=sample),
-            FEstimator.estimate_avg(req_data, p=sample),
-            FEstimator.estimate_stdPop(req_data, p=sample),
-            FEstimator.estimate_median(req_data, p=sample),
-            FEstimator.estimate_min(req_data, p=sample),
-            FEstimator.estimate_max(req_data, p=sample),
+            FEstimator.estimate_unique(req_data[:n_uniques], p=sample),
+            FEstimator.estimate_sum(req_data[n_uniques:], p=sample),
+            FEstimator.estimate_avg(req_data[n_uniques:], p=sample),
+            FEstimator.estimate_stdPop(req_data[n_uniques:], p=sample),
+            FEstimator.estimate_median(req_data[n_uniques:], p=sample),
+            FEstimator.estimate_min(req_data[n_uniques:], p=sample),
+            FEstimator.estimate_max(req_data[n_uniques:], p=sample),
         ]
     )
     return features, fests
@@ -75,20 +92,13 @@ def executor_q1(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     # offset = 0
     sample = cfg['sample']
 
-    sql = """
-        SELECT
-            trip_distance, fare_amount, tip_amount, trip_duration
-        FROM default.trips_w_samples SAMPLE {sample}
-        WHERE pickup_ntaname = '{pickup_ntaname}' AND
-              pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(1) ) AND
-              pickup_datetime < '{pickup_datetime}'
-    """.format(
-        sample=sample,
-        pickup_datetime=pickup_datetime,
-        pickup_ntaname=pickup_ntaname,
-    )
+    condition = f"""
+        pickup_ntaname = '{pickup_ntaname}' AND
+        pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(1) ) AND
+        pickup_datetime < '{pickup_datetime}'
+    """
 
-    return helper_func(sql, sample)
+    return base_executor(sample, condition)
 
 
 @joblib_memory.cache
@@ -100,22 +110,14 @@ def executor_q2(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     # offset = 0
     sample = cfg['sample']
 
-    sql = """
-        SELECT
-            trip_distance, fare_amount, tip_amount, trip_duration
-        FROM default.trips_w_samples SAMPLE {sample}
-        WHERE pickup_ntaname = '{pickup_ntaname}' AND
-              dropoff_ntaname = '{dropoff_ntaname}' AND
-              pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(24) ) AND
-              pickup_datetime < '{pickup_datetime}'
-    """.format(
-        sample=sample,
-        pickup_datetime=pickup_datetime,
-        pickup_ntaname=pickup_ntaname,
-        dropoff_ntaname=dropoff_ntaname,
-    )
+    condition = f"""
+        pickup_ntaname = '{pickup_ntaname}' AND
+        dropoff_ntaname = '{dropoff_ntaname}' AND
+        pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(24) ) AND
+        pickup_datetime < '{pickup_datetime}'
+    """
 
-    return helper_func(sql, sample)
+    return base_executor(sample, condition)
 
 
 @joblib_memory.cache
@@ -128,36 +130,27 @@ def executor_q3(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     # offset = 0
     sample = cfg['sample']
 
-    sql = """
-        SELECT
-            trip_distance, fare_amount, tip_amount, trip_duration
-        FROM default.trips_w_samples SAMPLE {sample}
-        WHERE pickup_ntaname = '{pickup_ntaname}' AND
-              dropoff_ntaname = '{dropoff_ntaname}' AND
-              passenger_count = {passenger_count} AND
-              pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(168) ) AND
-              pickup_datetime < '{pickup_datetime}'
-    """.format(
-        sample=sample,
-        pickup_datetime=pickup_datetime,
-        pickup_ntaname=pickup_ntaname,
-        dropoff_ntaname=dropoff_ntaname,
-        passenger_count=passenger_count,
-    )
+    condition = f"""
+        pickup_ntaname = '{pickup_ntaname}' AND
+        dropoff_ntaname = '{dropoff_ntaname}' AND
+        passenger_count = {passenger_count} AND
+        pickup_datetime >= ( toDateTime('{pickup_datetime}') - toIntervalHour(168) ) AND
+        pickup_datetime < '{pickup_datetime}'
+    """
 
-    return helper_func(sql, sample)
+    return base_executor(sample, condition)
 
 
 if __name__ == "__main__":
     args: OnlineStageArgs = OnlineStageArgs().parse_args()
     assert args.all_features, "use taxi_fare.py instead"
-    exp_dir = get_exp_dir(task='taxi_fare_all_features', args=args)
+    exp_dir = get_exp_dir(task='taxi_fare_allfs', args=args)
 
     online_dir = os.path.join(exp_dir, 'online')
     os.makedirs(online_dir, exist_ok=True)
 
-    num_feautres = 85
-    qfnum = [10, 25, 25, 25]
+    num_feautres = 97
+    qfnum = [10, 29, 29, 29]
 
     executors = [
         executor_q0,
@@ -171,7 +164,7 @@ if __name__ == "__main__":
                         fnames=fnames[qfnum_cum[i] - qfnum[i] : qfnum_cum[i]],
                         cfgs=online_utils.get_default_cfgs(1) if i == 0 else online_utils.get_default_cfgs(10),
                         executor=executors[i])
-                for i in range(len(executors))]
+               for i in range(len(executors))]
 
     online_results, evals = run_online_stage(args, queries, exp_dir=exp_dir)
 

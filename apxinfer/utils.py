@@ -7,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier, LGBMRegressor
 import xgboost as xgb
 from sklearn import metrics
+from sklearn.base import BaseEstimator
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
@@ -76,7 +77,7 @@ SUPPORTED_MODELS = {
 }
 
 
-def create_model(model_type: Literal["regressor", "classifier"], model_name: str, **kwargs):
+def create_model(model_type: Literal["regressor", "classifier"], model_name: str, **kwargs) -> BaseEstimator:
     """ Create a model
     """
     if model_type == "regressor":
@@ -118,24 +119,38 @@ def get_global_feature_importance(ppl: Pipeline, fnames: list) -> np.ndarray:
         raise NotImplementedError
 
 
-def evaluate_regressor(y_true: np.array, y_pred: np.array) -> dict:
+def evaluate_regressor(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     mse = metrics.mean_squared_error(y_true, y_pred)
     mae = metrics.mean_absolute_error(y_true, y_pred)
     r2 = metrics.r2_score(y_true, y_pred)
     expv = metrics.explained_variance_score(y_true, y_pred)
     maxe = metrics.max_error(y_true, y_pred)
-    return {"mse": mse, "mae": mae, "r2": r2, "expv": expv, "maxe": maxe}
+    return {"mse": mse, "mae": mae, "r2": r2, "expv": expv, "maxe": maxe, "size": len(y_true)}
 
 
-def evaluate_classifier(y_true: np.array, y_pred: np.array) -> dict:
+def evaluate_classifier(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     acc = metrics.accuracy_score(y_true, y_pred)
     f1 = metrics.f1_score(y_true, y_pred)
     prec = metrics.precision_score(y_true, y_pred)
     rec = metrics.recall_score(y_true, y_pred)
-    return {"acc": acc, "f1": f1, "prec": prec, "rec": rec}
+    return {"acc": acc, "f1": f1, "prec": prec, "rec": rec, "size": len(y_true)}
 
 
-def evaluate_features(ext_fs: np.array, apx_fs: np.array) -> dict:
+def evaluate_pipeline(ppl: Pipeline, X: np.ndarray, y: np.ndarray) -> dict:
+    """ Evaluate the pipeline
+    """
+    model_type = get_model_type(ppl)
+    if model_type == "regressor":
+        y_pred = ppl.predict(X)
+        return evaluate_regressor(y, y_pred)
+    elif model_type == "classifier":
+        y_pred = ppl.predict(X)
+        return evaluate_classifier(y, y_pred)
+    else:
+        raise NotImplementedError
+
+
+def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
     # ext_fs.shape == apx_fs.shape = (n_samples, n_features)
     # calcuate mse, mae, r2, maxe for each feature, and avg of all features
     n_samples, n_features = ext_fs.shape

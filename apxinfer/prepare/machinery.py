@@ -1,42 +1,41 @@
 import os
 import os.path as osp
+from typing import List, Tuple
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn import metrics
 from tap import Tap
 import glob
 import json
+import time
 from tqdm import tqdm
+import logging
+import warnings
 
-from apxinfer.utils import DBConnector, create_model, get_global_feature_importance
-
-EXP_HOME = '/home/ckchang/.cache/apxinf'
-
-
-class PrepareStageArgs(Tap):
-    model: str = 'lgbm'  # model name
-    seed: int = 0  # seed for prediction estimation
-    multi_class: bool = False  # whether the task is multi-class classification
-
-    raw_data_dir: str = '/home/ckchang/ApproxInfer/data/machinery'
+import apxinfer.utils as xutils
+from apxinfer.utils import DBConnector
+from apxinfer.prepare.prepare_utils import PrepareStageArgs, DBWorker, DatasetWorker
+import apxinfer.prepare.prepare_utils as putils
 
 
-def get_exp_dir(task: str, args: PrepareStageArgs) -> str:
-    task_dir = os.path.join(EXP_HOME, task)
-    model_dir = os.path.join(task_dir, args.model)
-    exp_dir = os.path.join(model_dir, f'seed-{args.seed}')
-    return exp_dir
+class MachineryHealthDBWorker(DBWorker):
+    def __init__(self, database: str, tables: List[str],
+                 data_src: str, src_type: str,
+                 sample_granularity: int, seed: int) -> None:
+        super().__init__(database, tables, data_src, src_type, sample_granularity, seed)
 
-
-def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: str, num_sensors: int, seed: int) -> None:
-    db_client = DBConnector().client
-
-    def create_tables():
+    def create_tables(self) -> None:
+        self.logger.info(f'Creating database {self.database} and tables {self.tables}')
+        num_sensors = 8
+        database = self.database
+        assert len(self.tables) == (num_sensors + 1)
+        base_table_name = self.tables[0]
         table_name = base_table_name
-        print(f"Create tables {table_name} to store data from all (8x) sensors")
+        self.logger.info(f"Create tables {table_name} to store data from all (8x) sensors")
         typed_signal = ", ".join([f"sensor_{i} Float32" for i in range(8)])
-        db_client.command(
+        self.db_client.command(
             """CREATE TABLE IF NOT EXISTS {database}.{table_name}
                         (rid UInt64, label UInt32, tag String,
                             bid UInt32, pid UInt32,
@@ -51,8 +50,9 @@ def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: st
 
         for i in range(num_sensors):
             sensor_table_name = f"{table_name}_sensor_{i}"
-            print(f"Create tables {table_name} to store data from sensor_{i}")
-            db_client.command(
+            assert sensor_table_name == self.tables[i + 1]
+            self.logger.info(f"Create tables {table_name} to store data from sensor_{i}")
+            self.db_client.command(
                 """CREATE TABLE IF NOT EXISTS {database}.{sensor_table_name}
                             (rid UInt64, label UInt32, tag String,
                                 bid UInt32, pid UInt32,
@@ -65,7 +65,7 @@ def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: st
                 )
             )
 
-    def get_raw_data_files_list(data_dir: str) -> list:
+    def get_raw_data_files_list(self, data_dir: str) -> list:
         normal_file_names = glob.glob(os.path.join(data_dir, "normal", "normal", "*.csv"))
         imnormal_file_names_6g = glob.glob(
             os.path.join(data_dir, "imbalance", "imbalance", "6g", "*.csv")
@@ -87,33 +87,40 @@ def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: st
         )
 
         # concat all file names
-        file_names = (
-            normal_file_names
-            + imnormal_file_names_6g
-            + imnormal_file_names_10g
-            + imnormal_file_names_15g
-            + imnormal_file_names_20g
-            + imnormal_file_names_25g
-            + imnormal_file_names_30g
-        )
+        file_names = []
+        file_names += normal_file_names
+        file_names += imnormal_file_names_6g
+        file_names += imnormal_file_names_10g
+        file_names += imnormal_file_names_15g
+        file_names += imnormal_file_names_20g
+        file_names += imnormal_file_names_25g
+        file_names += imnormal_file_names_30g
 
         return file_names
 
-    def ingest_data(raw_data_dir: str):
-        all_file_names = get_raw_data_files_list(raw_data_dir)
-        table_name = "machinery_shuffle"
+    def ingest_data(self) -> None:
+        self.logger.info(f'Ingesting data into database {self.database} from {self.src_type}::{self.data_src}')
+
+        assert self.src_type == "csv", "Only support csv data source"
+        all_file_names = self.get_raw_data_files_list(self.data_src)
+
+        database = self.database
+        table_name = self.tables[0]
+        num_sensors = 8
         file_nrows = 250000
         segments_per_file = 5
         segment_nrows = file_nrows // segments_per_file
 
-        if db_client.command(f"SELECT count(*) FROM {database}.{table_name}") == 0:
+        if self.db_client.command(f"SELECT count(*) FROM {database}.{table_name}") == 0:
             print(f"Ingest data to tables {table_name}")
-            for bid, src in tqdm(enumerate(all_file_names)):
+            for bid, src in tqdm(enumerate(all_file_names),
+                                 desc=f"Ingesting data to {table_name}",
+                                 total=len(all_file_names)):
                 filename = os.path.basename(src)
                 tag = filename.split(".")[0]
                 dirname = os.path.basename(os.path.dirname(src))
                 label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
-                cnt = db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
+                cnt = self.db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
                 # print(f'dbsize={cnt}')
                 command = """
                         clickhouse-client \
@@ -138,145 +145,95 @@ def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: st
                     values_w_type=", ".join([f"sensor_{i} Float32" for i in range(8)]),
                     filepath=src,
                 )
-                # print(command)
                 os.system(command)
 
-        for i in range(num_sensors):
+        for i in tqdm(range(num_sensors),
+                      desc="Ingesting data to sub tables",
+                      total=num_sensors):
             sensor_table_name = f"{table_name}_sensor_{i}"
-            if db_client.command(f"SELECT count(*) FROM {database}.{sensor_table_name}") == 0:
+            if self.db_client.command(f"SELECT count(*) FROM {database}.{sensor_table_name}") == 0:
                 print(f"Ingest data to tables {sensor_table_name}")
-                db_client.command(
+                self.db_client.command(
                     f"INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}"
                 )
 
-    if not db_client.command(f"SHOW DATABASES LIKE '{database}'"):
-        print(f"Create database {database}")
-        db_client.command(f"CREATE DATABASE {database}")
-    else:
-        print(f'Database "{database}" already exists')
 
-    create_tables()
-    ingest_data(raw_data_dir)
+class MachineryHealthDatasetWorker(DatasetWorker):
+    def __init__(self, working_dir: str, dbworker: DBWorker,
+                 max_requests: int,
+                 train_ratio: float, valid_ratio: float,
+                 model_type: str, model_name: str,
+                 seed: int) -> None:
+        super().__init__(working_dir, dbworker, max_requests, train_ratio, valid_ratio, model_type, model_name, seed)
+
+    def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
+        self.logger.info(f'Creating dataset for {self.model_type} {self.model_name}')
+        # prepare all requests and labels and features and save
+        num_sensors = 8
+        database = self.database
+        table_name = self.tables[0]
+
+        fnames = [f'f_{i}' for i in range(num_sensors)]
+        label_name = 'request_label'
+        db_client = DBConnector().client
+        sql = """
+            SELECT bid as request_bid, label as {label_name},
+            {fop_as_name}
+            FROM {database}.{table_name} GROUP BY bid, label
+            ORDER BY bid
+        """.format(database=database, table_name=table_name,
+                   label_name=label_name,
+                   fop_as_name=', '.join([f'avg(sensor_{i}) as f_{i}' for i in range(num_sensors)])
+                   )
+        requests: pd.DataFrame = db_client.query_df(sql)
+        num_reqs = len(requests)
+        requests.insert(0, 'request_id', list(range(num_reqs)))
+        return requests, fnames, label_name
 
 
-def train_valid_test_split(data: pd.DataFrame, train_ratio: float, valid_ratio: float, seed: int):
-    # shuffle the data
-    data = data.sample(frac=1, random_state=seed).reset_index(drop=True)
-    # calculate the number of rows for each split
-    n_total = len(data)
-    n_train = int(n_total * train_ratio)
-    n_valid = int(n_total * valid_ratio)
-    # n_test = n_total - n_train - n_valid
+class MachineryHealthBinaryDatasetWorker(MachineryHealthDatasetWorker):
+    def __init__(self, working_dir: str, dbworker: DBWorker,
+                 max_requests: int,
+                 train_ratio: float, valid_ratio: float,
+                 model_type: str, model_name: str,
+                 seed: int) -> None:
+        super().__init__(working_dir, dbworker, max_requests, train_ratio, valid_ratio, model_type, model_name, seed)
 
-    # split the data
-    train_set = data[:n_train]
-    valid_set = data[n_train:n_train + n_valid]
-    test_set = data[n_train + n_valid:]
-
-    return train_set, valid_set, test_set
-
-
-def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classification: bool):
-    """ in test.py: run, we create synthetic pipeline to test our system
-    1. data pre-processing and save to clickhouse, with sampling supported // this is ingored in test.py
-    2. prepare all requests and labels and save
-        requests : (request_id, f1: a float from 0 to 1000, f2: a float from 0 to 1, f3: a float from 0 to 10)
-        labels   : (f1+f2+f3 // 2).astype(int)
-    3. extract all (exact) features and save along with request_id
-        feature = request['f1'], request['f2'], request['f3']
-    4. split the requests, labels, and features into train_set, valid_set, and test_set, 0.5, 0.3, 0.2
-            For classification task, make sure stratified sample
-    5. train model with train_set, save the model and save with joblib
-    6. evaluation model with valid_set and test_set, save into json
-    """
-
-    # data pre-processing and save to clickhouse
-    database = 'xip'
-    table_name = 'machinery_shuffle'
-    num_sensors = 8
-    raw_data_preprocessing(raw_data_dir, database, table_name, num_sensors, seed)
-
-    # prepare all requests and labels and features and save
-    fnames = [f'f_{i}' for i in range(num_sensors)]
-    db_client = DBConnector().client
-    sql = """
-        SELECT bid as request_bid, label as request_label,
-        {fop_as_name}
-        FROM {database}.{table_name} GROUP BY bid, label
-        ORDER BY bid
-    """.format(database=database, table_name=table_name,
-               fop_as_name=', '.join([f'avg(sensor_{i}) as f_{i}' for i in range(num_sensors)])
-    )
-    requests: pd.DataFrame = db_client.query_df(sql)
-    num_reqs = len(requests)
-    requests.insert(0, 'request_id', list(range(num_reqs)))
-    if binary_classification:
+    def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
+        requests, fnames, label_name = super().create_dataset()
         requests['request_label'] = (requests['request_label'] > 0).astype(int)
-
-    # split the requests into train_set, valid_set, and test_set
-    train_set, valid_set, test_set = train_valid_test_split(requests, 0.5, 0.3, seed)
-
-    # train model with train_set, save the model and save with joblib
-    model = create_model('classifier', model, random_state=seed)
-    ppl = Pipeline(
-        [
-            ("model", model)
-        ]
-    )
-    ppl.fit(train_set[fnames], train_set['request_label'])
-    joblib.dump(ppl, osp.join(save_dir, "pipeline.pkl"))
-
-    # 6. evaluation model with valid_set and test_set, save into json
-    valid_pred = ppl.predict(valid_set[fnames])
-    test_pred = ppl.predict(test_set[fnames])
-    valid_set['ppl_pred'] = valid_pred
-    test_set['ppl_pred'] = test_pred
-    valid_set.to_csv(osp.join(save_dir, 'valid_set.csv'), index=False)
-    test_set.to_csv(osp.join(save_dir, 'test_set.csv'), index=False)
-
-    valid_acc = metrics.accuracy_score(valid_set['request_label'], valid_set['ppl_pred'])
-    test_acc = metrics.accuracy_score(test_set['request_label'], test_set['ppl_pred'])
-    print(f"valid_acc: {valid_acc}, test_acc: {test_acc}")
-
-    metrics_dict = {
-        'train_size': len(train_set),
-        'valid_size': len(valid_set),
-        'test_size': len(test_set),
-        'valid_acc': valid_acc,
-        'test_acc': test_acc,
-    }
-    with open(osp.join(save_dir, 'model_evals.json'), 'w') as f:
-        json.dump(metrics_dict, f, indent=4)
-
-    val_report = metrics.classification_report(valid_set['request_label'], valid_set['ppl_pred'])
-    test_report = metrics.classification_report(test_set['request_label'], test_set['ppl_pred'])
-    print(f"valid_report: {val_report}")
-    print(f"test_report: {test_report}")
-
-    with open(osp.join(save_dir, 'model_reports.txt'), 'w') as f:
-        f.write(f"valid_report: {val_report}\n")
-        f.write(f"test_report: {test_report}\n")
-
-    global_feature_importance = get_global_feature_importance(ppl, fnames)
-    gfimps: pd.DataFrame = pd.DataFrame({'fname': fnames,
-                                         'importance': global_feature_importance},
-                                        columns=['fname', 'importance'])
-    print(gfimps)
-    gfimps.to_csv(osp.join(save_dir, 'global_feature_importance.csv'), index=False)
+        return requests, fnames, label_name
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = PrepareStageArgs().parse_args()
+    data_dir = '/home/ckchang/ApproxInfer/data/machinery'
 
+    db_worker = MachineryHealthDBWorker(database='xip',
+                                        tables=['machinery'] + [f'machinery_sensor_{i}' for i in range(8)],
+                                        data_src=data_dir, src_type='csv',
+                                        sample_granularity=100,
+                                        seed=args.seed)
+    db_worker.work()
+
+    exp_dir = putils.get_exp_dir(task='machinery', args=args)
+    working_dir = os.path.join(exp_dir, 'prepare')
+    os.makedirs(working_dir, exist_ok=True)
+
+    model_type = 'classifier'
+    model_name = args.model
+    max_requests = args.max_requests
     if args.multi_class:
-        exp_dir = get_exp_dir('machinery_multi_class', args)
+        dataset_worker = MachineryHealthDatasetWorker(working_dir=working_dir, dbworker=db_worker,
+                                                      max_requests=max_requests,
+                                                      train_ratio=args.train_ratio, valid_ratio=args.valid_ratio,
+                                                      model_type=model_type, model_name=args.model,
+                                                      seed=args.seed)
     else:
-        exp_dir = get_exp_dir('machinery', args)
-
-    save_dir = os.path.join(exp_dir, 'prepare')
-    print(f'Save dir: {save_dir}')
-    os.makedirs(save_dir, exist_ok=True)
-
-    run(args.raw_data_dir, save_dir=save_dir, seed=args.seed,
-        model=args.model,
-        binary_classification=not args.multi_class)
+        dataset_worker = MachineryHealthBinaryDatasetWorker(working_dir=working_dir, dbworker=db_worker,
+                                                            max_requests=max_requests,
+                                                            train_ratio=args.train_ratio,
+                                                            valid_ratio=args.valid_ratio,
+                                                            model_type=model_type, model_name=args.model,
+                                                            seed=args.seed)
+    dataset_worker.work()

@@ -36,7 +36,8 @@ class OnlineStageArgs(Tap):
 
     pest_nsamples: int = 1000  # number of samples for prediction estimation
     pest: Literal['monte_carlo'] = 'monte_carlo'  # prediction estimation method
-    allocator: Literal['budget_pconf_delta', 'no_budget'] = 'budget_pconf_delta'  # allocator type
+    allocator: Literal['budget_pconf_delta', 'no_budget', 'uniform'] = 'budget_pconf_delta'  # allocator type
+    alloc_factor: float = 1.0  # allocation factor
 
     num_requests: int = 0  # number of test requests
     max_round: int = 10  # maximum round
@@ -57,7 +58,7 @@ def get_exp_dir(task: str, args: OnlineStageArgs) -> str:
 class FEstimator:
     min_cnt = 30
 
-    def estimate_any(data: np.array, p: float, func: Callable, nsamples: int = 100) -> Tuple[np.ndarray, list]:
+    def estimate_any(data: np.ndarray, p: float, func: Callable, nsamples: int = 100) -> Tuple[np.ndarray, list]:
         if p >= 1.0:
             features = func(data)
             return features, [('norm', features[i], 0.0) for i in range(features.shape[0])]
@@ -74,27 +75,31 @@ class FEstimator:
         fests = [('norm', features[i], scales[i]) for i in range(features.shape[0])]
         return features, fests
 
-    def estimate_min(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_min(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         features, fests = FEstimator.estimate_any(data, p, lambda x : np.min(x, axis=0))
         return features, fests
 
-    def estimate_max(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_max(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         features, fests = FEstimator.estimate_any(data, p, lambda x : np.max(x, axis=0))
         return features, fests
 
-    def estimate_median(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_median(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         features, fests = FEstimator.estimate_any(data, p, lambda x : np.median(x, axis=0))
         return features, fests
 
-    def estimate_stdPop(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_stdPop(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         features, fests = FEstimator.estimate_any(data, p, lambda x : np.std(x, axis=0, ddof=0))
         return features, fests
 
-    def estimate_stdSamp(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_stdSamp(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         features, fests = FEstimator.estimate_any(data, p, lambda x : np.std(x, axis=0, ddof=0))
         return features, fests
 
-    def compute_dvars(data: np.array):
+    def estimate_unique(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
+        features, fests = FEstimator.estimate_any(data, p, lambda x : np.array([len(np.unique(x[:, i])) for i in range(x.shape[1])]))
+        return features, fests
+
+    def compute_dvars(data: np.ndarray):
         cnt = data.shape[0]
         if cnt < FEstimator.min_cnt:
             # if cnt is too small, set scale as big number
@@ -102,12 +107,12 @@ class FEstimator:
         else:
             return np.var(data, axis=0, ddof=1)
 
-    def compute_closed_form_scale(features: np.array, cnt: int, dvars: np.array, p: float) -> np.array:
+    def compute_closed_form_scale(features: np.ndarray, cnt: int, dvars: np.ndarray, p: float) -> np.ndarray:
         cnt = np.where(cnt < 1, 1.0, cnt)
         scales = np.sqrt(np.where(p >= 1.0, 0.0, dvars) / cnt)
         return scales
 
-    def estimate_avg(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_avg(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         cnt = data.shape[0]
         features = np.mean(data, axis=0)
         dvars = FEstimator.compute_dvars(data)
@@ -115,15 +120,15 @@ class FEstimator:
         fests = [('norm', features[i], scales[i]) for i in range(features.shape[0])]
         return features, fests
 
-    def estimate_count(data: np.array, p: float) -> Tuple[np.ndarray, list]:
+    def estimate_count(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
         cnt = data.shape[0]
-        features = np.array([cnt])
+        features = np.array([cnt / p])
         scales = FEstimator.compute_closed_form_scale(features, cnt, np.array([cnt * (1 - p) * p]), p)
         fests = [('norm', features[0], scales[0])]
         return features, fests
 
-    def estimate_sum(data: np.array, p: float) -> Tuple[np.ndarray, list]:
-        features = np.sum(data, axis=0)
+    def estimate_sum(data: np.ndarray, p: float) -> Tuple[np.ndarray, list]:
+        features = np.sum(data, axis=0) / p
         cnt = data.shape[0]
         dvars = FEstimator.compute_dvars(data)
         scales = FEstimator.compute_closed_form_scale(features, cnt, cnt * cnt * dvars, p)
@@ -132,8 +137,8 @@ class FEstimator:
         return features, fests
 
     def merge_ffests(ffests: list) -> list:
-        # ffests: list of tuple[np.array, list[tuple]]
-        # return: tuple(np.array, list[tuple])
+        # ffests: list of tuple[np.ndarray, list[tuple]]
+        # return: tuple(np.ndarray, list[tuple])
         features = np.concatenate([ffest[0] for ffest in ffests], axis=0)
         fests = []
         for _, fest in ffests:
@@ -245,8 +250,8 @@ def evaluate_regressor_online_results(online_results: list, verbose=False) -> di
 
 
 def run_online_executor(online_executor: OnlineExecutor,
-                        requests: list, features: np.array,
-                        labels: np.array, preds: np.array,
+                        requests: list, features: np.ndarray,
+                        labels: np.ndarray, preds: np.ndarray,
                         exact_version=False) -> Tuple[List[dict], dict]:
     # run the online stage
     online_results = []
@@ -314,11 +319,13 @@ def run_online_stage(args: OnlineStageArgs, queries: List[XIPQuery], exp_dir: st
     fextractor = FeatureExtractor(queries)
 
     # initialize the online executor
+    allocator_params = {'factor': args.alloc_factor}
     online_executor = OnlineExecutor(fextractor, ppl,
                                      target_bound=args.target_bound, target_conf=args.target_conf,
                                      time_budget=args.time_budget, max_round=args.max_round,
                                      seed=args.seed, pest=args.pest, pest_nsamples=args.pest_nsamples,
                                      allocator=args.allocator,
+                                     allocator_params=allocator_params,
                                      logging_level=logging.DEBUG if args.verbose_execution else logging.INFO)
 
     # run the online executor

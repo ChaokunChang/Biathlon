@@ -125,17 +125,29 @@ class TaxiFareDatasetWorker(DatasetWorker):
         db_client = self.db_client
         max_requests = self.max_requests
 
+        def get_all_win_fops(window: str) -> Tuple[List[str], List[str]]:
+            cnt = [f'count(*) over {window}']
+            uniques = [f'uniqExact({col}) over {window}' for col in ['passenger_count', 'payment_type', 'pickup_ntaname', 'dropoff_ntaname']]
+            aggs = [f'{agg}({col}) over {window}' for agg in ['sum', 'avg', 'stddevPop', 'median', 'min', 'max'] for col in ['trip_distance', 'fare_amount', 'tip_amount', 'trip_duration']]
+            fops = cnt + uniques + aggs
+
+            cnt_names = [f'f_count_{window}']
+            uniques_names = [f'f_unique_{col}_{window}' for col in ['passenger_count', 'payment_type', 'pickup_ntaname', 'dropoff_ntaname']]
+            aggs_names = [f'f_{agg}_{col}_{window}' for agg in ['sum', 'avg', 'stddevPop', 'median', 'min', 'max'] for col in ['trip_distance', 'fare_amount', 'tip_amount', 'trip_duration']]
+            fnames = cnt_names + uniques_names + aggs_names
+            return fops, fnames
+
         fops_dict = {
-            'w0': ['trip_distance', 'toDayOfWeek(pickup_datetime, 1)', 'toHour(pickup_datetime)'],
-            'w1': ['sum(trip_duration) over w1', 'sum(total_amount) over w1', 'stddevPop(fare_amount) over w1'],
-            'w2': ['count(*) over w2', 'sum(trip_distance) over w2', 'max(trip_duration) over w2', 'max(tip_amount) over w2', 'median(tip_amount) over w2'],
-            'w3': ['max(trip_distance) over w3']
+            'w0': ['trip_distance', 'passenger_count', 'pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude'] + ['toDayOfYear(pickup_datetime)', 'toDayOfWeek(pickup_datetime, 1)', 'toHour(pickup_datetime)', 'toMinute(pickup_datetime)'],
+            'w1': get_all_win_fops('w1')[0],
+            'w2': get_all_win_fops('w2')[0],
+            'w3': get_all_win_fops('w3')[0],
         }
         fnames_dict = {
-            'w0': ['f_trip_distance', 'f_pickup_day_of_week', 'f_pickup_hour'],
-            'w1': ['f_sum_trip_duration_w1', 'f_sum_total_amount_w1', 'f_stddevPop_fare_amount_w1'],
-            'w2': ['f_count_w2', 'f_sum_trip_distance_w2', 'f_max_trip_duration_w2', 'f_max_tip_amount_w2', 'f_median_tip_amount_w2'],
-            'w3': ['f_max_trip_distance_w3']
+            'w0': ['f_trip_distance', 'f_passenger_count', 'f_pickup_longitude', 'f_pickup_latitude', 'f_dropoff_longitude', 'f_dropoff_latitude'] + ['f_pickup_day_of_year', 'f_pickup_day_of_week', 'f_pickup_hour', 'f_pickup_minute'],
+            'w1': get_all_win_fops('w1')[1],
+            'w2': get_all_win_fops('w2')[1],
+            'w3': get_all_win_fops('w3')[1],
         }
         fnames = fnames_dict['w0'] + fnames_dict['w1'] + fnames_dict['w2'] + fnames_dict['w3']
         label_name = 'request_label'
@@ -233,7 +245,7 @@ if __name__ == "__main__":
                                  seed=args.seed)
     db_worker.work()
 
-    exp_dir = putils.get_exp_dir(task='taxi_fare', args=args)
+    exp_dir = putils.get_exp_dir(task='taxi_fare_allfs', args=args)
     working_dir = os.path.join(exp_dir, 'prepare')
     os.makedirs(working_dir, exist_ok=True)
 

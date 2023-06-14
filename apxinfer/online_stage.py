@@ -42,7 +42,7 @@ class FeatureExtractor:
         self.num_features = len(self.all_fnames)  # number of features
         self._cache: dict = {}
 
-    def extract(self, request: dict, qcfgs: np.array) -> dict:
+    def extract(self, request: dict, qcfgs: np.ndarray) -> dict:
         # qcfgs: (num_queries, )
         # return: dict of results
 
@@ -68,6 +68,7 @@ class OnlineExecutor:
                  pest: str = 'monte_carlo',
                  pest_nsamples: int = 1000,
                  allocator: str = 'budget_pconf_delta',
+                 allocator_params: dict = {"factor": 1.0},
                  logging_level: int = logging.INFO) -> None:
         self.fextractor: FeatureExtractor = fextractor
         self.ppl: Pipeline = ppl
@@ -82,6 +83,7 @@ class OnlineExecutor:
         self.pest = pest
         self.pest_nsamples = pest_nsamples
         self.allocator = allocator
+        self.allocator_params = allocator_params
 
         self.fnames = [list(itertools.chain.from_iterable(qry.fnames)) for qry in self.fextractor.queries]
         self.queries: List[XIPQuery] = self.fextractor.queries
@@ -91,11 +93,11 @@ class OnlineExecutor:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging_level)
 
-    def estimate_features(self, request: dict, qcfgs: np.array) -> dict:
+    def estimate_features(self, request: dict, qcfgs: np.ndarray) -> dict:
         features_estimation = self.fextractor.extract(request, qcfgs)
         return features_estimation
 
-    def _monte_carlo(self, fmeans: np.array, fscales: np.array) -> dict:
+    def _monte_carlo(self, fmeans: np.ndarray, fscales: np.ndarray) -> dict:
         p = len(fmeans)
         seed = self.seed
         n_samples = self.pest_nsamples
@@ -126,7 +128,7 @@ class OnlineExecutor:
         fscales = np.array([fest[-1] for fest in fests])
         return self._monte_carlo(np.array(features), fscales)
 
-    def get_next_qcfgs_v1(self, qcfgs: np.array, features_estimation: dict, prediction_estimation: dict) -> np.array:
+    def get_next_qcfgs_v1(self, qcfgs: np.ndarray, features_estimation: dict, prediction_estimation: dict) -> np.ndarray:
         # determine the next query configuration according to the current query configuration and the estimation of features and prediction
         # qcfgs is the cfg id of each query, the higher id means higher cost. We can only increase cfg id i.e. next_qcfgs >= qcfgs
 
@@ -141,7 +143,7 @@ class OnlineExecutor:
             least_required_budget = min(least_required_budget, this_budget)
 
         # estimate budget of this round
-        factor = 1.0
+        factor = self.allocator_params['factor']
         new_budget = factor * prev_cost  # exponentially
         # make sure that new_budget is not too large or too small
         assert least_required_budget <= self.time_budget - prev_cost
@@ -210,7 +212,7 @@ class OnlineExecutor:
 
         return new_qcfgs
 
-    def get_next_qcfgs_no_budget(self, qcfgs: np.array, features_estimation: dict, prediction_estimation: dict) -> np.array:
+    def get_next_qcfgs_no_budget(self, qcfgs: np.ndarray, features_estimation: dict, prediction_estimation: dict) -> np.ndarray:
         # determine the next query configuration according to the current query configuration and the estimation of features and prediction
         # qcfgs is the cfg id of each query, the higher id means higher cost. We can only increase cfg id i.e. next_qcfgs >= qcfgs
         # In this method, we will choose one query to increase its cfg id according to the reduction of uncertainty of prediction
@@ -257,11 +259,20 @@ class OnlineExecutor:
                 break
         return next_qcfgs
 
-    def get_next_qcfgs(self, qcfgs: np.array, features_estimation: dict, prediction_estimation: dict) -> np.array:
+    def get_next_qcfgs_uniform(self, qcfgs: np.ndarray, features_estimation: dict, prediction_estimation: dict) -> np.ndarray:
+        max_qcfg_ids = [len(self.queries_cfgs_pools[qid]) - 1 for qid in range(len(self.queries))]
+        next_qcfgs = np.where(qcfgs < max_qcfg_ids, qcfgs + 1, qcfgs)
+        return next_qcfgs
+
+    def get_next_qcfgs(self, qcfgs: np.ndarray, features_estimation: dict, prediction_estimation: dict) -> np.ndarray:
         if self.allocator == 'no_budget':
             return self.get_next_qcfgs_no_budget(qcfgs, features_estimation, prediction_estimation)
         elif self.allocator == 'budget_pconf_delta':
             return self.get_next_qcfgs_v1(qcfgs, features_estimation, prediction_estimation)
+        elif self.allocator == 'uniform':
+            return self.get_next_qcfgs_uniform(qcfgs, features_estimation, prediction_estimation)
+        else:
+            raise ValueError(f'Unknown allocator: {self.allocator}')
 
     def serve(self, request: dict) -> dict:
         self.serve_start_time = time.time()

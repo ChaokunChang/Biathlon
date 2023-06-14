@@ -160,7 +160,7 @@ def executor_q3(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
 
 if __name__ == "__main__":
     args: OnlineStageArgs = OnlineStageArgs().parse_args()
-    assert not args.all_features, "use taxi_fare_all.py instead"
+    assert not args.all_features, "use taxi_fare_allfs.py instead"
     exp_dir = get_exp_dir(task='taxi_fare', args=args)
 
     online_dir = os.path.join(exp_dir, 'online')

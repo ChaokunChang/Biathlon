@@ -58,9 +58,9 @@ if __name__ == "__main__":
         {'sample': 0.1 * i, 'cost': 0.1 * i}
         for i in range(1, 10 + 1)
     ]
-    q1 = XIPQuery(key='q1', fnames=['feature_1'], cfgs=cfgs, executor=test_executor_q1)
-    q2 = XIPQuery(key='q2', fnames=['feature_2'], cfgs=cfgs, executor=test_executor_q2)
-    q3 = XIPQuery(key='q3', fnames=['feature_3'], cfgs=cfgs, executor=test_executor_q3)
+    q1 = XIPQuery(key='q1', fnames=['f_1'], cfgs=cfgs, executor=test_executor_q1)
+    q2 = XIPQuery(key='q2', fnames=['f_2'], cfgs=cfgs, executor=test_executor_q2)
+    q3 = XIPQuery(key='q3', fnames=['f_3'], cfgs=cfgs, executor=test_executor_q3)
     queries = [q1, q2, q3]
 
     run_online_stage(args, queries, exp_dir=exp_dir)

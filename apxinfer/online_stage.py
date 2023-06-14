@@ -7,7 +7,6 @@ import logging
 from apxinfer.utils import get_model_type
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class XIPQuery:
@@ -41,10 +40,6 @@ class FeatureExtractor:
         # check if there are duplicate feature names
         assert len(self.all_fnames) == len(set(self.all_fnames)), f'Found duplicate feature names: {self.all_fnames}'
         self.num_features = len(self.all_fnames)  # number of features
-
-        self._cache: dict = {}  # cache for features, self._cache[req_i][qry_j][cfg_k] = feature_i_j_k
-
-    def clear_cache(self) -> None:
         self._cache: dict = {}
 
     def extract(self, request: dict, qcfgs: np.array) -> dict:
@@ -55,17 +50,6 @@ class FeatureExtractor:
         features = []
         fests = []
         qtime = 0.0
-        # check cache
-        # req_i = request['request_id']
-        # if req_i not in self._cache:
-        #     self._cache[req_i] = {}
-        # for qry_j, cfg_k in enumerate(qcfgs):
-        #     if qry_j not in self._cache[req_i]:
-        #         self._cache[req_i][qry_j] = {}
-        #     if cfg_k not in self._cache[req_i][qry_j]:
-        #         self._cache[req_i][qry_j][cfg_k] = self.queries[qry_j].execute(request, cfg_k)
-        #     qry_res = self._cache[req_i][qry_j][cfg_k]
-        # print(f'qcfgs: {qcfgs}')
         for qry_j, cfg_k in enumerate(qcfgs):
             qry_res = self.queries[qry_j].execute(request, cfg_k)
             fnames.extend(qry_res['fnames'])
@@ -83,7 +67,8 @@ class OnlineExecutor:
                  seed: int = 0,
                  pest: str = 'monte_carlo',
                  pest_nsamples: int = 1000,
-                 allocator: str = 'budget_pconf_delta') -> None:
+                 allocator: str = 'budget_pconf_delta',
+                 logging_level: int = logging.INFO) -> None:
         self.fextractor: FeatureExtractor = fextractor
         self.ppl: Pipeline = ppl
 
@@ -103,6 +88,9 @@ class OnlineExecutor:
         self.num_queries: int = len(self.queries)  # number of queries
         self.queries_cfgs_pools = [qry.cfgs_pool for qry in self.queries]
 
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging_level)
+
     def estimate_features(self, request: dict, qcfgs: np.array) -> dict:
         features_estimation = self.fextractor.extract(request, qcfgs)
         return features_estimation
@@ -118,13 +106,11 @@ class OnlineExecutor:
         samples = np.random.normal(fmeans, fscales, size=(n_samples, p))
         pred_values = self.ppl.predict(samples)
 
-        # if ppl is a regressor, pred_values is a list of float
-        # if ppl is a classifier, pred_values is a list of int
         if get_model_type(self.ppl) == "regressor":
             pred_value = np.mean(pred_values)
             pred_bound = np.std(pred_values)
             # compute the confidence
-            pred_conf = 1.0 - np.mean(np.abs(pred_values - pred_value) > self.target_bound)
+            pred_conf = np.mean(np.abs(pred_values - pred_value) <= self.target_bound)
         elif get_model_type(self.ppl) == "classifier":
             pred_value = np.argmax(np.bincount(pred_values))
             pred_bound = 0.0
@@ -289,7 +275,7 @@ class OnlineExecutor:
             prediction_estimation: dict = self.estimate_prediction(features_estimation)
             pred_value, pred_bound, pred_conf = prediction_estimation['pred_value'], prediction_estimation['pred_bound'], prediction_estimation['pred_conf']
 
-            logger.debug(f'Round {round_id}: qcfgs={qcfgs}, pred_value={pred_value}, pred_bound={pred_bound}, pred_conf={pred_conf}')
+            self.logger.debug(f'Round {round_id}: qcfgs={qcfgs}, pred_value={pred_value}, pred_bound={pred_bound}, pred_conf={pred_conf}')
 
             if np.sum(qcfgs) >= np.sum(qcfgs_pool_size):
                 # all features are certain -> prediction is certain.
@@ -302,7 +288,7 @@ class OnlineExecutor:
 
         if not (pred_conf >= self.target_conf and pred_bound <= self.target_bound):
             qcfgs = np.array([len(pool) - 1 for pool in self.queries_cfgs_pools])
-            logger.debug(f'Refinement Round: qcfgs={qcfgs}')
+            self.logger.debug(f'Refinement Round: qcfgs={qcfgs}')
             features_estimation = self.estimate_features(request, qcfgs)
             prediction_estimation: dict = self.estimate_prediction(features_estimation)
             pred_value, pred_bound, pred_conf = prediction_estimation['pred_value'], prediction_estimation['pred_bound'], prediction_estimation['pred_conf']

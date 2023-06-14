@@ -9,7 +9,7 @@ import glob
 import json
 from tqdm import tqdm
 
-from apxinfer.utils import DBConnector, create_model
+from apxinfer.utils import DBConnector, create_model, get_global_feature_importance
 
 EXP_HOME = '/home/ckchang/.cache/apxinf'
 
@@ -106,54 +106,57 @@ def raw_data_preprocessing(raw_data_dir: str, database: str, base_table_name: st
         segments_per_file = 5
         segment_nrows = file_nrows // segments_per_file
 
-        print(f"Ingest data to tables {table_name}")
-        for bid, src in tqdm(enumerate(all_file_names)):
-            filename = os.path.basename(src)
-            tag = filename.split(".")[0]
-            dirname = os.path.basename(os.path.dirname(src))
-            label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
-            cnt = db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
-            # print(f'dbsize={cnt}')
-            command = """
-                    clickhouse-client \
-                        --query \
-                        "INSERT INTO {database}.{table_name} \
-                            SELECT ({cnt} + row_number() OVER ()) AS rid, \
-                                    {label} AS label, {tag} AS tag, {bid} + floor(((row_number() OVER ()) - 1)/{segment_nrows}) AS bid,
-                                    ((row_number() OVER ()) - 1) % {segment_nrows} AS pid,
-                                    {values} \
-                            FROM input('{values_w_type}') \
-                            FORMAT CSV" \
-                            < {filepath}
-                    """.format(
-                database=database,
-                table_name=table_name,
-                cnt=cnt,
-                label=label,
-                tag=tag,
-                bid=bid * segments_per_file,
-                segment_nrows=segment_nrows,
-                values=", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)]),
-                values_w_type=", ".join([f"sensor_{i} Float32" for i in range(8)]),
-                filepath=src,
-            )
-            # print(command)
-            os.system(command)
+        if db_client.command(f"SELECT count(*) FROM {database}.{table_name}") == 0:
+            print(f"Ingest data to tables {table_name}")
+            for bid, src in tqdm(enumerate(all_file_names)):
+                filename = os.path.basename(src)
+                tag = filename.split(".")[0]
+                dirname = os.path.basename(os.path.dirname(src))
+                label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
+                cnt = db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
+                # print(f'dbsize={cnt}')
+                command = """
+                        clickhouse-client \
+                            --query \
+                            "INSERT INTO {database}.{table_name} \
+                                SELECT ({cnt} + row_number() OVER ()) AS rid, \
+                                        {label} AS label, {tag} AS tag, {bid} + floor(((row_number() OVER ()) - 1)/{segment_nrows}) AS bid,
+                                        ((row_number() OVER ()) - 1) % {segment_nrows} AS pid,
+                                        {values} \
+                                FROM input('{values_w_type}') \
+                                FORMAT CSV" \
+                                < {filepath}
+                        """.format(
+                    database=database,
+                    table_name=table_name,
+                    cnt=cnt,
+                    label=label,
+                    tag=tag,
+                    bid=bid * segments_per_file,
+                    segment_nrows=segment_nrows,
+                    values=", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)]),
+                    values_w_type=", ".join([f"sensor_{i} Float32" for i in range(8)]),
+                    filepath=src,
+                )
+                # print(command)
+                os.system(command)
 
         for i in range(num_sensors):
             sensor_table_name = f"{table_name}_sensor_{i}"
-            print(f"Ingest data to tables {sensor_table_name}")
-            db_client.command(
-                f"INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}"
-            )
+            if db_client.command(f"SELECT count(*) FROM {database}.{sensor_table_name}") == 0:
+                print(f"Ingest data to tables {sensor_table_name}")
+                db_client.command(
+                    f"INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}"
+                )
 
     if not db_client.command(f"SHOW DATABASES LIKE '{database}'"):
         print(f"Create database {database}")
         db_client.command(f"CREATE DATABASE {database}")
-        create_tables()
-        ingest_data(raw_data_dir)
     else:
         print(f'Database "{database}" already exists')
+
+    create_tables()
+    ingest_data(raw_data_dir)
 
 
 def train_valid_test_split(data: pd.DataFrame, train_ratio: float, valid_ratio: float, seed: int):
@@ -194,21 +197,16 @@ def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classifi
     raw_data_preprocessing(raw_data_dir, database, table_name, num_sensors, seed)
 
     # prepare all requests and labels and features and save
-    fnames = [f'feature_{i}' for i in range(num_sensors)]
+    fnames = [f'f_{i}' for i in range(num_sensors)]
     db_client = DBConnector().client
     sql = """
         SELECT bid as request_bid, label as request_label,
-        avg(sensor_0) as feature_0,
-        avg(sensor_1) as feature_1,
-        avg(sensor_2) as feature_2,
-        avg(sensor_3) as feature_3,
-        avg(sensor_4) as feature_4,
-        avg(sensor_5) as feature_5,
-        avg(sensor_6) as feature_6,
-        avg(sensor_7) as feature_7
+        {fop_as_name}
         FROM {database}.{table_name} GROUP BY bid, label
         ORDER BY bid
-    """.format(database=database, table_name=table_name)
+    """.format(database=database, table_name=table_name,
+               fop_as_name=', '.join([f'avg(sensor_{i}) as f_{i}' for i in range(num_sensors)])
+    )
     requests: pd.DataFrame = db_client.query_df(sql)
     num_reqs = len(requests)
     requests.insert(0, 'request_id', list(range(num_reqs)))
@@ -241,11 +239,14 @@ def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classifi
     print(f"valid_acc: {valid_acc}, test_acc: {test_acc}")
 
     metrics_dict = {
+        'train_size': len(train_set),
+        'valid_size': len(valid_set),
+        'test_size': len(test_set),
         'valid_acc': valid_acc,
         'test_acc': test_acc,
     }
     with open(osp.join(save_dir, 'model_evals.json'), 'w') as f:
-        json.dump(metrics_dict, f)
+        json.dump(metrics_dict, f, indent=4)
 
     val_report = metrics.classification_report(valid_set['request_label'], valid_set['ppl_pred'])
     test_report = metrics.classification_report(test_set['request_label'], test_set['ppl_pred'])
@@ -255,6 +256,13 @@ def run(raw_data_dir: str, save_dir: str, seed: int, model: str, binary_classifi
     with open(osp.join(save_dir, 'model_reports.txt'), 'w') as f:
         f.write(f"valid_report: {val_report}\n")
         f.write(f"test_report: {test_report}\n")
+
+    global_feature_importance = get_global_feature_importance(ppl, fnames)
+    gfimps: pd.DataFrame = pd.DataFrame({'fname': fnames,
+                                         'importance': global_feature_importance},
+                                        columns=['fname', 'importance'])
+    print(gfimps)
+    gfimps.to_csv(osp.join(save_dir, 'global_feature_importance.csv'), index=False)
 
 
 if __name__ == '__main__':

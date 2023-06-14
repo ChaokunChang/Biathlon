@@ -40,7 +40,7 @@ def executor_q0(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -61,7 +61,7 @@ def executor_q1(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -82,7 +82,7 @@ def executor_q2(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -103,7 +103,7 @@ def executor_q3(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -124,7 +124,7 @@ def executor_q4(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -145,7 +145,7 @@ def executor_q5(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -166,7 +166,7 @@ def executor_q6(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -187,7 +187,7 @@ def executor_q7(request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
     noffset = 0
     nsamples = np.ceil(max_nsamples * cfg['sample'])
     sql = """
-        SELECT sensor_{sensor_id} AS feature_{sensor_id}
+        SELECT sensor_{sensor_id} AS f_{sensor_id}
         FROM machinery_more.sensors_shuffle_sensor_{sensor_id}
         WHERE bid={bid} AND pid >= {noffset} AND pid < ({noffset}+{nsamples})
     """.format(
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         executor_q6,
         executor_q7,
     ]
-    queries = [XIPQuery(key=f'q{i}', fnames=[f'feature_{i}'], cfgs=cfgs, executor=executors[i])
+    queries = [XIPQuery(key=f'q{i}', fnames=[f'f_{i}'], cfgs=cfgs, executor=executors[i])
                for i in range(8)]
 
     online_results, evals = run_online_stage(args, queries, exp_dir=exp_dir)

@@ -6,6 +6,7 @@ from typing import Literal, Tuple
 from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier, LGBMRegressor
 import xgboost as xgb
+from sklearn import metrics
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
@@ -95,3 +96,63 @@ def get_model_type(ppl: Pipeline) -> Literal["regressor", "classifier"]:
         return "regressor"
     else:
         raise NotImplementedError
+
+
+def get_global_feature_importance(ppl: Pipeline, fnames: list) -> np.ndarray:
+    """ Get the global feature importance of the pipeline
+    """
+    supoorted_regressor = [SUPPORTED_MODELS['regressor'][name] for name in ['lgbm', 'xgb', 'dt', 'rf']]
+    supoorted_classifier = [SUPPORTED_MODELS['classifier'][name] for name in ['lgbm', 'xgb', 'dt', 'rf']]
+    model_type = get_model_type(ppl)
+    if model_type == "regressor":
+        if isinstance(ppl.steps[-1][1], tuple(supoorted_regressor)):
+            return ppl.steps[-1][1].feature_importances_
+        else:
+            return np.array([0] * len(fnames))
+    elif model_type == "classifier":
+        if isinstance(ppl.steps[-1][1], tuple(supoorted_classifier)):
+            return ppl.steps[-1][1].feature_importances_
+        else:
+            return np.array([0] * len(fnames))
+    else:
+        raise NotImplementedError
+
+
+def evaluate_regressor(y_true: np.array, y_pred: np.array) -> dict:
+    mse = metrics.mean_squared_error(y_true, y_pred)
+    mae = metrics.mean_absolute_error(y_true, y_pred)
+    r2 = metrics.r2_score(y_true, y_pred)
+    expv = metrics.explained_variance_score(y_true, y_pred)
+    maxe = metrics.max_error(y_true, y_pred)
+    return {"mse": mse, "mae": mae, "r2": r2, "expv": expv, "maxe": maxe}
+
+
+def evaluate_classifier(y_true: np.array, y_pred: np.array) -> dict:
+    acc = metrics.accuracy_score(y_true, y_pred)
+    f1 = metrics.f1_score(y_true, y_pred)
+    prec = metrics.precision_score(y_true, y_pred)
+    rec = metrics.recall_score(y_true, y_pred)
+    return {"acc": acc, "f1": f1, "prec": prec, "rec": rec}
+
+
+def evaluate_features(ext_fs: np.array, apx_fs: np.array) -> dict:
+    # ext_fs.shape == apx_fs.shape = (n_samples, n_features)
+    # calcuate mse, mae, r2, maxe for each feature, and avg of all features
+    n_samples, n_features = ext_fs.shape
+    mses = np.zeros(n_features)
+    maes = np.zeros(n_features)
+    r2s = np.zeros(n_features)
+    maxes = np.zeros(n_features)
+    for i in range(n_features):
+        mses[i] = metrics.mean_squared_error(ext_fs[:, i], apx_fs[:, i])
+        maes[i] = metrics.mean_absolute_error(ext_fs[:, i], apx_fs[:, i])
+        r2s[i] = metrics.r2_score(ext_fs[:, i], apx_fs[:, i])
+        maxes[i] = metrics.max_error(ext_fs[:, i], apx_fs[:, i])
+    mse = np.mean(mses)
+    mae = np.mean(maes)
+    r2 = np.mean(r2s)
+    maxe = np.mean(maxes)
+
+    return {"mse": mse, "mae": mae, "r2": r2, "maxe": maxe,
+            "mses": mses.tolist(), "maes": maes.tolist(),
+            "r2s": r2s.tolist(), "maxes": maxes.tolist()}

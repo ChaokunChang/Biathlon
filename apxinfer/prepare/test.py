@@ -46,11 +46,12 @@ def run(save_dir: str, seed):
     # 3. extract all (exact) features and save along with request_id
     features = pd.DataFrame({
         'request_id': list(range(num_reqs)),
-        'feature_1': requests['request_f1'],
-        'feature_2': requests['request_f2'],
-        'feature_3': requests['request_f3'],
+        'f_1': requests['request_f1'],
+        'f_2': requests['request_f2'],
+        'f_3': requests['request_f3'],
     })
     features.to_csv(osp.join(save_dir, 'features.csv'), index=False)
+    fnames = ['f_1', 'f_2', 'f_3']
 
     # merge requests, features, labels
     requests = requests.merge(features, on='request_id')
@@ -70,12 +71,12 @@ def run(save_dir: str, seed):
             ("model", model)
         ]
     )
-    ppl.fit(train_set[['feature_1', 'feature_2', 'feature_3']], train_set['request_label'])
+    ppl.fit(train_set[fnames], train_set['request_label'])
     joblib.dump(ppl, osp.join(save_dir, "pipeline.pkl"))
 
     # 6. evaluation model with valid_set and test_set, save into json
-    valid_pred = ppl.predict(valid_set[['feature_1', 'feature_2', 'feature_3']])
-    test_pred = ppl.predict(test_set[['feature_1', 'feature_2', 'feature_3']])
+    valid_pred = ppl.predict(valid_set[fnames])
+    test_pred = ppl.predict(test_set[fnames])
     valid_set['ppl_pred'] = valid_pred
     test_set['ppl_pred'] = test_pred
     valid_set.to_csv(osp.join(save_dir, 'valid_set.csv'), index=False)

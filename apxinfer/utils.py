@@ -3,7 +3,6 @@ import time
 import clickhouse_connect
 import numpy as np
 from typing import Literal, Tuple, Callable
-from joblib import Memory
 from sklearn.pipeline import Pipeline
 from lightgbm import LGBMClassifier, LGBMRegressor
 import xgboost as xgb
@@ -14,10 +13,20 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neural_network import MLPRegressor, MLPClassifier
+from beaker.cache import cache_regions, cache_region
 
 
-xip_utils_memory = Memory('/tmp/apxinf', verbose=0)
-xip_utils_memory.clear()
+cache_regions.update({
+    'short_term': {
+        'expire': 60,
+        'type': 'memory'
+    },
+    'long_term': {
+        'expire': 1800,
+        'type': 'dbm',
+        'data_dir': '/tmp/xip_cache',
+    }
+})
 
 
 class DBConnector:
@@ -136,12 +145,18 @@ class FEstimator:
 class BaseXIPQueryExecutor:
     def __init__(self) -> None:
         # the result will be recomputed if anything with self changes.
-        self.executor: Callable = xip_utils_memory.cache(self.run)
+        self.executor: Callable = cache_region('short_term', 'load_things')(self.run)
 
-    def run(self, request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
+    def run(self, request: dict, cfg: dict) -> dict:
+        """
+        features: np.ndarray
+        fests: np.ndarray
+        types: List[str]
+        return {'features': features, 'fests': fests, 'types': types}
+        """
         raise NotImplementedError
 
-    def __call__(self, request: dict, cfg: dict) -> Tuple[np.ndarray, list]:
+    def __call__(self, request: dict, cfg: dict) -> dict:
         return self.executor(request, cfg)
 
 

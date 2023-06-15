@@ -38,6 +38,8 @@ class PrepareStageArgs(Tap):
     train_ratio: float = 0.5  # ratio of training data
     valid_ratio: float = 0.3  # ratio of validation data
 
+    shuffle_table: bool = False  # whether to shuffle the table
+
 
 def get_exp_dir(task: str, args: PrepareStageArgs) -> str:
     task_dir = os.path.join(EXP_HOME, task)
@@ -49,14 +51,14 @@ def get_exp_dir(task: str, args: PrepareStageArgs) -> str:
 class DBWorker:
     def __init__(self, database: str, tables: List[str],
                  data_src: str, src_type: str,
-                 sample_granularity: int, seed: int) -> None:
+                 max_nchunks: int, seed: int) -> None:
         self.database = database
         self.tables = tables
         self.seed = seed
         self.data_src = data_src
         self.src_type = src_type
         self.db_client = DBConnector().client
-        self.sample_granularity = sample_granularity
+        self.max_nchunks = max_nchunks
         self.logger = logging.getLogger(__name__)
 
     def check_table_not_exists(self, table: str) -> bool:
@@ -203,5 +205,5 @@ class DatasetWorker:
 if __name__ == "__main__":
     dbworker = DBWorker(database='xip', tables=['sensors', 'machinery_shuffle'],
                         data_src='/tmp', src_type='file',
-                        sample_granularity=10, seed=0)
+                        max_nchunks=10, seed=0)
     dbworker.work()

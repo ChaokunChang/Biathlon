@@ -23,8 +23,8 @@ import apxinfer.prepare.prepare_utils as putils
 class TaxiFareDBWorker(DBWorker):
     def __init__(self, database: str, tables: List[str],
                  data_src: str, src_type: str,
-                 sample_granularity: int, seed: int) -> None:
-        super().__init__(database, tables, data_src, src_type, sample_granularity, seed)
+                 max_nchunks: int, seed: int) -> None:
+        super().__init__(database, tables, data_src, src_type, max_nchunks, seed)
 
     def get_dbtable(self) -> str:
         assert len(self.tables) == 1, "TaxiDatasetWorker only supports one table"
@@ -71,7 +71,7 @@ class TaxiFareDBWorker(DBWorker):
         dbtable = self.get_dbtable()
         self.logger.info(f'Ingesting data into database {dbtable} from {self.src_type}::{self.data_src}')
 
-        nchunks = self.sample_granularity
+        nchunks = self.max_nchunks
         seed = self.seed
         # get number of rows in data source
         if self.src_type == 'csv':
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     db_worker = TaxiFareDBWorker(database='xip', tables=['taxi_trips'],
                                  data_src='default.trips', src_type='clickhouse',
-                                 sample_granularity=100,
+                                 max_nchunks=100,
                                  seed=args.seed)
     db_worker.work()
 

@@ -12,7 +12,7 @@ class OnlineParser(Tap):
     task: str = "status_classification"  # task name
     sample_strategy: str = 'equal'  # sample strategy
     sample_budget_each: float = 0.1  # sample budget each in avg
-    sample_nchunks: int = 10  # number of chunks to sample
+    max_nchunks: int = 10  # number of chunks to sample
     low_conf_threshold: float = 0.8  # low confidence threshold
 
 
@@ -23,7 +23,7 @@ def plot_1(args: OnlineParser):
     """
     task = args.task
     sample_strategy = args.sample_strategy
-    nchunks = args.sample_nchunks
+    nchunks = args.max_nchunks
 
     job_dir = os.path.join('./', task)
 

@@ -258,7 +258,7 @@ def run_online_executor(online_executor: OnlineExecutor,
     for request, feature, label, ext_pred in tqdm(zip(requests, features, labels, preds),
                                                   desc="serving",
                                                   total=len(requests),
-                                                  disable=online_logger.level==logging.DEBUG):
+                                                  disable=(online_logger.level == logging.DEBUG)):
         online_logger.debug(f"request: {request}")
         if exact_version:
             online_result = online_executor.serve_exact(request)

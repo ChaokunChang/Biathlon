@@ -238,7 +238,7 @@ def prepare_db(database="machinery_more"):
         # typed_signal = ", ".join([f"sensor_{i} Float32" for i in range(8)])
         for bid, src in tqdm(enumerate(all_file_names)):
             filename = os.path.basename(src)
-            tag = filename.split(".")[0]
+            tag = '.'.join(filename.split(".")[:-1])
             dirname = os.path.basename(os.path.dirname(src))
             label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
             cnt = dbconn.command(f"SELECT count(*) FROM {database}.{table_name}")
@@ -309,7 +309,7 @@ def prepare_db(database="machinery_more"):
         # typed_signal = ", ".join([f"sensor_{i} Float32" for i in range(8)])
         for bid, src in tqdm(enumerate(all_file_names)):
             filename = os.path.basename(src)
-            tag = filename.split(".")[0]
+            tag = '.'.join(filename.split(".")[:-1])
             dirname = os.path.basename(os.path.dirname(src))
             label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
             cnt = dbconn.command(f"SELECT count(*) FROM {database}.{table_name}")

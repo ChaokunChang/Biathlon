@@ -23,8 +23,8 @@ import apxinfer.prepare.prepare_utils as putils
 class MachineryHealthDBWorker(DBWorker):
     def __init__(self, database: str, tables: List[str],
                  data_src: str, src_type: str,
-                 sample_granularity: int, seed: int) -> None:
-        super().__init__(database, tables, data_src, src_type, sample_granularity, seed)
+                 max_nchunks: int, seed: int) -> None:
+        super().__init__(database, tables, data_src, src_type, max_nchunks, seed)
 
     def create_tables(self) -> None:
         self.logger.info(f'Creating database {self.database} and tables {self.tables}')
@@ -41,7 +41,7 @@ class MachineryHealthDBWorker(DBWorker):
                             bid UInt32, pid UInt32,
                             {typed_signal})
                         ENGINE = MergeTree()
-                        ORDER BY (bid, pid)
+                        ORDER BY (pid, bid)
                         SETTINGS index_granularity = 32
                         """.format(
                 database=database, table_name=table_name, typed_signal=typed_signal
@@ -58,7 +58,7 @@ class MachineryHealthDBWorker(DBWorker):
                                 bid UInt32, pid UInt32,
                                 sensor_{i} Float32)
                             ENGINE = MergeTree()
-                            ORDER BY (bid, pid)
+                            ORDER BY (pid, bid)
                             SETTINGS index_granularity = 32
                             """.format(
                     database=database, sensor_table_name=sensor_table_name, i=i
@@ -98,64 +98,155 @@ class MachineryHealthDBWorker(DBWorker):
 
         return file_names
 
-    def ingest_data(self) -> None:
-        self.logger.info(f'Ingesting data into database {self.database} from {self.src_type}::{self.data_src}')
+    def get_ingestion_query(self, database: str, table_name: str,
+                            table_size: int, label: int, tag: str,
+                            start_bid: int, file_nrows: int,
+                            segment_nrows: int, nchunks: int) -> str:
+        values = ", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)])
+        values_w_type = ", ".join([f"sensor_{i} Float32" for i in range(8)])
+        query = f"""INSERT INTO {database}.{table_name} \
+                    SELECT ({table_size} + row_number() OVER () - 1) AS rid, \
+                            {label} AS label, {tag} AS tag, {start_bid} + floor(((row_number() OVER ()) - 1)/{segment_nrows}) AS bid, \
+                            ((row_number() OVER ()) - 1) % {nchunks} AS pid, \
+                            {values} \
+                    FROM input('{values_w_type}') \
+                    FORMAT CSV \
+                """
+        return query
 
+    def ingest_to_base_table(self, database: str, table_name: str,
+                             files: List[str], file_nrows: int,
+                             segments_per_file: int) -> None:
+        segment_nrows = file_nrows // segments_per_file
+        nchunks = self.max_nchunks
+        for bid, src in tqdm(enumerate(files),
+                             desc=f"Ingesting data to {table_name}",
+                             total=len(files)):
+            filename = os.path.basename(src)
+            tag = '.'.join(filename.split(".")[:-1])
+            dirname = os.path.basename(os.path.dirname(src))
+            label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
+            cnt = self.db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
+            start_bid = bid * segments_per_file
+            query = self.get_ingestion_query(database, table_name, cnt,
+                                             label, tag, start_bid,
+                                             file_nrows, segment_nrows,
+                                             nchunks)
+            command = f"""clickhouse-client --query "{query}" < {src}"""
+            os.system(command)
+
+    def ingest_base_from_csv(self) -> None:
         assert self.src_type == "csv", "Only support csv data source"
         all_file_names = self.get_raw_data_files_list(self.data_src)
 
         database = self.database
         table_name = self.tables[0]
-        num_sensors = 8
         file_nrows = 250000
         segments_per_file = 5
-        segment_nrows = file_nrows // segments_per_file
+        self.ingest_to_base_table(database, table_name, all_file_names, file_nrows, segments_per_file)
+
+    def ingest_base_from_clickhouse(self) -> None:
+        dbtable = f'{self.database}.{self.tables[0]}'
+        file_nrows = 250000
+        seed = self.seed
+        dsrc = self.data_src
+
+        # make sure dsrc exists
+        database, table = dsrc.split(".")
+        query = f"SELECT * FROM system.tables WHERE database = '{database}' AND name = '{table}'"
+        assert len(self.db_client.command(query)) > 0, f"Database {dsrc} does not exist"
+
+        values = ", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)])
+        # values_w_type = ", ".join([f"sensor_{i} Float32" for i in range(8)])
+        sql = f"""
+                INSERT INTO {dbtable}
+                SELECT tmp1.rid as rid, tmp1.label as label, tmp1.tag as tag,
+                        tmp1.bid as bid, tmp2.pid as pid,
+                        {values}
+                FROM
+                (
+                    SELECT (row_number() over ()) as row_id, * FROM {dsrc}
+                ) as tmp1
+                JOIN
+                (
+                    SELECT (row_number() over ()) as row_id, random_number
+                    FROM (
+                        SELECT *
+                        FROM generateRandom('random_number UInt32', {seed})
+                        LIMIT {file_nrows}
+                    )
+                ) as tmp2
+                ON tmp1.row_id = tmp2.row_id
+        """
+        self.db_client.command(sql)
+
+    def ingest_data(self) -> None:
+        self.logger.info(f'Ingesting data into database {self.database} from {self.src_type}::{self.data_src}')
+
+        database = self.database
+        table_name = self.tables[0]
 
         if self.db_client.command(f"SELECT count(*) FROM {database}.{table_name}") == 0:
-            print(f"Ingest data to tables {table_name}")
-            for bid, src in tqdm(enumerate(all_file_names),
-                                 desc=f"Ingesting data to {table_name}",
-                                 total=len(all_file_names)):
-                filename = os.path.basename(src)
-                tag = filename.split(".")[0]
-                dirname = os.path.basename(os.path.dirname(src))
-                label = ["normal", "6g", "10g", "15g", "20g", "25g", "30g"].index(dirname)
-                cnt = self.db_client.command(f"SELECT count(*) FROM {database}.{table_name}")
-                # print(f'dbsize={cnt}')
-                command = """
-                        clickhouse-client \
-                            --query \
-                            "INSERT INTO {database}.{table_name} \
-                                SELECT ({cnt} + row_number() OVER ()) AS rid, \
-                                        {label} AS label, {tag} AS tag, {bid} + floor(((row_number() OVER ()) - 1)/{segment_nrows}) AS bid,
-                                        ((row_number() OVER ()) - 1) % {segment_nrows} AS pid,
-                                        {values} \
-                                FROM input('{values_w_type}') \
-                                FORMAT CSV" \
-                                < {filepath}
-                        """.format(
-                    database=database,
-                    table_name=table_name,
-                    cnt=cnt,
-                    label=label,
-                    tag=tag,
-                    bid=bid * segments_per_file,
-                    segment_nrows=segment_nrows,
-                    values=", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)]),
-                    values_w_type=", ".join([f"sensor_{i} Float32" for i in range(8)]),
-                    filepath=src,
-                )
-                os.system(command)
+            print(f"Ingest data to base table {table_name}")
+            if self.src_type == "csv":
+                self.ingest_base_from_csv()
+            elif self.src_type == 'clickhouse':
+                self.ingest_base_from_clickhouse()
+            else:
+                raise NotImplementedError(f"Unsupported data source type {self.src_type}")
 
+        num_sensors = 8
         for i in tqdm(range(num_sensors),
                       desc="Ingesting data to sub tables",
                       total=num_sensors):
-            sensor_table_name = f"{table_name}_sensor_{i}"
+            sensor_table_name = self.tables[i + 1]
             if self.db_client.command(f"SELECT count(*) FROM {database}.{sensor_table_name}") == 0:
                 print(f"Ingest data to tables {sensor_table_name}")
                 self.db_client.command(
                     f"INSERT INTO {database}.{sensor_table_name} SELECT rid, label, tag, bid, pid, sensor_{i} FROM {database}.{table_name}"
                 )
+
+
+class MachineryHealthShuffleDBWorker(MachineryHealthDBWorker):
+    def __init__(self, database: str, tables: List[str],
+                 data_src: str, src_type: str,
+                 max_nchunks: int, seed: int) -> None:
+        super().__init__(database, tables, data_src, src_type, max_nchunks, seed)
+
+    def get_ingestion_query(self, database: str, table_name: str,
+                            table_size: int, label: int, tag: str,
+                            start_bid: int, file_nrows: int,
+                            segment_nrows: int, nchunks: int) -> str:
+        seed = self.seed  # can not make sure deterministic
+        values = ", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)])
+        values_w_type = ", ".join([f"sensor_{i} Float32" for i in range(8)])
+        query = f"""INSERT INTO {database}.{table_name} \
+                    SELECT tmp1.rid as rid, tmp1.label as label, tmp1.tag as tag, \
+                            tmp1.bid as bid, tmp2.pid as pid, \
+                            {values} \
+                    FROM \
+                    ( \
+                        SELECT \
+                                ({table_size} + row_number() OVER () - 1) AS rid, \
+                                {label} AS label, {tag} AS tag, \
+                                {start_bid} + floor(((row_number() OVER ()) - 1)/{segment_nrows}) AS bid, \
+                                {values} \
+                        FROM input('{values_w_type}') \
+                    ) as tmp1 \
+                    JOIN \
+                    ( \
+                        SELECT ({table_size} + row_number() OVER () - 1) as rid, \
+                                random_number % {nchunks} as pid \
+                        FROM ( \
+                            SELECT * \
+                            FROM generateRandom('random_number UInt32', {seed}) \
+                            LIMIT {file_nrows} \
+                        ) \
+                    ) as tmp2 \
+                    ON tmp1.rid = tmp2.rid \
+                    FORMAT CSV \
+                """
+        return query
 
 
 class MachineryHealthDatasetWorker(DatasetWorker):
@@ -209,14 +300,26 @@ if __name__ == "__main__":
     args = PrepareStageArgs().parse_args()
     data_dir = '/home/ckchang/ApproxInfer/data/machinery'
 
-    db_worker = MachineryHealthDBWorker(database='xip',
-                                        tables=['machinery'] + [f'machinery_sensor_{i}' for i in range(8)],
-                                        data_src=data_dir, src_type='csv',
-                                        sample_granularity=100,
-                                        seed=args.seed)
+    if args.shuffle_table:
+        task_name = 'machinery_shuffle'
+        tables = [task_name] + [f'{task_name}_sensor_{i}' for i in range(8)]
+        db_worker = MachineryHealthShuffleDBWorker(database='xip',
+                                                   tables=tables,
+                                                   data_src=data_dir,
+                                                   src_type='csv',
+                                                   max_nchunks=100,
+                                                   seed=args.seed)
+    else:
+        task_name = 'machinery'
+        tables = [task_name] + [f'{task_name}_sensor_{i}' for i in range(8)]
+        db_worker = MachineryHealthDBWorker(database='xip',
+                                            tables=tables,
+                                            data_src=data_dir, src_type='csv',
+                                            max_nchunks=100,
+                                            seed=args.seed)
     db_worker.work()
 
-    exp_dir = putils.get_exp_dir(task='machinery', args=args)
+    exp_dir = putils.get_exp_dir(task=task_name, args=args)
     working_dir = os.path.join(exp_dir, 'prepare')
     os.makedirs(working_dir, exist_ok=True)
 

@@ -129,10 +129,28 @@ class DatasetWorker:
         self.seed = seed
         self.logger = logging.getLogger(__name__)
 
+    def get_requests(self) -> pd.DataFrame:
+        self.logger.info(f'Getting requests for from {self.database}.{self.tables}')
+        raise NotImplementedError
+
+    def get_labels(self, requests: pd.DataFrame) -> pd.Series:
+        self.logger.info(f'Getting labels for {len(requests)} requests')
+        raise NotImplementedError
+
+    def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
+        self.logger.info(f'Getting features for {len(requests)} requests')
+        raise NotImplementedError
+
     def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
         # return dataset, fnames, label_name
         self.logger.info(f'Creating dataset for {self.model_type} {self.model_name}')
-        raise NotImplementedError
+        requests = self.get_requests()
+        labels = self.get_labels(requests)
+        features = self.get_features(requests)
+        dataset = pd.concat([requests, features, labels], axis=1)
+        fnames = list(features.columns)
+        label_name = labels.name
+        return dataset, fnames, label_name
 
     def build_pipeline(self, X: pd.DataFrame, y: pd.Series) -> Pipeline:
         self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')

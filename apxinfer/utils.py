@@ -13,7 +13,7 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neural_network import MLPRegressor, MLPClassifier
-from beaker.cache import cache_regions, cache_region
+from beaker.cache import cache_regions, cache_region, Cache
 
 
 cache_regions.update({
@@ -144,10 +144,17 @@ class FEstimator:
 
 class BaseXIPQueryExecutor:
     def __init__(self) -> None:
-        # the result will be recomputed if anything with self changes.
+        # the result will NOT be recomputed if anything with self changes.
         class_name = self.__class__.__name__
-        print(f'class_name = {class_name}')
         self.executor: Callable = cache_region('short_term', class_name)(self.run)
+
+    @classmethod
+    def clear_cache(cls):
+        from beaker.cache import cache_managers
+        print(f'clearing cache for {cls.__name__}')
+        for key, cache in cache_managers.items():
+            cache.clear()
+            print(f'cache {key}:{cache} cleared')
 
     def run(self, request: dict, cfg: dict) -> dict:
         """

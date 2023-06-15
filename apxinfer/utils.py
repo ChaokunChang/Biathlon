@@ -145,7 +145,9 @@ class FEstimator:
 class BaseXIPQueryExecutor:
     def __init__(self) -> None:
         # the result will be recomputed if anything with self changes.
-        self.executor: Callable = cache_region('short_term', 'load_things')(self.run)
+        class_name = self.__class__.__name__
+        print(f'class_name = {class_name}')
+        self.executor: Callable = cache_region('short_term', class_name)(self.run)
 
     def run(self, request: dict, cfg: dict) -> dict:
         """

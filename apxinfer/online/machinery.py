@@ -8,8 +8,8 @@ import pickle
 # import joblib
 from joblib import Memory
 
-from apxinfer.utils import DBConnector
-from apxinfer.online.online_utils import OnlineStageArgs, FEstimator, run_online_stage, get_exp_dir
+from apxinfer.utils import DBConnector, FEstimator
+from apxinfer.online.online_utils import OnlineStageArgs, run_online_stage, get_exp_dir
 from apxinfer.online_stage import XIPQuery
 
 

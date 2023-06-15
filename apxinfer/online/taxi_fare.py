@@ -9,9 +9,9 @@ from datetime import datetime
 # import joblib
 from joblib import Memory
 
-from apxinfer.utils import DBConnector
+from apxinfer.utils import DBConnector, FEstimator
 import apxinfer.online.online_utils as online_utils
-from apxinfer.online.online_utils import OnlineStageArgs, run_online_stage, get_exp_dir, FEstimator
+from apxinfer.online.online_utils import OnlineStageArgs, run_online_stage, get_exp_dir
 from apxinfer.online_stage import XIPQuery
 
 

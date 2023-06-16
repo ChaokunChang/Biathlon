@@ -94,12 +94,12 @@ class TaxiFareDBWorker(DBWorker):
               trip_duration, pid
             FROM
             (
-                SELECT *, row_number() over () as row_id
+                SELECT *, rowNumberInAllBlocks() as row_id
                 FROM {data_src}
             ) as tmp1
             JOIN
             (
-                SELECT value % {nchunks} as pid, row_number() over () as row_id
+                SELECT value % {nchunks} as pid, rowNumberInAllBlocks() as row_id
                 FROM (
                     SELECT *
                     FROM generateRandom('value UInt32', {seed})

@@ -50,8 +50,8 @@ class FeatureExtractor:
         features = []
         fests = []
         qtime = 0.0
-        for qry_j, cfg_k in enumerate(qcfgs):
-            qry_res = self.queries[qry_j].execute(request, cfg_k)
+        for qid, cfg_id in enumerate(qcfgs):
+            qry_res = self.queries[qid].execute(request, cfg_id)
             fnames.extend(qry_res['fnames'])
             features.extend(qry_res['features'])
             fests.extend(qry_res['fests'])
@@ -89,6 +89,7 @@ class OnlineExecutor:
         self.queries: List[XIPQuery] = self.fextractor.queries
         self.num_queries: int = len(self.queries)  # number of queries
         self.queries_cfgs_pools = [qry.cfgs_pool for qry in self.queries]
+        self.queries_cfgs_costs = [qry.cfgs_costs for qry in self.queries]
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging_level)
@@ -135,11 +136,11 @@ class OnlineExecutor:
         # get the cost until now
         prev_cost = time.time() - self.serve_start_time  # option 1: use time
         prev_cost = np.sum(qcfgs)  # option 2: use cfg id
-        prev_cost = np.sum([self.queries[qid].cfgs_costs[cfg_id] for qid, cfg_id in enumerate(qcfgs)])  # option 3: use cfg cost
+        prev_cost = np.sum([self.queries_cfgs_costs[qid][cfg_id] for qid, cfg_id in enumerate(qcfgs)])  # option 3: use cfg cost
 
         least_required_budget = 0.0
         for qid, cfg_id in enumerate(qcfgs):
-            this_budget = self.queries[qid].cfgs_costs[cfg_id + 1] if cfg_id + 1 < len(self.queries[qid].cfgs_costs) else np.inf
+            this_budget = self.queries_cfgs_costs[qid][cfg_id + 1] if cfg_id + 1 < len(self.queries_cfgs_costs[qid]) else np.inf
             least_required_budget = min(least_required_budget, this_budget)
 
         # estimate budget of this round
@@ -173,7 +174,7 @@ class OnlineExecutor:
         reductions = []
         from_fid = 0
         for qid, cfg_id in enumerate(qcfgs):
-            if cfg_id == len(self.queries[qid].cfgs_costs) - 1:
+            if cfg_id == len(self.queries_cfgs_costs[qid]) - 1:
                 # this query has already been set as the most expensive configuration
                 reductions.append(0.0)
                 continue
@@ -203,12 +204,12 @@ class OnlineExecutor:
         new_qcfgs = qcfgs.copy()
         remaining_budget = new_budget
         for qid in sorted_qids:
-            while (new_qcfgs[qid] < len(self.queries[qid].cfgs_costs) - 1):
-                if self.queries[qid].cfgs_costs[new_qcfgs[qid]] > remaining_budget:
+            while (new_qcfgs[qid] < len(self.queries_cfgs_costs[qid]) - 1):
+                if self.queries_cfgs_costs[qid][new_qcfgs[qid]] > remaining_budget:
                     break
                 new_qcfgs[qid] += 1
             if new_qcfgs[qid] > qcfgs[qid]:
-                remaining_budget -= self.queries[qid].cfgs_costs[new_qcfgs[qid]]
+                remaining_budget -= self.queries_cfgs_costs[qid][new_qcfgs[qid]]
 
         return new_qcfgs
 
@@ -231,7 +232,7 @@ class OnlineExecutor:
         reductions = []
         from_fid = 0
         for qid, cfg_id in enumerate(qcfgs):
-            if cfg_id == len(self.queries[qid].cfgs_costs) - 1:
+            if cfg_id == len(self.queries_cfgs_costs[qid]) - 1:
                 # this query has already been set as the most expensive configuration
                 reductions.append(0.0)
                 continue
@@ -305,7 +306,7 @@ class OnlineExecutor:
             pred_value, pred_bound, pred_conf = prediction_estimation['pred_value'], prediction_estimation['pred_bound'], prediction_estimation['pred_conf']
             assert pred_bound == 0 and pred_conf == 1.0, f'Bug here! pred_bound={pred_bound} != 0 or pred_conf={pred_conf} != 1.0 with exact features'
 
-        qcosts = np.array([self.queries[qid].cfgs_costs[cfg_id] for qid, cfg_id in enumerate(qcfgs)])
+        qcosts = np.array([self.queries_cfgs_costs[qid][cfg_id] for qid, cfg_id in enumerate(qcfgs)])
         ret = {"prediction": prediction_estimation, 'features': features_estimation, 'qcfgs': qcfgs, 'qcosts': qcosts}
         return ret
 
@@ -317,6 +318,6 @@ class OnlineExecutor:
         prediction_estimation = {"pred_value": self.ppl.predict([features])[0],
                                  "pred_bound": 0.,
                                  "pred_conf": 1.0}
-        qcosts = np.array([self.queries[qid].cfgs_costs[cfg_id] for qid, cfg_id in enumerate(qcfgs)])
+        qcosts = np.array([self.queries_cfgs_costs[qid][cfg_id] for qid, cfg_id in enumerate(qcfgs)])
         ret = {"prediction": prediction_estimation, 'features': feature_estimations, 'qcfgs': qcfgs, 'qcosts': qcosts}
         return ret

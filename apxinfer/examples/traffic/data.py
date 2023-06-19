@@ -167,7 +167,7 @@ class TrafficHourDataLoader(XIPDataLoader):
         self.max_nchunks = ingestor.max_nchunks
 
     def load_data(self, request: TrafficRequest, qcfg: TrafficQConfig, cols: List[str]) -> np.ndarray:
-        from_pid = 0
+        from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
         to_pid = self.max_nchunks * qcfg['qsample']
         req_dt = req_to_dt(request)
         req_dt_plus_1h = req_dt + dt.timedelta(hours=1)

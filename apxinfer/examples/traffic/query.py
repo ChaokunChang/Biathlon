@@ -77,7 +77,9 @@ class TrafficQP2(XIPQuery):
                   'this_hour_median_speed', 'this_hour_median_travel_time'
                   ]
         if n_cfgs == 0:
-            qsamples = [0.1, 0.2, 0.4, 0.8, 1.0]
+            qsamples = [0.1, 0.5, 1.0]
+        elif n_cfgs == -1:
+            qsamples = [0.1, 1.0]
         else:
             qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
         cfg_pools = [XIPQueryConfig(qname=key,
@@ -87,10 +89,28 @@ class TrafficQP2(XIPQuery):
                      for i in range(len(qsamples))]
         super().__init__(key, data_loader, fnames, cfg_pools)
 
+        self.cached_reqid = -1
+        self.cached_qsample = 0
+        self.cached_data = None
+
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+        req_id = request['req_id']
+        if self.cached_reqid == req_id:
+            qcfg['qoffset'] = self.cached_qsample
         qsample = qcfg['qsample']
         fcols = ['speed', 'travel_time']
         req_data = self.data_loader.load_data(request, qcfg, fcols)
+
+        if self.cached_reqid == req_id:
+            if len(req_data) > 0 and len(self.cached_data) > 0:
+                req_data = np.concatenate([self.cached_data, req_data], axis=0)
+            else:
+                if len(self.cached_data) > 0:
+                    req_data = self.cached_data
+        self.cached_reqid = req_id
+        self.cached_qsample = qsample
+        self.cached_data = req_data
+
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
             if qsample >= 1.0:

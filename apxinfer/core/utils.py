@@ -17,6 +17,7 @@ class XIPQueryConfig(TypedDict, total=False):
     qargs: dict
     qcfg_id: int
     qsample: float
+    qoffset: float
 
 
 class XIPFeatureEstimation(TypedDict):

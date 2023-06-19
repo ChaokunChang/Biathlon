@@ -16,7 +16,7 @@ from apxinfer.examples.traffic.data import TrafficFStoreLoader
 def get_borough_embedding() -> dict:
     """ borough embedding, take borough str, output an int """
     db_client = DBHelper.get_db_client()
-    boroughs: pd.DataFrame = db_client.query_df('select distinct borough from xip.traffic')
+    boroughs: pd.DataFrame = db_client.query_df('select distinct borough from xip.traffic order by borough')
     borough_map = {borough: i for i, borough in enumerate(boroughs['borough'].values)}
     return borough_map
 
@@ -76,11 +76,15 @@ class TrafficQP2(XIPQuery):
                   'this_hour_max_speed', 'this_hour_max_travel_time',
                   'this_hour_median_speed', 'this_hour_median_travel_time'
                   ]
+        if n_cfgs == 0:
+            qsamples = [0.1, 0.2, 0.4, 0.8, 1.0]
+        else:
+            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
         cfg_pools = [XIPQueryConfig(qname=key,
                                     qtype='agg',
                                     qcfg_id=i,
-                                    qsample=(i + 1.0) / n_cfgs)
-                     for i in range(n_cfgs)]
+                                    qsample=qsamples[i])
+                     for i in range(len(qsamples))]
         super().__init__(key, data_loader, fnames, cfg_pools)
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:

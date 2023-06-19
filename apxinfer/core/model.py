@@ -112,10 +112,11 @@ def evaluate_regressor(model: XIPModel, X: np.ndarray, y: np.ndarray) -> Regress
     y_pred = model.predict(X)
     mae = metrics.mean_absolute_error(y, y_pred)
     mse = metrics.mean_squared_error(y, y_pred)
+    mape = metrics.mean_absolute_percentage_error(y, y_pred)
     r2 = metrics.r2_score(y, y_pred)
     expv = metrics.explained_variance_score(y, y_pred)
     maxe = metrics.max_error(y, y_pred)
-    return RegressorEvaluation(mae=mae, mse=mse, r2=r2, expv=expv, maxe=maxe, size=len(y))
+    return RegressorEvaluation(mae=mae, mse=mse, mape=mape, r2=r2, expv=expv, maxe=maxe, size=len(y))
 
 
 def evaluate_classifier(model: XIPModel, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:

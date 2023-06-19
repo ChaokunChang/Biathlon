@@ -72,6 +72,7 @@ class XIPExecutionProfile(TypedDict, total=False):
 class RegressorEvaluation(TypedDict):
     mae: float
     mse: float
+    mape: float
     r2: float
     expv: float
     maxe: float

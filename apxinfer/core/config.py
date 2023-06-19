@@ -21,7 +21,7 @@ class PrepareArgs(BaseXIPArgs):
 
 class OnlineArgs(BaseXIPArgs):
     num_requests: int = 0  # number of test requests
-    n_cfgs: int = 10  # number of query configurations
+    n_cfgs: int = 5  # number of query configurations
 
     pest_constraint: Literal['conf', 'error', 'relative_error'] = 'relative_error'  # prediction estimation constraint
     pest: Literal['MC'] = 'MC'  # prediction estimation method
@@ -31,10 +31,10 @@ class OnlineArgs(BaseXIPArgs):
     qinf: Literal['direct', 'by_finf'] = 'direct'  # query inference method
 
     scheduler: Literal['greedy', 'random'] = 'greedy'  # scheduler
-    scheduler_batch: int = 0
+    scheduler_batch: int = 1
 
     # pipeline settings
-    termination_condition: Literal['conf', 'error', 'relative_error', 'min-max'] = 'conf'  # termination condition
+    termination_condition: Literal['conf', 'error', 'relative_error', 'min_max'] = 'conf'  # termination condition
     max_relative_error: float = 0.05  # maximum relative error
     max_error: float = 0.1  # maximum error
     min_conf: float = 0.99  # minimum confidence
@@ -79,9 +79,13 @@ class DIRHelper:
 
     def get_online_dir(args: OnlineArgs) -> str:
         working_dir = DIRHelper.get_working_dir(args)
-        online_dir = os.path.join(working_dir, 'online', args.model, f'ncfgs-{args.n_cfgs}')
-        online_dir = os.path.join(online_dir, f'pest-{args.pest_constraint}-{args.pest}-{args.pest_nsamples}-{args.pest_seed}')
-        online_dir = os.path.join(online_dir, f'qinf-{args.qinf}')
-        online_dir = os.path.join(online_dir, f'scheduler-{args.scheduler}-{args.scheduler_batch}')
+        online_dir = os.path.join(working_dir, 'online', args.model)
+        if args.exact:
+            online_dir = os.path.join(online_dir, 'exact')
+        else:
+            online_dir = os.path.join(online_dir, f'ncfgs-{args.n_cfgs}')
+            online_dir = os.path.join(online_dir, f'pest-{args.pest_constraint}-{args.pest}-{args.pest_nsamples}-{args.pest_seed}')
+            online_dir = os.path.join(online_dir, f'qinf-{args.qinf}')
+            online_dir = os.path.join(online_dir, f'scheduler-{args.scheduler}-{args.scheduler_batch}')
         os.makedirs(online_dir, exist_ok=True)
         return online_dir

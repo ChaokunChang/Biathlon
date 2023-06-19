@@ -161,20 +161,25 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
     n_samples, n_features = ext_fs.shape
     mses = np.zeros(n_features)
     maes = np.zeros(n_features)
+    mapes = np.zeros(n_features)
     r2s = np.zeros(n_features)
     maxes = np.zeros(n_features)
     for i in range(n_features):
         mses[i] = metrics.mean_squared_error(ext_fs[:, i], apx_fs[:, i])
         maes[i] = metrics.mean_absolute_error(ext_fs[:, i], apx_fs[:, i])
+        mapes[i] = metrics.mean_absolute_percentage_error(ext_fs[:, i], apx_fs[:, i])
         r2s[i] = metrics.r2_score(ext_fs[:, i], apx_fs[:, i])
         maxes[i] = metrics.max_error(ext_fs[:, i], apx_fs[:, i])
     mse = np.mean(mses)
     mae = np.mean(maes)
+    mape = np.mean(mapes)
     r2 = np.mean(r2s)
     maxe = np.mean(maxes)
 
-    return {"mse": mse, "mae": mae, "r2": r2, "maxe": maxe,
+    return {"mse": mse, "mae": mae, "mape": mape,
+            "r2": r2, "maxe": maxe,
             "mses": mses.tolist(), "maes": maes.tolist(),
+            "mapes": mapes.tolist(),
             "r2s": r2s.tolist(), "maxes": maxes.tolist()}
 
 

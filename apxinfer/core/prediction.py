@@ -19,7 +19,9 @@ class PredictionEstimatorHelper:
 
     def xip_estimate_conf_relative(pred_value: float, preds: np.ndarray,
                                    max_relative_error: float):
-        pred_conf = np.mean(np.abs((preds - pred_value) / pred_value) <= max_relative_error)
+        epsilon = np.finfo(np.float64).eps
+        mape = np.abs(preds - pred_value) / np.maximum(np.abs(pred_value), epsilon)
+        pred_conf = np.mean(mape <= max_relative_error)
         return pred_conf
 
     def xip_estimate(pred_type: str, preds: np.ndarray,

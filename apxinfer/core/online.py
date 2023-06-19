@@ -61,7 +61,7 @@ class OnlineExecutor:
         for i, request in tqdm(enumerate(requests),
                                desc='Serving requests',
                                total=len(requests),
-                               disable=(self.logger.level == logging.DEBUG)):
+                               disable=self.verbose):
             self.logger.debug(f'request[{i}]      = {request}')
 
             xip_pred = self.ppl.serve(request, ret_fvec=True, exact=exact)
@@ -217,4 +217,5 @@ class OnlineExecutor:
         with open(f'{self.working_dir}/evals_{tag}.json', 'w') as f:
             json.dump(evals, f, indent=4)
 
+        self.logger.info(f'Finished running online executor, evals are saved in {self.working_dir}')
         return results

@@ -151,9 +151,9 @@ class XIPPrepareWorker:
 
         # save the dataset
         self.logger.info(f'Saving dataset for {self.model_type} {self.model_name}')
-        train_set['ppl_pred'] = model.predict(train_set[fnames])
-        valid_set['ppl_pred'] = model.predict(valid_set[fnames])
-        test_set['ppl_pred'] = model.predict(test_set[fnames])
+        train_set['ppl_pred'] = model.predict(train_set[fnames].values)
+        valid_set['ppl_pred'] = model.predict(valid_set[fnames].values)
+        test_set['ppl_pred'] = model.predict(test_set[fnames].values)
         train_set.to_csv(osp.join(self.working_dir, 'dataset', 'train_set.csv'), index=False)
         valid_set.to_csv(osp.join(self.working_dir, 'dataset', 'valid_set.csv'), index=False)
         test_set.to_csv(osp.join(self.working_dir, 'dataset', 'test_set.csv'), index=False)

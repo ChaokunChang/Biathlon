@@ -8,11 +8,11 @@ from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 
 class TrafficRequest(XIPRequest):
-    year: int
-    month: int
-    day: int
-    hour: int
-    borough: str
+    req_year: int
+    req_month: int
+    req_day: int
+    req_hour: int
+    req_borough: str
 
 
 class TrafficQConfig(XIPQueryConfig, total=False):
@@ -20,14 +20,14 @@ class TrafficQConfig(XIPQueryConfig, total=False):
 
 
 def req_to_dt(request: TrafficRequest) -> dt.datetime:
-    datetime = dt.datetime(year=request['year'], month=request['month'],
-                           day=request['day'], hour=request['hour'])
+    datetime = dt.datetime(year=request['req_year'], month=request['req_month'],
+                           day=request['req_day'], hour=request['req_hour'])
     return datetime
 
 
 def dt_to_req(datetime: dt.datetime, borough: str) -> TrafficRequest:
-    request = TrafficRequest(year=datetime.year, month=datetime.month,
-                             day=datetime.day, hour=datetime.hour, borough=borough)
+    request = TrafficRequest(req_year=datetime.year, req_month=datetime.month,
+                             req_day=datetime.day, req_hour=datetime.hour, req_borough=borough)
     return request
 
 
@@ -175,7 +175,7 @@ class TrafficHourDataLoader(XIPDataLoader):
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
             WHERE pid BETWEEN {from_pid} AND {to_pid}
-                AND borough = '{request["borough"]}'
+                AND borough = '{request["req_borough"]}'
                 AND data_as_of BETWEEN '{req_dt}' AND '{req_dt_plus_1h}'
         """
         return self.db_client.query_np(sql)
@@ -265,12 +265,12 @@ class TrafficFStoreLoader(XIPDataLoader):
         # self.keys = self.all_granularities[:self.all_granularities.index(self.granularity) + 1]
 
     def load_data(self, request: TrafficRequest, qcfg: TrafficQConfig, cols: List[str]) -> np.ndarray:
-        key_values = [request[key] for key in self.keys]
+        key_values = [request[f'req_{key}'] for key in self.keys]
         conditions = [f'{key} = {value}' for key, value in zip(self.keys, key_values)]
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
-            WHERE borough = '{request["borough"]}'
+            WHERE borough = '{request["req_borough"]}'
                 AND {' AND '.join(conditions)}
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
@@ -279,7 +279,7 @@ class TrafficFStoreLoader(XIPDataLoader):
             return np.zeros(len(cols))
         else:
             if len(df) == 1:
-                return df.values
+                return df.values[0]
             else:
                 if self.granularity == self.ingestor.granularity:
                     self.logger.warning(f'More than one record found for request {request}')

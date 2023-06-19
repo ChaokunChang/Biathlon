@@ -1,161 +1,41 @@
-import numpy as np
-import pandas as pd
+from apxinfer.core.feature import XIPFeatureExtractor
 
-from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec
-from apxinfer.core.utils import merge_fvecs
-from apxinfer.core.data import DBHelper
-from apxinfer.core.query import XIPQuery
-from apxinfer.core.feature import FEstimatorHelper
-
-from apxinfer.examples.traffic.data import TrafficRequest
-from apxinfer.examples.traffic.data import dt_to_req, req_to_dt
-from apxinfer.examples.traffic.data import TrafficHourDataLoader
-from apxinfer.examples.traffic.data import TrafficFStoreLoader
+from apxinfer.examples.traffic.data import TrafficDataIngestor, TrafficHourDataLoader
+from apxinfer.examples.traffic.data import TrafficFStoreIngestor, TrafficFStoreLoader
+from apxinfer.examples.traffic.query import TrafficQP0, TrafficQP1, TrafficQP2
+from apxinfer.examples.traffic.query import TrafficQP3, TrafficQP4
 
 
-def get_borough_embedding() -> dict:
-    """ borough embedding, take borough str, output an int """
-    db_client = DBHelper.get_db_client()
-    boroughs: pd.DataFrame = db_client.query_df('select distinct borough from xip.traffic')
-    borough_map = {borough: i for i, borough in enumerate(boroughs['borough'].values)}
-    return borough_map
+def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int) -> XIPFeatureExtractor:
+    # ingestors
+    dt_ingestor = TrafficDataIngestor(dsrc_type='user_files', dsrc="file('DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
+                                      database='xip', table='traffic',
+                                      max_nchunks=max_nchunks, seed=seed)
+    fs_ingestor_hour = TrafficFStoreIngestor(dsrc_type='clickhouse',
+                                             dsrc=f'{dt_ingestor.database}.{dt_ingestor.table}',
+                                             database='xip', table='traffic_fstore_hour',
+                                             granularity='hour')
+    fs_ingestor_day = TrafficFStoreIngestor(dsrc_type='clickhouse',
+                                            dsrc=f'{dt_ingestor.database}.{dt_ingestor.table}',
+                                            database='xip', table='traffic_fstore_day',
+                                            granularity='day')
 
+    # ingest data
+    dt_ingestor.run()
+    fs_ingestor_hour.run()
+    fs_ingestor_day.run()
 
-class TrafficQP0(XIPQuery):
-    def __init__(self, key: str) -> None:
-        data_loader = None
-        fnames = ['f_year', 'f_month', 'f_day', 'f_hour', 'f_borough']
-        cfg_pools = [XIPQueryConfig(qname=key,
-                                    qtype='transform',
-                                    qcfg_id=0,
-                                    qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools)
-        self.borough_map = get_borough_embedding()
+    # data loader
+    dt_loader = TrafficHourDataLoader(dt_ingestor)
+    fs_loader_hour = TrafficFStoreLoader(fs_ingestor_hour)
+    fs_loader_day = TrafficFStoreLoader(fs_ingestor_day)
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        borough = self.borough_map[request['borough']]
-        fvals = np.array([request['year'], request['month'], request['day'], request['hour'], borough])
-        fests = np.zeros_like(fvals)
-        fdists = ['normal'] * len(fvals)
-        return XIPFeatureVec(fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists)
-
-
-class TrafficQP1(XIPQuery):
-    def __init__(self, key: str, data_loader: TrafficFStoreLoader) -> None:
-        assert data_loader.granularity == 'hour', 'data loader must be hour level'
-        fnames = ['f_last_hour_cnt',
-                  'f_last_hour_avg_speed', 'f_last_hour_avg_travel_time',
-                  'f_last_hour_std_speed', 'f_last_hour_std_travel_time',
-                  'f_last_hour_min_speed', 'f_last_hour_min_travel_time',
-                  'f_last_hour_max_speed', 'f_last_hour_max_travel_time',
-                  'f_last_hour_median_speed', 'f_last_hour_median_travel_time'
-                  ]
-        cfg_pools = [XIPQueryConfig(qname=key,
-                                    qtype='fstore',
-                                    qcfg_id=0,
-                                    qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools)
-
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        fcols = [fname.replace('f_last_hour_', '') for fname in self.fnames]
-        req_dt = req_to_dt(request)
-        last_hour = req_dt - pd.Timedelta(hours=1)
-        last_hour_req = dt_to_req(last_hour, borough=request['borough'])
-        fvals = self.data_loader.load_data(last_hour_req, qcfg, fcols)
-        fests = np.zeros_like(fvals)
-        fdists = ['normal'] * len(fvals)
-        return XIPFeatureVec(fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists)
-
-
-class TrafficQP2(XIPQuery):
-    def __init__(self, key: str, data_loader: TrafficHourDataLoader, n_cfgs: int = 100) -> None:
-        fnames = ['f_this_hour_cnt',
-                  'f_this_hour_avg_speed', 'f_this_hour_avg_travel_time',
-                  'f_this_hour_std_speed', 'f_this_hour_std_travel_time',
-                  'f_this_hour_min_speed', 'f_this_hour_min_travel_time',
-                  'f_this_hour_max_speed', 'f_this_hour_max_travel_time',
-                  'f_this_hour_median_speed', 'f_this_hour_median_travel_time'
-                  ]
-        cfg_pools = [XIPQueryConfig(qname=key,
-                                    qtype='agg',
-                                    qcfg_id=i,
-                                    qsample=(i + 1.0) / n_cfgs)
-                     for i in range(n_cfgs)]
-        super().__init__(key, data_loader, fnames, cfg_pools)
-
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        qsample = qcfg['qsample']
-        fcols = ['speed', 'travel_time']
-        req_data = self.data_loader.load_data(request, qcfg, fcols)
-        if req_data is None or len(req_data) == 0:
-            fvals = np.zeros(len(self.fnames))
-            if qsample >= 1.0:
-                self.logger.warning(f'no data for {request}')
-                fests = np.zeros(len(self.fnames))
-            else:
-                self.logger.warning(f'no data for {request} with qsample={qsample}')
-                fests = np.ones(len(self.fnames)) * 1e9
-            return XIPFeatureVec(fnames=self.fnames, fvals=fvals,
-                                 fests=fests, fdists=['normal'] * len(self.fnames))
-
-        aggs = ['count', 'avg', 'std', 'min', 'max', 'median']
-        fvecs = []
-        for i, agg in enumerate(aggs):
-            fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](req_data, qsample)
-            fvecs.append(fvec)
-        fvec = merge_fvecs(fvecs, new_names=self.fnames)
-        return fvec
-
-
-class TrafficQP3(XIPQuery):
-    def __init__(self, key: str, data_loader: TrafficFStoreLoader) -> None:
-        assert data_loader.granularity == 'day', 'data loader must be day level'
-        fnames = ['f_last_day_cnt',
-                  'f_last_day_avg_speed', 'f_last_day_avg_travel_time',
-                  'f_last_day_std_speed', 'f_last_day_std_travel_time',
-                  'f_last_day_min_speed', 'f_last_day_min_travel_time',
-                  'f_last_day_max_speed', 'f_last_day_max_travel_time',
-                  'f_last_day_median_speed', 'f_last_day_median_travel_time'
-                  ]
-        cfg_pools = [XIPQueryConfig(qname=key,
-                                    qtype='fstore',
-                                    qcfg_id=0,
-                                    qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools)
-
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        fcols = [fname.replace('f_last_day_', '') for fname in self.fnames]
-        req_dt = req_to_dt(request)
-        last_day = req_dt - pd.Timedelta(days=1)
-        last_day_req = dt_to_req(last_day, borough=request['borough'])
-        fvals = self.data_loader.load_data(last_day_req, qcfg, fcols)
-        fests = np.zeros_like(fvals)
-        fdists = ['normal'] * len(fvals)
-        return XIPFeatureVec(fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists)
-
-
-class TrafficQP4(XIPQuery):
-    def __init__(self, key: str, data_loader: TrafficFStoreLoader) -> None:
-        assert data_loader.granularity == 'hour', 'data loader must be hour level'
-        fnames = ['f_last_dayhour_cnt',
-                  'f_last_dayhour_avg_speed', 'f_last_dayhour_avg_travel_time',
-                  'f_last_dayhour_std_speed', 'f_last_dayhour_std_travel_time',
-                  'f_last_dayhour_min_speed', 'f_last_dayhour_min_travel_time',
-                  'f_last_dayhour_max_speed', 'f_last_dayhour_max_travel_time',
-                  'f_last_dayhour_median_speed', 'f_last_dayhour_median_travel_time'
-                  ]
-        cfg_pools = [XIPQueryConfig(qname=key,
-                                    qtype='fstore',
-                                    qcfg_id=0,
-                                    qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools)
-
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        fcols = [fname.replace('f_last_dayhour_', '') for fname in self.fnames]
-        req_dt = req_to_dt(request)
-        last_dayhour = req_dt - pd.Timedelta(days=1) + pd.Timedelta(hours=1)
-        last_dayhour_req = dt_to_req(last_dayhour, borough=request['borough'])
-        fvals = self.data_loader.load_data(last_dayhour_req, qcfg, fcols)
-        fests = np.zeros_like(fvals)
-        fdists = ['normal'] * len(fvals)
-        return XIPFeatureVec(fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists)
+    # Create dataset
+    qp0 = TrafficQP0(key='query_0')
+    qp1 = TrafficQP1(key='query_1', data_loader=fs_loader_hour)
+    qp2 = TrafficQP2(key='query_2', data_loader=dt_loader, n_cfgs=n_cfgs)
+    qp3 = TrafficQP3(key='query_3', data_loader=fs_loader_day)
+    qp4 = TrafficQP4(key='query_4', data_loader=fs_loader_hour)
+    queries = [qp0, qp1, qp2, qp3, qp4]
+    fextractor = XIPFeatureExtractor(queries)
+    return fextractor

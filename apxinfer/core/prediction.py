@@ -40,13 +40,13 @@ class PredictionEstimatorHelper:
         elif constraint_type == 'relative_error':
             pred_error = np.abs(constraint_value * pred_value)
             pred_conf = PredictionEstimatorHelper.xip_estimate_conf_relative(pred_value, preds, constraint_value)
-        return XIPPredEstimation(value=pred_value, error=pred_error, conf=pred_conf)
+        return XIPPredEstimation(pred_value=pred_value, pred_error=pred_error, pred_conf=pred_conf, fvec=None)
 
 
 class XIPPredictionEstimator:
     def __init__(self, constraint_type: str, constraint_value: float) -> None:
         self.constraint_type = constraint_type
-        self.constraint = constraint_value
+        self.constraint_value = constraint_value
         self.logger = logging.getLogger('XIPPredictionEstimator')
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:

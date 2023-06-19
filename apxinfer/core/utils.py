@@ -6,7 +6,7 @@ import itertools
 class XIPRequest(TypedDict):
     """ Request
     """
-    request_id: int
+    req_id: int
 
 
 class XIPQueryConfig(TypedDict, total=False):
@@ -32,10 +32,11 @@ class XIPFeatureVec(TypedDict):
     fdists: List[str]
 
 
-class XIPPredEstimation(TypedDict):
+class XIPPredEstimation(TypedDict, total=False):
     pred_val: Union[float, int]
     pred_error: float
     pred_conf: float
+    fvec: XIPFeatureVec
 
 
 class XIPFInfEstimation(TypedDict, total=False):
@@ -88,24 +89,29 @@ class ClassifierEvaluation(TypedDict):
 
 class XIPPipelineSettings:
     def __init__(self, termination_condition: str,
-                 termination_threshold: float,
+                 max_relative_error: float = 0.05,
                  max_error: float = 0.1,
                  min_conf: float = 0.99,
                  max_time: float = 60.0,
                  max_memory: float = 2048 * 1.0,
                  max_rounds: int = 10) -> None:
         self.termination_condition = termination_condition
-        self.termination_threshold = termination_threshold
+        self.max_relative_error = max_relative_error
         self.max_error = max_error
         self.min_conf = min_conf
         self.max_time = max_time  # in seconds
         self.max_memory = max_memory  # in MB
         self.max_rounds = max_rounds
 
+    def __str__(self) -> str:
+        return f'{self.termination_condition}-{self.max_relative_error}' \
+               f'-{self.max_error}-{self.min_conf}-{self.max_time}-{self.max_memory}-{self.max_rounds}'
+
 
 def merge_fvecs(fvecs: List[XIPFeatureVec], new_names: List[str] = None) -> XIPFeatureVec:
     """ Merge a list of feature vectors into one
     """
+    # print(f'fvecs: {len(fvecs)}, {fvecs}')
     if new_names is not None:
         fnames = new_names
     else:

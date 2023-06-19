@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import time
+import os
 import os.path as osp
 import joblib
 import logging
@@ -93,24 +94,30 @@ class XIPPrepareWorker:
             qcosts.append(time.time() - st)
         features = np.concatenate(qfeatures_list, axis=1)
         features = pd.DataFrame(features, columns=fnames)
-        with open(osp.join(self.working_dir, 'qcosts.json'), 'w') as f:
+        with open(osp.join(self.working_dir, 'dataset', 'qcosts.json'), 'w') as f:
             json.dump({'num_requests': num_requests, 'qcosts': qcosts}, f, indent=4)
-        features.to_csv(osp.join(self.working_dir, 'features.csv'), index=False)
+        features.to_csv(osp.join(self.working_dir, 'dataset', 'features.csv'), index=False)
         return features
 
     def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
         # return dataset, fnames, label_name
         self.logger.info(f'Creating dataset for {self.model_type} {self.model_name}')
         requests = self.get_requests()
+        requests = requests.add_prefix('req_')
+
         features = self.get_features(requests)
+        features = features.add_prefix('f_')
+
         labels = self.get_labels(requests)
+        labels = labels.rename('label')
+
         dataset = pd.concat([requests.reset_index(drop=True),
                              features.reset_index(drop=True),
                              labels.reset_index(drop=True)], axis=1)
         # remove the requests that have no features or labels
         dataset = dataset.dropna()
         # add request_id column
-        dataset.insert(0, 'request_id', range(len(dataset)))
+        dataset.insert(0, 'req_id', range(len(dataset)))
         fnames = list(features.columns)
         label_name = labels.name
         return dataset, fnames, label_name
@@ -119,18 +126,25 @@ class XIPPrepareWorker:
         self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')
         model = create_model(self.model_type, self.model_name, random_state=self.seed)
         model.fit(X.values, y.values)
-        joblib.dump(model, osp.join(self.working_dir, "pipeline.pkl"))
+        joblib.dump(model, osp.join(self.working_dir, 'model', f'{self.model_name}.pkl'))
         return model
 
+    def prepare_dirs(self):
+        dataset_dir = osp.join(self.working_dir, 'dataset')
+        model_dir = osp.join(self.working_dir, 'model')
+        for d in [dataset_dir, model_dir]:
+            os.makedirs(d, exist_ok=True)
+
     def run(self, skip_dataset: bool = False) -> None:
+        self.prepare_dirs()
         if skip_dataset:
-            dataset = pd.read_csv(osp.join(self.working_dir, 'dataset.csv'))
+            dataset = pd.read_csv(osp.join(self.working_dir, 'dataset', 'dataset.csv'))
             cols = list(dataset.columns)
             fnames = [col for col in cols if col.startswith('f_')]
             label_name = cols[-1]
         else:
             dataset, fnames, label_name = self.create_dataset()
-            dataset.to_csv(osp.join(self.working_dir, 'dataset.csv'), index=False)
+            dataset.to_csv(osp.join(self.working_dir, 'dataset', 'dataset.csv'), index=False)
         train_set, valid_set, test_set = train_valid_test_split(dataset=dataset, train_ratio=self.train_ratio,
                                                                 valid_ratio=self.valid_ratio, seed=self.seed)
         model = self.build_model(train_set[fnames], train_set[label_name])
@@ -140,15 +154,15 @@ class XIPPrepareWorker:
         train_set['ppl_pred'] = model.predict(train_set[fnames])
         valid_set['ppl_pred'] = model.predict(valid_set[fnames])
         test_set['ppl_pred'] = model.predict(test_set[fnames])
-        train_set.to_csv(osp.join(self.working_dir, 'train_set.csv'), index=False)
-        valid_set.to_csv(osp.join(self.working_dir, 'valid_set.csv'), index=False)
-        test_set.to_csv(osp.join(self.working_dir, 'test_set.csv'), index=False)
+        train_set.to_csv(osp.join(self.working_dir, 'dataset', 'train_set.csv'), index=False)
+        valid_set.to_csv(osp.join(self.working_dir, 'dataset', 'valid_set.csv'), index=False)
+        test_set.to_csv(osp.join(self.working_dir, 'dataset', 'test_set.csv'), index=False)
 
         # save dataset statistics
         self.logger.info(f'Saving dataset statistics for {self.model_type} {self.model_name}')
-        train_set.describe().to_csv(osp.join(self.working_dir, 'train_set_stats.csv'))
-        valid_set.describe().to_csv(osp.join(self.working_dir, 'valid_set_stats.csv'))
-        test_set.describe().to_csv(osp.join(self.working_dir, 'test_set_stats.csv'))
+        train_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'train_set_stats.csv'))
+        valid_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'valid_set_stats.csv'))
+        test_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'test_set_stats.csv'))
 
         # save evaluations
         self.logger.info(f'Saving evaluations for {self.model_type} {self.model_name}')
@@ -160,7 +174,7 @@ class XIPPrepareWorker:
             'valid': valid_evals,
             'test': test_evals
         }
-        with open(osp.join(self.working_dir, 'evals.json'), 'w') as f:
+        with open(osp.join(self.working_dir, 'model', f'{self.model_name}_evals.json'), 'w') as f:
             json.dump(all_evals, f, indent=4)
 
         # for classification pipeline, we print and save the classification report
@@ -172,14 +186,14 @@ class XIPPrepareWorker:
             self.logger.info(train_report)
             self.logger.info(valid_report)
             self.logger.info(test_report)
-            with open(osp.join(self.working_dir, 'classification_reports.txt'), 'w') as f:
+            with open(osp.join(self.working_dir, 'model', f'{self.model_name}_classification_reports.txt'), 'w') as f:
                 f.write(f"train_report: \n{train_report}\n")
                 f.write(f"valid_report: \n{valid_report}\n")
                 f.write(f"test_report: \n{test_report}\n")
 
         # save global feature importance of the model
         self.logger.info(f'Calculating global feature importance for {self.model_type} {self.model_name}')
-        global_feature_importance = model.get_feature_importances()
-        gfimps: pd.DataFrame = pd.DataFrame({'fname': fnames, 'importance': global_feature_importance}, columns=['fname', 'importance'])
-        gfimps.to_csv(osp.join(self.working_dir, 'global_feature_importance.csv'), index=False)
+        feature_importance = model.get_feature_importances()
+        gfimps: pd.DataFrame = pd.DataFrame({'fname': fnames, 'importance': feature_importance}, columns=['fname', 'importance'])
+        gfimps.to_csv(osp.join(self.working_dir, 'model', f'{self.model_name}_feature_importance.csv'), index=False)
         self.logger.info(gfimps)

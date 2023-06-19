@@ -32,8 +32,9 @@ class XIPQInfEstimator:
         fid = 0
         for qid in range(n_queries):
             n_features = fextractor.queries[qid].n_features
-            final_args = [get_final_dist_args(fdists[i]) for i in range(fid, fid + n_features)]
-            if final_args == fests[fid:fid + n_features]:
+            final_args = np.array([get_final_dist_args(fdists[i]) for i in range(fid, fid + n_features)])
+            # if final_args == fests[fid:fid + n_features]:
+            if np.all(final_args == fests[fid:fid + n_features]):
                 # TODO: check if this is correct
                 qinfs[qid] = 0
                 fid += n_features
@@ -50,7 +51,7 @@ class XIPQInfEstimator:
             elif self.pred_estimator.constraint_type == 'conf':
                 qinfs[qid] = xip_pred['pred_error'] - test_xip_pred['pred_error']
             fid += n_features
-        return qinfs
+        return XIPQInfEstimation(qinfs=qinfs)
 
 
 class XIPQInfEstimatorByFInfs(XIPQInfEstimator):

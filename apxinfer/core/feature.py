@@ -195,7 +195,7 @@ class XIPFeatureExtractor:
             self.extract = fcache_manager.cache('feature', expire=3600)(self.extract)
 
     def extract(self, requets: XIPRequest,
-                qcfgs: List[XIPQueryConfig]) -> Tuple[List[XIPFeatureVec], List[QueryCostEstimation]]:
+                qcfgs: List[XIPQueryConfig]) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
         qcosts = []
         fvecs = []
         for i in range(self.num_queries):
@@ -205,7 +205,7 @@ class XIPFeatureExtractor:
             qcosts.append(QueryCostEstimation(time=et - st, memory=None))
         return merge_fvecs(fvecs), qcosts
 
-    def extract_fs_only(self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]) -> List[XIPFeatureVec]:
+    def extract_fs_only(self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]) -> XIPFeatureVec:
         fvecs = []
         for i in range(self.num_queries):
             fvecs.append(self.queries[i].run(requets, qcfgs[i]))

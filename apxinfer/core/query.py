@@ -22,8 +22,9 @@ class XIPQuery:
         self.logger = logging.getLogger(f'XIPQuery-{key}')
 
         # cache for query running
-        if enable_cache:
-            self.run = fcache_manager.cache('feature', expire=60)(self.run)
+        self.enable_cache = enable_cache
+        if self.enable_cache:
+            self.run = fcache_manager.cache('query', expire=60)(self.run)
 
     def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         raise NotImplementedError

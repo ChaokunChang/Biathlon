@@ -179,13 +179,20 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 class XIPFeatureExtractor:
-    def __init__(self, queries: List[XIPQuery]) -> None:
+    def __init__(self, queries: List[XIPQuery],
+                 enable_cache: bool = False) -> None:
         self.queries = queries
         self.num_queries = len(queries)
         self.q_keys = [qry.key for qry in self.queries]
         assert len(self.q_keys) == len(set(self.q_keys)), "Query keys must be unique"
         self.fnames = list(itertools.chain.from_iterable([qry.fnames for qry in self.queries]))
         assert len(self.fnames) == len(set(self.fnames)), "Feature names must be unique"
+
+        self.logger = logging.getLogger('XIPFeatureExtractor')
+
+        self.enable_cache = enable_cache
+        if self.enable_cache:
+            self.extract = fcache_manager.cache('feature', expire=3600)(self.extract)
 
     def extract(self, requets: XIPRequest,
                 qcfgs: List[XIPQueryConfig]) -> Tuple[List[XIPFeatureVec], List[QueryCostEstimation]]:

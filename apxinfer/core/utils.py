@@ -78,6 +78,7 @@ class RegressorEvaluation(TypedDict):
     expv: float
     maxe: float
     size: int
+    time: float
 
 
 class ClassifierEvaluation(TypedDict):
@@ -87,6 +88,7 @@ class ClassifierEvaluation(TypedDict):
     rec: float
     auc: float
     size: int
+    time: float
 
 
 class XIPPipelineSettings:

@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from typing import Literal
 import logging
 from sklearn import metrics
@@ -109,26 +110,30 @@ def get_model_type(model: XIPModel) -> Literal["regressor", "classifier"]:
 def evaluate_regressor(model: XIPModel, X: np.ndarray, y: np.ndarray) -> RegressorEvaluation:
     """ Evaluate a regressor
     """
+    st = time.time()
     y_pred = model.predict(X)
+    et = time.time()
     mae = metrics.mean_absolute_error(y, y_pred)
     mse = metrics.mean_squared_error(y, y_pred)
     mape = metrics.mean_absolute_percentage_error(y, y_pred)
     r2 = metrics.r2_score(y, y_pred)
     expv = metrics.explained_variance_score(y, y_pred)
     maxe = metrics.max_error(y, y_pred)
-    return RegressorEvaluation(mae=mae, mse=mse, mape=mape, r2=r2, expv=expv, maxe=maxe, size=len(y))
+    return RegressorEvaluation(mae=mae, mse=mse, mape=mape, r2=r2, expv=expv, maxe=maxe, size=len(y), time=et - st)
 
 
 def evaluate_classifier(model: XIPModel, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:
     """ Evaluate a classifier
     """
+    st = time.time()
     y_pred = model.predict(X)
+    et = time.time()
     acc = metrics.accuracy_score(y, y_pred)
     f1 = metrics.f1_score(y, y_pred)
     prec = metrics.precision_score(y, y_pred)
     rec = metrics.recall_score(y, y_pred)
     auc = metrics.roc_auc_score(y, y_pred)
-    return ClassifierEvaluation(acc=acc, f1=f1, prec=prec, rec=rec, auc=auc, size=len(y))
+    return ClassifierEvaluation(acc=acc, f1=f1, prec=prec, rec=rec, auc=auc, size=len(y), time=et - st)
 
 
 def evaluate_model(model: XIPModel, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:

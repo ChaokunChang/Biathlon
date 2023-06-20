@@ -109,7 +109,7 @@ class OnlineExecutor:
         xip_preds = results['xip_preds']
         ext_features = results['ext_features']
         xip_features = np.array([pred['fvec']['fvals'] for pred in xip_preds])
-        # xip_pred_vals = [pred['pred_val'] for pred in xip_preds]
+        # xip_pred_vals = [pred['pred_value'] for pred in xip_preds]
         xip_pred_errors = [pred['pred_error'] for pred in xip_preds]
         xip_pred_confs = [pred['pred_conf'] for pred in xip_preds]
 

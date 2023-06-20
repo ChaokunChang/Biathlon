@@ -43,7 +43,7 @@ class XIPPipeline:
             return pred['pred_error'] <= self.settings.max_error
         elif self.settings.termination_condition == 'relative_error':
             epsilon = np.finfo(np.float64).eps
-            return pred['pred_error'] <= self.settings.max_relative_error * np.maximum(epsilon, np.abs(pred['pred_val']))
+            return pred['pred_error'] <= self.settings.max_relative_error * np.maximum(epsilon, np.abs(pred['pred_value']))
         elif self.settings.termination_condition == 'conf':
             return pred['pred_conf'] >= self.settings.min_conf
         elif self.settings.termination_condition == 'time':

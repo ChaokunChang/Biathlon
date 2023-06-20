@@ -6,7 +6,7 @@ from apxinfer.examples.traffic.query import TrafficQP0, TrafficQP1, TrafficQP2
 from apxinfer.examples.traffic.query import TrafficQP3, TrafficQP4
 
 
-def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int) -> XIPFeatureExtractor:
+def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int, disable_sample_cache: bool) -> XIPFeatureExtractor:
     # ingestors
     dt_ingestor = TrafficDataIngestor(dsrc_type='user_files', dsrc="file('DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
                                       database='xip', table='traffic',
@@ -26,7 +26,7 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int) -> XIPFeatureExtrac
     fs_ingestor_day.run()
 
     # data loader
-    dt_loader = TrafficHourDataLoader(dt_ingestor)
+    dt_loader = TrafficHourDataLoader(dt_ingestor, not disable_sample_cache)
     fs_loader_hour = TrafficFStoreLoader(fs_ingestor_hour)
     fs_loader_day = TrafficFStoreLoader(fs_ingestor_day)
 

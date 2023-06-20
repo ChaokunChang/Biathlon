@@ -42,7 +42,8 @@ if __name__ == "__main__":
     model = load_model(args)
 
     # create a feature extractor for this task
-    fextractor = get_fextractor(args.max_nchunks, args.seed, n_cfgs=args.n_cfgs)
+    fextractor = get_fextractor(args.max_nchunks, args.seed, n_cfgs=args.n_cfgs,
+                                disable_sample_cache=args.disable_sample_cache)
 
     # create a prediction estimator for this task
     if args.pest == 'MC':

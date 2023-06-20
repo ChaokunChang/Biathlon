@@ -158,7 +158,12 @@ class XIPDataLoader:
 
         if self.enable_cache:
             # cache the load_data function, TODO: self managed cache for incremental computation
-            self.load_data = cache_region('short_term')(self.load_data)
+            # self.load_data = cache_region('short_term')(self.load_data)
+            self._load_data = self.load_data
+            self.load_data = self.load_data_w_cache
+            self.cached_reqid = None
+            self.cached_qsample = None
+            self.cached_data = None
 
     def estimate_cardinality(self, request: XIPRequest, qcfg: XIPQueryConfig) -> int:
         raise NotImplementedError
@@ -170,3 +175,20 @@ class XIPDataLoader:
             and datetime column will be converted by dataframe, which is not desired
         """
         raise NotImplementedError
+
+    def load_data_w_cache(self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
+        req_id = request['req_id']
+        if self.cached_reqid == req_id:
+            qcfg['qoffset'] = self.cached_qsample
+        qsample = qcfg['qsample']
+        req_data = self._load_data(request, qcfg, cols)
+        if self.cached_reqid == req_id:
+            if len(req_data) > 0 and len(self.cached_data) > 0:
+                req_data = np.concatenate([self.cached_data, req_data], axis=0)
+            else:
+                if len(self.cached_data) > 0:
+                    req_data = self.cached_data
+        self.cached_reqid = req_id
+        self.cached_qsample = qsample
+        self.cached_data = req_data
+        return req_data

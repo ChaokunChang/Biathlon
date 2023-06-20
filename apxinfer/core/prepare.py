@@ -104,6 +104,8 @@ class XIPPrepareWorker:
         self.logger.info(f'Creating dataset for {self.model_type} {self.model_name}')
         requests = self.get_requests()
         requests = requests.add_prefix('req_')
+        # add request_id column
+        requests.insert(0, 'req_id', range(len(requests)))
 
         features = self.get_features(requests)
         features = features.add_prefix('f_')
@@ -114,10 +116,11 @@ class XIPPrepareWorker:
         dataset = pd.concat([requests.reset_index(drop=True),
                              features.reset_index(drop=True),
                              labels.reset_index(drop=True)], axis=1)
+
         # remove the requests that have no features or labels
         dataset = dataset.dropna()
-        # add request_id column
-        dataset.insert(0, 'req_id', range(len(dataset)))
+        self.logger.info(f'droped {len(dataset) - len(requests)}x requests')
+
         fnames = list(features.columns)
         label_name = labels.name
         return dataset, fnames, label_name

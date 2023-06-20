@@ -43,7 +43,8 @@ if __name__ == "__main__":
 
     # create a feature extractor for this task
     fextractor = get_fextractor(args.max_nchunks, args.seed, n_cfgs=args.n_cfgs,
-                                disable_sample_cache=args.disable_sample_cache)
+                                disable_sample_cache=args.disable_sample_cache,
+                                disable_query_cache=args.disable_query_cache)
 
     # create a prediction estimator for this task
     if args.pest == 'MC':

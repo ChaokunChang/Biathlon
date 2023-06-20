@@ -24,6 +24,7 @@ class OnlineArgs(BaseXIPArgs):
     n_cfgs: int = 5  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
+    disable_query_cache: bool = False  # whether to disable cache the query in loader
 
     pest_constraint: Literal['conf', 'error', 'relative_error'] = 'relative_error'  # prediction estimation constraint
     pest: Literal['MC'] = 'MC'  # prediction estimation method

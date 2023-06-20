@@ -25,8 +25,8 @@ def req_to_dt(request: TrafficRequest) -> dt.datetime:
     return datetime
 
 
-def dt_to_req(datetime: dt.datetime, borough: str) -> TrafficRequest:
-    request = TrafficRequest(req_year=datetime.year, req_month=datetime.month,
+def dt_to_req(datetime: dt.datetime, req_id: int, borough: str) -> TrafficRequest:
+    request = TrafficRequest(req_id=req_id, req_year=datetime.year, req_month=datetime.month,
                              req_day=datetime.day, req_hour=datetime.hour, req_borough=borough)
     return request
 

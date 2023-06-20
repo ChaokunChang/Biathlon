@@ -6,18 +6,11 @@ import logging
 import warnings
 import clickhouse_connect
 from clickhouse_connect.driver.client import Client
-from beaker.cache import cache_regions, cache_region
 
 from apxinfer.core.utils import XIPRequest, XIPQueryConfig
 
 logging.basicConfig(level=logging.INFO)
 warnings.filterwarnings("ignore", category=UserWarning)
-cache_regions.update({
-    'short_term': {
-        'expire': 60,
-        'type': 'memory'
-    }
-})
 
 
 class DBHelper:
@@ -180,6 +173,8 @@ class XIPDataLoader:
         req_id = request['req_id']
         if self.cached_reqid == req_id:
             qcfg['qoffset'] = self.cached_qsample
+            if self.cached_qsample == qcfg['qsample']:
+                return self.cached_data
         qsample = qcfg['qsample']
         req_data = self._load_data(request, qcfg, cols)
         if self.cached_reqid == req_id:

@@ -84,7 +84,9 @@ if __name__ == '__main__':
     # os.makedirs(working_dir, exist_ok=True)
     working_dir = DIRHelper.get_prepare_dir(args)
 
-    fextractor = get_fextractor(max_nchunks, seed, n_cfgs, disable_sample_cache=True)
+    fextractor = get_fextractor(max_nchunks, seed, n_cfgs,
+                                disable_sample_cache=True,
+                                disable_query_cache=True)
     pworker = TrafficPrepareWorker(working_dir, fextractor, max_requests,
                                    train_ratio, valid_ratio,
                                    model_type, model_name, seed)

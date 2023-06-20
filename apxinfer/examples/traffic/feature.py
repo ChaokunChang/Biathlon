@@ -6,7 +6,9 @@ from apxinfer.examples.traffic.query import TrafficQP0, TrafficQP1, TrafficQP2
 from apxinfer.examples.traffic.query import TrafficQP3, TrafficQP4
 
 
-def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int, disable_sample_cache: bool) -> XIPFeatureExtractor:
+def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
+                   disable_sample_cache: bool,
+                   disable_query_cache: bool = False) -> XIPFeatureExtractor:
     # ingestors
     dt_ingestor = TrafficDataIngestor(dsrc_type='user_files', dsrc="file('DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
                                       database='xip', table='traffic',
@@ -27,15 +29,15 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int, disable_sample_cach
 
     # data loader
     dt_loader = TrafficHourDataLoader(dt_ingestor, not disable_sample_cache)
-    fs_loader_hour = TrafficFStoreLoader(fs_ingestor_hour)
-    fs_loader_day = TrafficFStoreLoader(fs_ingestor_day)
+    fs_loader_hour = TrafficFStoreLoader(fs_ingestor_hour, not disable_sample_cache)
+    fs_loader_day = TrafficFStoreLoader(fs_ingestor_day, not disable_sample_cache)
 
     # Create dataset
-    qp0 = TrafficQP0(key='query_0')
-    qp1 = TrafficQP1(key='query_1', data_loader=fs_loader_hour)
-    qp2 = TrafficQP2(key='query_2', data_loader=dt_loader, n_cfgs=n_cfgs)
-    qp3 = TrafficQP3(key='query_3', data_loader=fs_loader_day)
-    qp4 = TrafficQP4(key='query_4', data_loader=fs_loader_hour)
+    qp0 = TrafficQP0(key='query_0', enable_cache=not disable_query_cache)
+    qp1 = TrafficQP1(key='query_1', data_loader=fs_loader_hour, enable_cache=not disable_query_cache)
+    qp2 = TrafficQP2(key='query_2', data_loader=dt_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+    qp3 = TrafficQP3(key='query_3', data_loader=fs_loader_day, enable_cache=not disable_query_cache)
+    qp4 = TrafficQP4(key='query_4', data_loader=fs_loader_hour, enable_cache=not disable_query_cache)
     queries = [qp0, qp1, qp2, qp3, qp4]
     fextractor = XIPFeatureExtractor(queries)
     return fextractor

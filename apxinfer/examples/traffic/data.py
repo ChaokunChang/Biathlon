@@ -174,9 +174,9 @@ class TrafficHourDataLoader(XIPDataLoader):
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
-            WHERE pid BETWEEN {from_pid} AND {to_pid}
+            WHERE pid >= {from_pid} AND pid < {to_pid}
                 AND borough = '{request["req_borough"]}'
-                AND data_as_of BETWEEN '{req_dt}' AND '{req_dt_plus_1h}'
+                AND data_as_of >= '{req_dt}' AND data_as_of < '{req_dt_plus_1h}'
         """
         return self.db_client.query_np(sql)
 

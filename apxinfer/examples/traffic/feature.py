@@ -28,16 +28,17 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
     fs_ingestor_day.run()
 
     # data loader
-    dt_loader = TrafficHourDataLoader(dt_ingestor, not disable_sample_cache)
-    fs_loader_hour = TrafficFStoreLoader(fs_ingestor_hour, not disable_sample_cache)
-    fs_loader_day = TrafficFStoreLoader(fs_ingestor_day, not disable_sample_cache)
+    qp1_loader = TrafficFStoreLoader(fs_ingestor_hour, not disable_sample_cache)
+    qp2_loader = TrafficHourDataLoader(dt_ingestor, not disable_sample_cache)
+    qp3_loader = TrafficFStoreLoader(fs_ingestor_day, not disable_sample_cache)
+    qp4_loader = TrafficFStoreLoader(fs_ingestor_hour, not disable_sample_cache)  # avoid cache influence
 
     # Create dataset
     qp0 = TrafficQP0(key='query_0', enable_cache=not disable_query_cache)
-    qp1 = TrafficQP1(key='query_1', data_loader=fs_loader_hour, enable_cache=not disable_query_cache)
-    qp2 = TrafficQP2(key='query_2', data_loader=dt_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
-    qp3 = TrafficQP3(key='query_3', data_loader=fs_loader_day, enable_cache=not disable_query_cache)
-    qp4 = TrafficQP4(key='query_4', data_loader=fs_loader_hour, enable_cache=not disable_query_cache)
+    qp1 = TrafficQP1(key='query_1', data_loader=qp1_loader, enable_cache=not disable_query_cache)
+    qp2 = TrafficQP2(key='query_2', data_loader=qp2_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+    qp3 = TrafficQP3(key='query_3', data_loader=qp3_loader, enable_cache=not disable_query_cache)
+    qp4 = TrafficQP4(key='query_4', data_loader=qp4_loader, enable_cache=not disable_query_cache)
     queries = [qp0, qp1, qp2, qp3, qp4]
     fextractor = XIPFeatureExtractor(queries)
     return fextractor

@@ -129,7 +129,6 @@ class XIPPrepareWorker:
         self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')
         model = create_model(self.model_type, self.model_name, random_state=self.seed)
         model.fit(X.values, y.values)
-        joblib.dump(model, osp.join(self.working_dir, 'model', f'{self.model_name}.pkl'))
         return model
 
     def prepare_dirs(self):
@@ -148,9 +147,12 @@ class XIPPrepareWorker:
         else:
             dataset, fnames, label_name = self.create_dataset()
             dataset.to_csv(osp.join(self.working_dir, 'dataset', 'dataset.csv'), index=False)
+
         train_set, valid_set, test_set = train_valid_test_split(dataset=dataset, train_ratio=self.train_ratio,
                                                                 valid_ratio=self.valid_ratio, seed=self.seed)
+
         model = self.build_model(train_set[fnames], train_set[label_name])
+        joblib.dump(model, osp.join(self.working_dir, 'model', f'{self.model_name}.pkl'))
 
         # save the dataset
         self.logger.info(f'Saving dataset for {self.model_type} {self.model_name}')

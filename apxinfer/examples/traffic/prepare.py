@@ -3,6 +3,7 @@ import os
 from tqdm import tqdm
 
 from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.model import XIPModel, XIPRegressor
 from apxinfer.core.prepare import XIPPrepareWorker
 from apxinfer.core.config import PrepareArgs, DIRHelper
 
@@ -62,6 +63,20 @@ class TrafficPrepareWorker(XIPPrepareWorker):
 
     def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
         return super().get_features(requests)
+
+    def build_model(self, X: pd.DataFrame, y: pd.Series) -> XIPModel:
+        if self.model_name == 'mlp':
+            self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')
+            from sklearn.neural_network import MLPRegressor
+            model = XIPRegressor(MLPRegressor(hidden_layer_sizes=(100, 50, 100),
+                                              random_state=self.seed,
+                                              learning_rate_init=0.01,
+                                              max_iter=1000,
+                                              verbose=True))
+            model.fit(X.values, y.values)
+            return model
+        else:
+            return super().build_model(X, y)
 
 
 class TrafficPrepareArgs(PrepareArgs):

@@ -5,6 +5,9 @@ import logging
 from sklearn import metrics
 from sklearn.base import BaseEstimator
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import HuberRegressor, QuantileRegressor
+from sklearn.linear_model import RANSACRegressor, TheilSenRegressor
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
@@ -68,6 +71,11 @@ SUPPORTED_MODELS = {
     "regressor": {"lgbm": LGBMRegressor,
                   "xgb": xgb.XGBRegressor,
                   "lr": LinearRegression,
+                  'ridge': Ridge,
+                  'huber': HuberRegressor,
+                  'quantile': QuantileRegressor,
+                  'ransac': RANSACRegressor,
+                  'theilsen': TheilSenRegressor,
                   "dt": DecisionTreeRegressor,
                   "rf": RandomForestRegressor,
                   "svm": SVR,
@@ -88,6 +96,10 @@ def create_model(model_type: Literal["regressor", "classifier"], model_name: str
     if model_type == "regressor":
         if model_name == 'lr':
             return XIPRegressor(LinearRegression())
+        elif model_name == 'huber':
+            return XIPRegressor(HuberRegressor())
+        elif model_name == 'quantile':
+            return XIPRegressor(QuantileRegressor())
         else:
             return XIPRegressor(SUPPORTED_MODELS["regressor"][model_name](**kwargs))
     elif model_type == "classifier":

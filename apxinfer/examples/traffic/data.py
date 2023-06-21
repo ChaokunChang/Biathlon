@@ -177,6 +177,7 @@ class TrafficHourDataLoader(XIPDataLoader):
             WHERE pid >= {from_pid} AND pid < {to_pid}
                 AND borough = '{request["req_borough"]}'
                 AND data_as_of >= '{req_dt}' AND data_as_of < '{req_dt_plus_1h}'
+                SETTINGS max_threads = 1
         """
         return self.db_client.query_np(sql)
 

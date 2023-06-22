@@ -99,10 +99,15 @@ class XIPDataIngestor:
         self.max_nchunks = max_nchunks
         self.seed = seed
 
+        self.db_client = DBHelper.get_db_client()
         self.logger = logging.getLogger('XIPDataIngestor')
 
     def create_database(self) -> None:
-        raise NotImplementedError
+        self.logger.info(f'Creating database {self.database}')
+        if DBHelper.database_exists(self.db_client, self.database):
+            self.logger.info(f'Database {self.database} already exists')
+            return
+        self.db_client.command(f'CREATE DATABASE IF NOT EXISTS {self.database}')
 
     def drop_table(self) -> None:
         raise NotImplementedError

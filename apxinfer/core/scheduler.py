@@ -89,4 +89,9 @@ class XIPScheduler:
                     continue
                 next_qcfgs[qid] = self.fextractor.queries[qid].cfg_pools[qcfg_id + 1]
                 num -= 1
+
+        # if qcard is too small, just use final qcfgs
+        for qid in range(len(qcfgs)):
+            if qcosts[qid]['qcard'] is not None and qcosts[qid]['qcard'] < 30:
+                next_qcfgs[qid] = self.fextractor.queries[qid].cfg_pools[-1]
         return next_qcfgs

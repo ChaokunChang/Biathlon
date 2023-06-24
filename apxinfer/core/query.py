@@ -36,3 +36,9 @@ class XIPQuery:
     def estimate_inc_cost(self, request: XIPRequest, qcfg: XIPQueryConfig) -> float:
         """ Estimate the incremental cost of extracting features for a request """
         raise NotImplementedError
+
+    def estimate_cardinality(self, request: XIPRequest, qcfg: XIPQueryConfig) -> int:
+        """ Get the number of data loaded for this query """
+        if self.data_loader is not None:
+            return self.data_loader.estimate_cardinality(request, qcfg)
+        return None

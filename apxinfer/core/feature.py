@@ -207,7 +207,10 @@ class XIPFeatureExtractor:
             st = time.time()
             fvecs.append(self.queries[i].run(requets, qcfgs[i]))
             et = time.time()
-            qcosts.append(QueryCostEstimation(time=et - st, memory=None))
+            qcard = self.queries[i].estimate_cardinality(requets, qcfgs[i])
+            qcosts.append(QueryCostEstimation(time=et - st,
+                                              memory=None,
+                                              qcard=qcard))
         return merge_fvecs(fvecs), qcosts
 
     def extract_fs_only(self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]) -> XIPFeatureVec:

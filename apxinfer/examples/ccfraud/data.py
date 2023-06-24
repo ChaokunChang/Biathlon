@@ -8,17 +8,18 @@ from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 
 class CCFraudRequest(XIPRequest):
-    uid: int
-    card_index: int
-    txn_datetime: dt.datetime
-    amount: float
-    use_chip: str
-    merchant_name: str
-    merchant_city: str
-    merchant_state: str
-    zip_code: int
-    mcc: int
-    errors: str
+    req_txn_id: int
+    req_uid: int
+    req_card_index: int
+    req_txn_datetime: dt.datetime
+    req_amount: float
+    req_use_chip: str
+    req_merchant_name: str
+    req_merchant_city: str
+    req_merchant_state: str
+    req_zip_code: int
+    req_mcc: int
+    req_errors: str
 
 
 class CCFraudQConfig(XIPQueryConfig, total=False):
@@ -36,7 +37,7 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
             self.logger.info(f'Table {self.table} already exists in database {self.database}')
             return
         sql = f""" CREATE TABLE IF NOT EXISTS {self.database}.{self.table} (
-                    row_id UInt32,
+                    txn_id UInt32,
                     uid UInt32,
                     card_index UInt32,
                     txn_datetime DateTime,
@@ -56,7 +57,7 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
                     is_fraud UInt8,
                     pid UInt32 -- partition key, used for sampling
                 ) ENGINE = MergeTree()
-                ORDER BY (pid, uid, txn_datetime)
+                ORDER BY (pid, uid, card_index, txn_datetime)
                 SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)
@@ -82,7 +83,7 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
                     errors String,
                     is_fraud UInt8
             ) ENGINE = MergeTree()
-            ORDER BY (uid, txn_datetime)
+            ORDER BY (uid, card_index, txn_datetime)
             """
         self.db_client.command(sql)
         if DBHelper.table_empty(self.db_client, self.database, aux_table):
@@ -127,18 +128,21 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
             SELECT tmp1.*, tmp2.pid
             FROM
             (
-                SELECT rowNumberInAllBlocks() as row_id, *
+                SELECT rowNumberInAllBlocks() as txn_id, *
                 FROM {self.database}.{aux_table}
             ) as tmp1
             JOIN
             (
-                SELECT rowNumberInAllBlocks() as row_id, value % {self.max_nchunks} as pid
+                SELECT rowNumberInAllBlocks() as txn_id, value % {self.max_nchunks} as pid
                 FROM generateRandom('value UInt32', {self.seed})
                 LIMIT {nrows}
             ) as tmp2
-            ON tmp1.row_id = tmp2.row_id
+            ON tmp1.txn_id = tmp2.txn_id
         """
         self.db_client.command(sql)
+
+        # we drop the auxiliary table
+        self.drop_aux_table(aux_table)
 
     def drop_aux_table(self, aux_table: str) -> None:
         DBHelper.drop_table(self.db_client, self.database, aux_table)
@@ -156,23 +160,24 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
 
 
 class CCFraudTxnsLoader(XIPDataLoader):
-    def __init__(self, ingestor: CCFraudTxnsIngestor, window_size: int,
-                 condition_cols: List[str] = ['uid', 'card_index'],
+    def __init__(self, ingestor: CCFraudTxnsIngestor,
+                 window_size: int = 30,
+                 condition_cols: List[str] = ['uid'],
                  enable_cache: bool = False) -> None:
         super().__init__('clickhouse', ingestor.database, ingestor.table,
                          ingestor.seed, enable_cache=enable_cache)
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
         self.max_nchunks = ingestor.max_nchunks
-        self.window_size = window_size  # window size in hours
+        self.window_size = window_size  # window size in days
         self.condition_cols = condition_cols
 
     def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
         from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
         to_pid = self.max_nchunks * qcfg['qsample']
-        req_dt = request['txn_datetime']
-        from_dt = req_dt + dt.timedelta(hours=-self.window_size)
-        conditon_values = [request[col] for col in self.condition_cols]
+        req_dt = request['req_txn_datetime']
+        from_dt = req_dt + dt.timedelta(days=-self.window_size)
+        conditon_values = [request[f'req_{col}'] for col in self.condition_cols]
         condtions = [f'{col} = {val}' for col, val in zip(self.condition_cols, conditon_values)]
         sql = f"""
             SELECT {', '.join(cols)}
@@ -216,7 +221,9 @@ class CCFraudCardsIngestor(CCFraudTxnsIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(f'Ingesting data from {self.dsrc} into table {self.table} in database {self.database}')
-
+        if not DBHelper.table_empty(self.db_client, self.database, self.table):
+            self.logger.info(f'Table {self.table} in database {self.database} is not empty')
+            return
         # ingest data into feature store, i.e. table {self.table}
         sql = f"""
             INSERT INTO {self.database}.{self.table}
@@ -228,7 +235,6 @@ class CCFraudCardsIngestor(CCFraudTxnsIngestor):
                     toFloat64(replaceAll(`Credit Limit`, '$', '')) AS credit_limit,
                     `Acct Open Date` AS acct_open_date, `Year PIN last Changed` AS pin_last_changed,
                     (`Card on Dark Web` == 'Yes') AS card_on_dark_web
-
                 FROM {self.dsrc}
                 FORMAT CSVWithNames
         """
@@ -244,8 +250,8 @@ class CCFraudCardsLoader(XIPDataLoader):
         self.db_client = ingestor.db_client
 
     def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
-        uid = request['uid']
-        card_index = request['card_index']
+        uid = request['req_uid']
+        card_index = request['req_card_index']
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
@@ -259,6 +265,7 @@ class CCFraudCardsLoader(XIPDataLoader):
             if len(df) == 1:
                 return df.values[0]
             else:
+                print(f'req={request}, cols={cols}, df={df}')
                 raise ValueError('feature aggregation is not supported yet')
 
 
@@ -299,7 +306,9 @@ class CCFraudUsersIngestor(CCFraudTxnsIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(f'Ingesting data from {self.dsrc} into table {self.table} in database {self.database}')
-
+        if not DBHelper.table_empty(self.db_client, self.database, self.table):
+            self.logger.info(f'Table {self.table} in database {self.database} is not empty')
+            return
         # ingest data into feature store, i.e. table {self.table}
         sql = f"""
             INSERT INTO {self.database}.{self.table}
@@ -326,6 +335,32 @@ class CCFraudUsersIngestor(CCFraudTxnsIngestor):
                 FORMAT CSVWithNames
         """
         self.db_client.command(sql)
+
+
+class CCFraudUsersLoader(XIPDataLoader):
+    def __init__(self, ingestor: CCFraudUsersIngestor,
+                 enable_cache: bool = False) -> None:
+        super().__init__('clickhouse', ingestor.database, ingestor.table,
+                         ingestor.seed, enable_cache=enable_cache)
+        self.ingestor = ingestor
+        self.db_client = ingestor.db_client
+
+    def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
+        uid = request['req_uid']
+        sql = f"""
+            SELECT {', '.join(cols)}
+            FROM {self.database}.{self.table}
+            WHERE uid = {uid}
+        """
+        df: pd.DataFrame = self.db_client.query_df(sql)
+        if df.empty:
+            self.logger.warning(f'No data found for request {request}')
+            return np.zeros(len(cols))
+        else:
+            if len(df) == 1:
+                return df.values[0]
+            else:
+                raise ValueError('feature aggregation is not supported yet')
 
 
 if __name__ == "__main__":

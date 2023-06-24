@@ -152,6 +152,7 @@ class XIPDataLoader:
         self.seed = seed
         self.enable_cache = enable_cache
 
+        self.db_client = DBHelper.get_db_client()
         self.logger = logging.getLogger('XIPDataLoader')
 
         if self.enable_cache:
@@ -164,7 +165,11 @@ class XIPDataLoader:
             self.cached_data = None
 
     def estimate_cardinality(self, request: XIPRequest, qcfg: XIPQueryConfig) -> int:
-        raise NotImplementedError
+        if self.enable_cache:
+            assert self.cached_data is not None and self.cached_reqid == request['req_id'] and self.cached_qsample == qcfg['qsample']
+            qcard = int(len(self.cached_data) / self.cached_qsample)
+            return qcard
+        return None
 
     def load_data(self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         """ Load request related data

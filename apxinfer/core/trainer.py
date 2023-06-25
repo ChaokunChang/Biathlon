@@ -4,7 +4,6 @@ import os.path as osp
 import joblib
 import logging
 import json
-from typing import Tuple
 from sklearn import metrics
 
 from apxinfer.core.model import XIPModel, create_model, evaluate_model

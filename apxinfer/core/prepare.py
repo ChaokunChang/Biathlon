@@ -3,18 +3,14 @@ import pandas as pd
 import time
 import os
 import os.path as osp
-import joblib
 import logging
 import json
 from tqdm import tqdm
 from typing import List, Tuple
-from sklearn import metrics
 
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.data import DBHelper
-# from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import XIPFeatureExtractor
-from apxinfer.core.model import XIPModel, create_model, evaluate_model
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,6 +57,9 @@ class XIPPrepareWorker:
         self.seed = seed
         self.logger = logging.getLogger('DatasetCreator')
 
+        self.dataset_dir = osp.join(self.working_dir, 'dataset')
+        os.makedirs(self.dataset_dir, exist_ok=True)
+
     def get_requests(self) -> pd.DataFrame:
         self.logger.info(f'Getting requests for {osp.basename(self.working_dir)}')
         raise NotImplementedError
@@ -94,9 +93,9 @@ class XIPPrepareWorker:
             qcosts.append(time.time() - st)
         features = np.concatenate(qfeatures_list, axis=1)
         features = pd.DataFrame(features, columns=fnames)
-        with open(osp.join(self.working_dir, 'dataset', 'qcosts.json'), 'w') as f:
+        with open(osp.join(self.working_dir, 'qcosts.json'), 'w') as f:
             json.dump({'num_requests': num_requests, 'qcosts': qcosts}, f, indent=4)
-        features.to_csv(osp.join(self.working_dir, 'dataset', 'features.csv'), index=False)
+        features.to_csv(osp.join(self.working_dir, 'features.csv'), index=False)
         return features
 
     def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
@@ -125,39 +124,26 @@ class XIPPrepareWorker:
         label_name = labels.name
         return dataset, fnames, label_name
 
-    def build_model(self, X: pd.DataFrame, y: pd.Series) -> XIPModel:
-        self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')
-        model = create_model(self.model_type, self.model_name, random_state=self.seed)
-        model.fit(X.values, y.values)
-        return model
-
-    def prepare_dirs(self):
-        dataset_dir = osp.join(self.working_dir, 'dataset')
-        model_dir = osp.join(self.working_dir, 'model')
-        for d in [dataset_dir, model_dir]:
-            os.makedirs(d, exist_ok=True)
-
     def run(self, skip_dataset: bool = False) -> None:
-        self.prepare_dirs()
         if skip_dataset:
-            dataset = pd.read_csv(osp.join(self.working_dir, 'dataset', 'dataset.csv'))
+            dataset = pd.read_csv(osp.join(self.dataset_dir, 'dataset.csv'))
             cols = list(dataset.columns)
             fnames = [col for col in cols if col.startswith('f_')]
             label_name = cols[-1]
         else:
             dataset, fnames, label_name = self.create_dataset()
-            dataset.to_csv(osp.join(self.working_dir, 'dataset', 'dataset.csv'), index=False)
+            dataset.to_csv(osp.join(self.dataset_dir, 'dataset.csv'), index=False)
 
         train_set, valid_set, test_set = train_valid_test_split(dataset=dataset, train_ratio=self.train_ratio,
                                                                 valid_ratio=self.valid_ratio, seed=self.seed)
         # save the dataset
         self.logger.info(f'Saving dataset for {self.model_type} {self.model_name}')
-        train_set.to_csv(osp.join(self.working_dir, 'dataset', 'train_set.csv'), index=False)
-        valid_set.to_csv(osp.join(self.working_dir, 'dataset', 'valid_set.csv'), index=False)
-        test_set.to_csv(osp.join(self.working_dir, 'dataset', 'test_set.csv'), index=False)
+        train_set.to_csv(osp.join(self.dataset_dir, 'train_set.csv'), index=False)
+        valid_set.to_csv(osp.join(self.dataset_dir, 'valid_set.csv'), index=False)
+        test_set.to_csv(osp.join(self.dataset_dir, 'test_set.csv'), index=False)
 
         # save dataset statistics
         self.logger.info(f'Saving dataset statistics for {self.model_type} {self.model_name}')
-        train_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'train_set_stats.csv'))
-        valid_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'valid_set_stats.csv'))
-        test_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'test_set_stats.csv'))
+        train_set.describe().to_csv(osp.join(self.dataset_dir, 'train_set_stats.csv'))
+        valid_set.describe().to_csv(osp.join(self.dataset_dir, 'valid_set_stats.csv'))
+        test_set.describe().to_csv(osp.join(self.dataset_dir, 'test_set_stats.csv'))

@@ -3,7 +3,6 @@ import os
 from tqdm import tqdm
 
 from apxinfer.core.feature import XIPFeatureExtractor
-from apxinfer.core.model import XIPModel, XIPRegressor
 from apxinfer.core.prepare import XIPPrepareWorker
 from apxinfer.core.config import PrepareArgs, DIRHelper
 
@@ -66,6 +65,7 @@ class TrafficPrepareWorker(XIPPrepareWorker):
 
 
 class TrafficPrepareArgs(PrepareArgs):
+    plus: bool = False
     pass
 
 

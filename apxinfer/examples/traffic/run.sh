@@ -1,11 +1,11 @@
-python prepare.py --task traffic
-python prepare.py --task traffic --model mlp
-python prepare.py --task traffic --model xgb
-python prepare.py --task traffic --model dt
-python prepare.py --task traffic --model lr
+# Usage: bash run.sh
 
-python prepare.py --task traffic_plus --max_request 10000
-python prepare.py --task traffic_plus --model mlp --max_request 10000
-python prepare.py --task traffic_plus --model xgb --max_request 10000
-python prepare.py --task traffic_plus --model dt --max_request 10000
-python prepare.py --task traffic_plus --model lr --max_request 10000
+python prepare.py --max_request 10000 --task traffic --skip_dataset
+python trainer.py --task traffic --model lr
+python online.py --task traffic --model lr --exact
+python online.py --task traffic --model lr
+python online.py --task traffic --model lr --max_relative_error 0.1 --min_conf 0.99 --n_cfgs 5
+python online.py --task traffic --model lr --max_relative_error 0.1 --min_conf 1.0 --n_cfgs 5
+python online.py --task traffic --model lr --max_relative_error 0.1 --min_conf 0.99 --n_cfgs 3
+python online.py --task traffic --model lr --max_relative_error 0.1 --min_conf 0.99 --n_cfgs 10
+

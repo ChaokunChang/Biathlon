@@ -57,7 +57,6 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
                                            seed=seed,
                                            n_cfgs=n_cfgs)
                            )
-
     else:
         q1 = TaxiTripQ1(key='query_1', enable_cache=not disable_query_cache,
                         max_nchunks=max_nchunks, seed=seed,
@@ -68,7 +67,7 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
         q3 = TaxiTripQ3(key='query_3', enable_cache=not disable_query_cache,
                         max_nchunks=max_nchunks, seed=seed,
                         n_cfgs=n_cfgs)
-        queries = queries.extend([q1, q2, q3])
+        queries.extend([q1, q2, q3])
     # create fextractor
     fextractor = XIPFeatureExtractor(queries=queries,
                                      enable_cache=not disable_sample_cache)

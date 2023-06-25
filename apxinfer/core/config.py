@@ -20,7 +20,7 @@ class PrepareArgs(BaseXIPArgs):
 
 
 class TrainerArgs(BaseXIPArgs):
-    pass
+    plus: bool = False  # whether to use plus features
 
 
 class OnlineArgs(BaseXIPArgs):

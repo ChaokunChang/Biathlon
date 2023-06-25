@@ -31,8 +31,12 @@ def load_dataset(args: OnlineArgs, name: str,
     return dataset
 
 
+class TrafficOnlineArgs(OnlineArgs):
+    plus: bool = False
+
+
 if __name__ == "__main__":
-    args = OnlineArgs().parse_args()
+    args = TrafficOnlineArgs().parse_args()
 
     # load test data
     test_set = load_dataset(args, 'test', args.num_requests)

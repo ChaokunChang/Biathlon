@@ -236,19 +236,19 @@ class TaxiTripAGGFull(XIPQuery):
                                                     window_hours=self.window_hours,
                                                     condition_cols=self.condition_cols,
                                                     finished_only=self.finished_only)
-
+        fname_suffix = f"{self.window_hours}h_cond_{'-'.join(self.condition_cols)}_{'finished' if self.finished_only else 'all'}"
         fnames = []
         for agg in self.aggs:
             if agg == 'count':
-                fnames.append(f'count_{self.window_hours}h')
+                fnames.append(f'count_{fname_suffix}')
             elif agg == 'unique':
                 for dcol in self.dcols:
                     if dcol in ['pickup_ntaname', 'dropoff_ntaname', 'passenger_count']:
-                        fnames.append(f'unique_{dcol}_{self.window_hours}h')
+                        fnames.append(f'unique_{dcol}_{fname_suffix}')
             else:
                 for dcol in self.dcols:
                     if dcol not in ['pickup_ntaname', 'dropoff_ntaname']:
-                        fnames.append(f'{agg}_{dcol}_{self.window_hours}h')
+                        fnames.append(f'{agg}_{dcol}_{fname_suffix}')
 
         if n_cfgs == 0:
             qsamples = [0.1, 0.5, 1.0]

@@ -178,7 +178,7 @@ class CCFraudTxnsLoader(XIPDataLoader):
         req_dt = request['req_txn_datetime']
         from_dt = req_dt + dt.timedelta(days=-self.window_size)
         conditon_values = [request[f'req_{col}'] for col in self.condition_cols]
-        condtions = [f'{col} = {val}' for col, val in zip(self.condition_cols, conditon_values)]
+        condtions = [f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)]
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}

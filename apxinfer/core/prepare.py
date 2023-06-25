@@ -150,15 +150,8 @@ class XIPPrepareWorker:
 
         train_set, valid_set, test_set = train_valid_test_split(dataset=dataset, train_ratio=self.train_ratio,
                                                                 valid_ratio=self.valid_ratio, seed=self.seed)
-
-        model = self.build_model(train_set[fnames], train_set[label_name])
-        joblib.dump(model, osp.join(self.working_dir, 'model', f'{self.model_name}.pkl'))
-
         # save the dataset
         self.logger.info(f'Saving dataset for {self.model_type} {self.model_name}')
-        train_set['ppl_pred'] = model.predict(train_set[fnames].values)
-        valid_set['ppl_pred'] = model.predict(valid_set[fnames].values)
-        test_set['ppl_pred'] = model.predict(test_set[fnames].values)
         train_set.to_csv(osp.join(self.working_dir, 'dataset', 'train_set.csv'), index=False)
         valid_set.to_csv(osp.join(self.working_dir, 'dataset', 'valid_set.csv'), index=False)
         test_set.to_csv(osp.join(self.working_dir, 'dataset', 'test_set.csv'), index=False)
@@ -168,37 +161,3 @@ class XIPPrepareWorker:
         train_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'train_set_stats.csv'))
         valid_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'valid_set_stats.csv'))
         test_set.describe().to_csv(osp.join(self.working_dir, 'dataset', 'test_set_stats.csv'))
-
-        # save evaluations
-        self.logger.info(f'Saving evaluations for {self.model_type} {self.model_name}')
-        train_evals = evaluate_model(model, train_set[fnames].values, train_set[label_name].values)
-        valid_evals = evaluate_model(model, valid_set[fnames].values, valid_set[label_name].values)
-        test_evals = evaluate_model(model, test_set[fnames].values, test_set[label_name].values)
-        all_evals = {
-            'train': train_evals,
-            'valid': valid_evals,
-            'test': test_evals
-        }
-        with open(osp.join(self.working_dir, 'model', f'{self.model_name}_evals.json'), 'w') as f:
-            json.dump(all_evals, f, indent=4)
-
-        # for classification pipeline, we print and save the classification report
-        if self.model_type == 'classification':
-            self.logger.info(f'Saving classification reports for {self.model_type} {self.model_name}')
-            train_report = metrics.classification_report(train_set[label_name], train_set['ppl_pred'])
-            valid_report = metrics.classification_report(valid_set[label_name], valid_set['ppl_pred'])
-            test_report = metrics.classification_report(test_set[label_name], test_set['ppl_pred'])
-            self.logger.info(train_report)
-            self.logger.info(valid_report)
-            self.logger.info(test_report)
-            with open(osp.join(self.working_dir, 'model', f'{self.model_name}_classification_reports.txt'), 'w') as f:
-                f.write(f"train_report: \n{train_report}\n")
-                f.write(f"valid_report: \n{valid_report}\n")
-                f.write(f"test_report: \n{test_report}\n")
-
-        # save global feature importance of the model
-        self.logger.info(f'Calculating global feature importance for {self.model_type} {self.model_name}')
-        feature_importance = model.get_feature_importances()
-        gfimps: pd.DataFrame = pd.DataFrame({'fname': fnames, 'importance': feature_importance}, columns=['fname', 'importance'])
-        gfimps.to_csv(osp.join(self.working_dir, 'model', f'{self.model_name}_feature_importance.csv'), index=False)
-        self.logger.info(gfimps)

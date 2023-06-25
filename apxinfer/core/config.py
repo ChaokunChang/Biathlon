@@ -19,6 +19,10 @@ class PrepareArgs(BaseXIPArgs):
     valid_ratio: float = 0.3  # ratio of validation data
 
 
+class TrainerArgs(BaseXIPArgs):
+    pass
+
+
 class OnlineArgs(BaseXIPArgs):
     num_requests: int = 0  # number of test requests
     n_cfgs: int = 5  # number of query configurations

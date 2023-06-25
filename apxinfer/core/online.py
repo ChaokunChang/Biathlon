@@ -33,7 +33,7 @@ class OnlineExecutor:
         requests = dataset[req_cols].to_dict(orient='records')
         labels = dataset[label_col].to_numpy()
         ext_features = dataset[fcols].to_numpy()
-        ext_preds = dataset[['ppl_pred']].to_numpy()
+        ext_preds = self.ppl.model.predict(ext_features)
 
         self.requests = requests
         self.labels = labels

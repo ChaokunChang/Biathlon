@@ -34,8 +34,12 @@ def load_dataset(args: OnlineArgs, name: str,
     return dataset
 
 
+class CCFraudOnlineArgs(OnlineArgs):
+    plus: bool = False
+
+
 if __name__ == "__main__":
-    args = OnlineArgs().parse_args()
+    args = CCFraudOnlineArgs().parse_args()
 
     # load test data
     test_set = load_dataset(args, 'test', args.num_requests)
@@ -47,7 +51,8 @@ if __name__ == "__main__":
     # create a feature extractor for this task
     fextractor = get_fextractor(args.max_nchunks, args.seed, n_cfgs=args.n_cfgs,
                                 disable_sample_cache=args.disable_sample_cache,
-                                disable_query_cache=args.disable_query_cache)
+                                disable_query_cache=args.disable_query_cache,
+                                plus=args.plus)
 
     # create a prediction estimator for this task
     if args.pest == 'MC':

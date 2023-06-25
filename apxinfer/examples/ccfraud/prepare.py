@@ -93,7 +93,7 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
 
 
 class CCFraudPrepareArgs(PrepareArgs):
-    pass
+    plus: bool = False
 
 
 if __name__ == '__main__':
@@ -114,7 +114,8 @@ if __name__ == '__main__':
 
     fextractor = get_fextractor(max_nchunks, seed, n_cfgs,
                                 disable_sample_cache=True,
-                                disable_query_cache=True)
+                                disable_query_cache=True,
+                                plus=args.plus)
     pworker = CCFraudPrepareWorker(working_dir, fextractor, max_requests,
                                    train_ratio, valid_ratio,
                                    model_type, model_name, seed)

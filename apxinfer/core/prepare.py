@@ -6,7 +6,7 @@ import os.path as osp
 import logging
 import json
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import Tuple
 
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.data import DBHelper
@@ -98,9 +98,9 @@ class XIPPrepareWorker:
         features.to_csv(osp.join(self.working_dir, 'features.csv'), index=False)
         return features
 
-    def create_dataset(self) -> Tuple[pd.DataFrame, List[str], str]:
+    def create_dataset(self) -> pd.DataFrame:
         # return dataset, fnames, label_name
-        self.logger.info(f'Creating dataset for {self.model_type} {self.model_name}')
+        self.logger.info(f'Creating dataset for {self.dataset_dir}')
         requests = self.get_requests()
         requests = requests.add_prefix('req_')
         # add request_id column
@@ -120,30 +120,25 @@ class XIPPrepareWorker:
         dataset = dataset.dropna()
         self.logger.info(f'droped {len(dataset) - len(requests)}x requests')
 
-        fnames = list(features.columns)
-        label_name = labels.name
-        return dataset, fnames, label_name
+        return dataset
 
     def run(self, skip_dataset: bool = False) -> None:
-        if skip_dataset:
+        if skip_dataset and osp.exists(osp.join(self.dataset_dir, 'dataset.csv')):
             dataset = pd.read_csv(osp.join(self.dataset_dir, 'dataset.csv'))
-            cols = list(dataset.columns)
-            fnames = [col for col in cols if col.startswith('f_')]
-            label_name = cols[-1]
         else:
-            dataset, fnames, label_name = self.create_dataset()
+            dataset = self.create_dataset()
             dataset.to_csv(osp.join(self.dataset_dir, 'dataset.csv'), index=False)
 
         train_set, valid_set, test_set = train_valid_test_split(dataset=dataset, train_ratio=self.train_ratio,
                                                                 valid_ratio=self.valid_ratio, seed=self.seed)
         # save the dataset
-        self.logger.info(f'Saving dataset for {self.model_type} {self.model_name}')
+        self.logger.info(f'Saving dataset for {self.dataset_dir}')
         train_set.to_csv(osp.join(self.dataset_dir, 'train_set.csv'), index=False)
         valid_set.to_csv(osp.join(self.dataset_dir, 'valid_set.csv'), index=False)
         test_set.to_csv(osp.join(self.dataset_dir, 'test_set.csv'), index=False)
 
         # save dataset statistics
-        self.logger.info(f'Saving dataset statistics for {self.model_type} {self.model_name}')
+        self.logger.info(f'Saving dataset statistics for {self.dataset_dir}')
         train_set.describe().to_csv(osp.join(self.dataset_dir, 'train_set_stats.csv'))
         valid_set.describe().to_csv(osp.join(self.dataset_dir, 'valid_set_stats.csv'))
         test_set.describe().to_csv(osp.join(self.dataset_dir, 'test_set_stats.csv'))

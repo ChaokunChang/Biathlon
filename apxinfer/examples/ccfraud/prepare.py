@@ -65,7 +65,7 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
         # remove column 'pid' and 'is_fraud'
         requests = requests.drop(columns=['pid', 'is_fraud'])
         # the txn_datetime must -8 hours
-        requests['txn_datetime'] = pd.to_datetime(requests['txn_datetime']) - pd.Timedelta(hours=8)
+        requests['txn_datetime'] = pd.to_datetime(requests['txn_datetime']) + pd.Timedelta(hours=8)
 
         if self.max_requests > 0 and self.max_requests < len(requests):
             # select max_requests in the middle

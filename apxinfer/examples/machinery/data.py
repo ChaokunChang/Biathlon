@@ -85,9 +85,8 @@ class MachineryIngestor(XIPDataIngestor):
         values = ", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)])
         values_w_type = ", ".join([f"sensor_{i} Float32" for i in range(8)])
         query = f"""INSERT INTO {database}.{table_name} \
-                    SELECT tmp1.rid as rid, tmp1.label as label, tmp1.tag as tag, \
-                            tmp1.bid as bid, tmp2.pid as pid, \
-                            {values} \
+                    SELECT tmp1.rid as rid, tmp1.bid as bid, {values}, tmp1.label as label, \
+                            tmp1.tag as tag, tmp2.pid as pid \
                     FROM \
                     ( \
                         SELECT \
@@ -136,7 +135,7 @@ class MachineryIngestor(XIPDataIngestor):
             query = self.get_file_ingestion_query(self.database, self.table, cnt,
                                                   label, tag, start_bid,
                                                   file_nrows, segment_nrows,
-                                                  nchunks)
+                                                  nchunks, seed=self.seed)
             command = f"""clickhouse-client --query "{query}" < {src}"""
             os.system(command)
 

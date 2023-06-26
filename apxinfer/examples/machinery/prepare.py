@@ -31,7 +31,7 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
         sql = f"""
             SELECT bid as req_bid, label
             FROM {self.database}.{self.table}
-            WHERE bid IN ({','.join([str(x) for x in requests['bid'].values])})
+            WHERE bid IN ({','.join([str(x) for x in requests['req_bid'].values])})
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         labels = requests.merge(df, on='req_bid', how='left')
@@ -41,17 +41,9 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
 
 class MachineryBinaryClassPrepareWorker(MachineryMultiClassPrepareWorker):
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
-        self.logger.info(f'Getting labels for {len(requests)}x requests')
-        sql = f"""
-            SELECT bid as req_bid, label
-            FROM {self.database}.{self.table}
-            WHERE bid IN ({','.join([str(x) for x in requests['bid'].values])})
-        """
-        df: pd.DataFrame = self.db_client.query_df(sql)
-        labels = requests.merge(df, on='req_bid', how='left')
-        labels['label'] = labels['label'].apply(lambda x: 1 if x > 0 else 0)
-        labels.to_csv(os.path.join(self.working_dir, 'labels.csv'), index=False)
-        return labels['label']
+        labels = super().get_labels(requests)
+        labels.apply(lambda x: 1 if x > 0 else 0)
+        return labels
 
 
 class MachineryPrepareArgs(PrepareArgs):

@@ -21,6 +21,7 @@ class PrepareArgs(BaseXIPArgs):
 
 class TrainerArgs(BaseXIPArgs):
     plus: bool = False  # whether to use plus features
+    multiclass: bool = False  # whether to use multiclass features
 
 
 class OnlineArgs(BaseXIPArgs):

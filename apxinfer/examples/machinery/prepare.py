@@ -30,7 +30,12 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
         self.logger.info(f'Getting labels for {len(requests)}x requests')
         sql = f"""
             SELECT bid as req_bid, label
-            FROM {self.database}.{self.table}
+            FROM (
+                SELECT bid, label
+                FROM {self.database}.{self.table}
+                GROUP BY (bid, label)
+                ORDER BY (bid, label)
+                )
             WHERE bid IN ({','.join([str(x) for x in requests['req_bid'].values])})
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
@@ -42,13 +47,13 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
 class MachineryBinaryClassPrepareWorker(MachineryMultiClassPrepareWorker):
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         labels = super().get_labels(requests)
-        labels.apply(lambda x: 1 if x > 0 else 0)
+        labels = labels.apply(lambda x: 1 if x > 0 else 0)
         return labels
 
 
 class MachineryPrepareArgs(PrepareArgs):
     plus: bool = False
-    multi_class: bool = False
+    multiclass: bool = False
 
 
 def ingest_data(max_nchunks: int = 100, seed: int = 0) -> None:
@@ -82,8 +87,8 @@ if __name__ == "__main__":
                                 disable_query_cache=True,
                                 plus=args.plus)
 
-    multi_class = args.multi_class
-    if multi_class:
+    multiclass = args.multiclass
+    if multiclass:
         worker = MachineryMultiClassPrepareWorker(working_dir, fextractor, max_requests, train_ratio, valid_ratio, model_type, model_name, seed)
     else:
         worker = MachineryBinaryClassPrepareWorker(working_dir, fextractor, max_requests, train_ratio, valid_ratio, model_type, model_name, seed)

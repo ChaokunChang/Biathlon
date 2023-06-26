@@ -59,8 +59,9 @@ class XIPModel(BaseEstimator):
 
 
 class XIPClassifier(XIPModel):
-    def __init__(self, model: BaseEstimator) -> None:
+    def __init__(self, model: BaseEstimator, multi_class: bool = False) -> None:
         super().__init__(model, "classifier")
+        self.multi_class = multi_class
 
 
 class XIPRegressor(XIPModel):
@@ -93,7 +94,8 @@ SUPPORTED_MODELS = {
 }
 
 
-def create_model(model_type: Literal["regressor", "classifier"], model_name: str, **kwargs) -> XIPModel:
+def create_model(model_type: Literal["regressor", "classifier"], model_name: str,
+                 multi_class: bool = False, **kwargs) -> XIPModel:
     """ Create a model
     """
     if model_type == "regressor":
@@ -106,7 +108,8 @@ def create_model(model_type: Literal["regressor", "classifier"], model_name: str
         else:
             return XIPRegressor(SUPPORTED_MODELS["regressor"][model_name](**kwargs))
     elif model_type == "classifier":
-        return XIPClassifier(SUPPORTED_MODELS["classifier"][model_name](**kwargs))
+        return XIPClassifier(SUPPORTED_MODELS["classifier"][model_name](**kwargs),
+                             multi_class=multi_class)
     else:
         raise NotImplementedError
 
@@ -122,7 +125,7 @@ def get_model_type(model: XIPModel) -> Literal["regressor", "classifier"]:
         raise NotImplementedError
 
 
-def evaluate_regressor(model: XIPModel, X: np.ndarray, y: np.ndarray) -> RegressorEvaluation:
+def evaluate_regressor(model: XIPRegressor, X: np.ndarray, y: np.ndarray) -> RegressorEvaluation:
     """ Evaluate a regressor
     """
     st = time.time()
@@ -137,9 +140,27 @@ def evaluate_regressor(model: XIPModel, X: np.ndarray, y: np.ndarray) -> Regress
     return RegressorEvaluation(mae=mae, mse=mse, mape=mape, r2=r2, expv=expv, maxe=maxe, size=len(y), time=et - st)
 
 
-def evaluate_classifier(model: XIPModel, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:
+def evaluate_classifier_multi_class(model: XIPClassifier, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:
+    """ Evaluate a multi-class classifier
+    """
+    st = time.time()
+    y_pred = model.predict(X)
+    et = time.time()
+    acc = metrics.accuracy_score(y, y_pred)
+    f1 = metrics.f1_score(y, y_pred, average='weighted')
+    prec = metrics.precision_score(y, y_pred, average='weighted')
+    rec = metrics.recall_score(y, y_pred, average='weighted')
+    # compute auc
+    y_pred_proba = model.predict_proba(X)
+    auc = metrics.roc_auc_score(y, y_pred_proba, average='weighted', multi_class='ovo')
+    return ClassifierEvaluation(acc=acc, f1=f1, prec=prec, rec=rec, auc=auc, size=len(y), time=et - st)
+
+
+def evaluate_classifier(model: XIPClassifier, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:
     """ Evaluate a classifier
     """
+    if model.multi_class:
+        return evaluate_classifier_multi_class(model, X, y)
     st = time.time()
     y_pred = model.predict(X)
     et = time.time()

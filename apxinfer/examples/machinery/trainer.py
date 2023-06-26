@@ -14,7 +14,8 @@ class MachineryTrainer(XIPTrainer):
                                                 random_state=self.seed,
                                                 learning_rate_init=0.01,
                                                 max_iter=1000,
-                                                verbose=True))
+                                                verbose=True),
+                                  multi_class=self.multi_class)
             model.fit(X.values, y.values)
             return model
         else:
@@ -24,9 +25,9 @@ class MachineryTrainer(XIPTrainer):
 if __name__ == "__main__":
     args = TrainerArgs().parse_args()
     model_name = args.model
-    model_type = 'regressor'
+    model_type = 'classifier'
     seed = args.seed
     working_dir = DIRHelper.get_prepare_dir(args)
 
-    trainer = MachineryTrainer(working_dir, model_type, model_name, seed)
+    trainer = MachineryTrainer(working_dir, model_type, model_name, seed, multi_class=args.multiclass)
     trainer.run()

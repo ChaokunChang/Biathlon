@@ -17,11 +17,12 @@ class XIPTrainer:
     """
     def __init__(self, working_dir: str,
                  model_type: str, model_name: str,
-                 seed: int) -> None:
+                 seed: int, multi_class: bool = False) -> None:
         self.working_dir = working_dir
 
         self.model_type = model_type
         self.model_name = model_name
+        self.multi_class = multi_class
 
         self.seed = seed
         self.logger = logging.getLogger('XIPTrainer')
@@ -31,7 +32,9 @@ class XIPTrainer:
 
     def build_model(self, X: pd.DataFrame, y: pd.Series) -> XIPModel:
         self.logger.info(f'Building pipeline for {self.model_type} {self.model_name}')
-        model = create_model(self.model_type, self.model_name, random_state=self.seed)
+        model = create_model(self.model_type, self.model_name,
+                             multi_class=self.multi_class,
+                             random_state=self.seed)
         model.fit(X.values, y.values)
         return model
 

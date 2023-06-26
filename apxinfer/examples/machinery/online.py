@@ -33,6 +33,7 @@ def load_dataset(args: OnlineArgs, name: str,
 
 class MachineryOnlineArgs(OnlineArgs):
     plus: bool = False
+    multiclass: bool = False
 
 
 if __name__ == "__main__":

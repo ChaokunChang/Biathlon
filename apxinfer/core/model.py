@@ -11,6 +11,7 @@ from sklearn.linear_model import RANSACRegressor, TheilSenRegressor
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 import xgboost as xgb
 from lightgbm import LGBMClassifier, LGBMRegressor
@@ -79,6 +80,7 @@ SUPPORTED_MODELS = {
                   "dt": DecisionTreeRegressor,
                   "rf": RandomForestRegressor,
                   "svm": SVR,
+                  "knn": KNeighborsRegressor,
                   "mlp": MLPRegressor},
     "classifier": {"lgbm": LGBMClassifier,
                    "xgb": xgb.XGBClassifier,
@@ -86,6 +88,7 @@ SUPPORTED_MODELS = {
                    "dt": DecisionTreeClassifier,
                    "rf": RandomForestClassifier,
                    "svm": SVC,
+                   "knn": KNeighborsClassifier,
                    "mlp": MLPClassifier},
 }
 

@@ -37,6 +37,11 @@ class TaxiTripPrepareWorker(XIPPrepareWorker):
                 """
         requests: pd.DataFrame = self.db_client.query_df(sql)
         requests['pickup_datetime'] = pd.to_datetime(requests['pickup_datetime']) + pd.Timedelta(hours=8)
+        # drop requests with invalid pickup/dropoff locations or ntaname is ''
+        before_size = len(requests)
+        requests = requests[requests['pickup_ntaname'] != '']
+        requests = requests[requests['dropoff_ntaname'] != '']
+        self.logger.info(f'Dropped {before_size - len(requests)}x of requests with invalid pickup/dropoff locations')
 
         if self.max_requests > 0 and self.max_requests < len(requests):
             # select max_requests in the middle

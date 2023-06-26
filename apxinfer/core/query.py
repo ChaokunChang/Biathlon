@@ -1,5 +1,6 @@
 from typing import List
 import logging
+import numpy as np
 from beaker.cache import CacheManager
 
 from apxinfer.core.utils import XIPFeatureVec, XIPRequest, XIPQueryConfig
@@ -28,6 +29,17 @@ class XIPQuery:
 
     def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         raise NotImplementedError
+
+    def get_default_fvec(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+        qsample = qcfg['qsample']
+        fvals = np.zeros(len(self.fnames))
+        if qsample >= 1.0:
+            self.logger.warning(f'no data for {request}')
+            fests = np.zeros(len(self.fnames))
+        else:
+            fests = np.ones(len(self.fnames)) * 1e9
+        return XIPFeatureVec(fnames=self.fnames, fvals=fvals,
+                             fests=fests, fdists=['normal'] * len(self.fnames))
 
     def estimate_cost(self, request: XIPRequest, qcfg: XIPQueryConfig) -> float:
         """ Estimate the cost of extracting features for a request """

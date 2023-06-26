@@ -110,7 +110,7 @@ class TaxiTripQ2(XIPQuery):
                                                     condition_cols=self.condition_cols,
                                                     finished_only=self.finished_only)
 
-        fnames: List[str] = [f'count_{self.window_hours}',
+        fnames: List[str] = [f'count_{self.window_hours}h',
                              f'sum_trip_distance_{self.window_hours}h',
                              f'max_trip_duration_{self.window_hours}h',
                              f'max_tip_amount_{self.window_hours}h',

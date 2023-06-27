@@ -37,6 +37,8 @@ class XIPPipeline:
                                    fvecs: XIPFeatureVec, pred: XIPPredEstimation) -> bool:
         if self.is_exact_pred(pred):
             return True
+        elif np.all([qcfg['qsample'] >= 1.0 for qcfg in qcfgs]):
+            return True
         if self.settings.termination_condition == 'min_max':
             return pred['pred_error'] <= self.settings['max_error'] and pred['pred_conf'] >= self.settings['min_conf']
         elif self.settings.termination_condition == 'error':

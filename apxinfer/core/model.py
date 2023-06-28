@@ -159,7 +159,8 @@ def evaluate_classifier_multi_class(model: XIPClassifier, X: np.ndarray, y: np.n
 def evaluate_classifier(model: XIPClassifier, X: np.ndarray, y: np.ndarray) -> ClassifierEvaluation:
     """ Evaluate a classifier
     """
-    if model.multi_class:
+    # check whether model has multi_class attribute
+    if hasattr(model, 'multi_class') and model.multi_class:
         return evaluate_classifier_multi_class(model, X, y)
     st = time.time()
     y_pred = model.predict(X)

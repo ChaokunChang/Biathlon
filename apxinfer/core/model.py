@@ -105,6 +105,10 @@ def create_model(model_type: Literal["regressor", "classifier"], model_name: str
             return XIPRegressor(HuberRegressor())
         elif model_name == 'quantile':
             return XIPRegressor(QuantileRegressor())
+        elif model_name == 'knn':
+            return XIPRegressor(KNeighborsRegressor())
+        elif model_name == 'svm':
+            return XIPRegressor(SVR())
         else:
             return XIPRegressor(SUPPORTED_MODELS["regressor"][model_name](**kwargs))
     elif model_type == "classifier":

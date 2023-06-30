@@ -19,7 +19,6 @@ class XIPQuery:
         qtype: XIPQType,
         data_loader: XIPDataLoader,
         fnames: List[str],
-        cfg_pools: List[XIPQueryConfig],
         enable_cache: bool = False,
     ) -> None:
         self.qname = qname
@@ -27,7 +26,6 @@ class XIPQuery:
         self.data_loader = data_loader
         self.fnames = fnames
         self.n_features = len(fnames)
-        self.cfg_pools = cfg_pools
 
         self.logger = logging.getLogger(f"XIPQuery-{qname}")
 

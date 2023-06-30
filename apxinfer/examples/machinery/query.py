@@ -1,7 +1,7 @@
 from typing import List
 
 from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
-from apxinfer.core.utils import merge_fvecs, get_qcfg_pool
+from apxinfer.core.utils import merge_fvecs
 from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import FEstimatorHelper
 
@@ -18,7 +18,6 @@ class MachineryQuery(XIPQuery):
         enable_cache: bool = False,
         max_nchunks: int = 100,
         seed: int = 0,
-        n_cfgs: int = 5,
     ) -> None:
         self.aggs = aggs
         self.dcols = dcols
@@ -31,9 +30,7 @@ class MachineryQuery(XIPQuery):
             enable_cache=enable_cache,
             max_nchunks=max_nchunks,
         )
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, get_qcfg_pool(qname, n_cfgs), enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
     def run(self, request: MachineryRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         req_data = self.data_loader.load_data(request, qcfg, self.dcols)

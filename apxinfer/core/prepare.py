@@ -90,7 +90,7 @@ class XIPPrepareWorker:
 
             qfeatures = np.zeros((num_requests, num_qf))
             self.logger.info(f"Extracting features {query.fnames}")
-            final_qcfg = query.cfg_pools[-1]
+            final_qcfg = query.get_qcfg(100, 1.0)
             for rid, req in tqdm(
                 enumerate(requests.to_dict(orient="records")),
                 desc=f"Extracting {qid}",

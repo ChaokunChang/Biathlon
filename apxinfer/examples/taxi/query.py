@@ -7,7 +7,7 @@ from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import FEstimatorHelper
 
-from apxinfer.examples.taxi.data import TaxiTripRequest, XIPQueryConfig
+from apxinfer.examples.taxi.data import TaxiTripRequest
 from apxinfer.examples.taxi.data import TaxiTripLoader
 
 
@@ -15,12 +15,7 @@ class TaxiTripQ0(XIPQuery):
     def __init__(self, qname: str, enable_cache: bool = False) -> None:
         data_loader = None
         fnames = ["trip_distance", "day_of_week", "hour_of_day", "passenger_count"]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="transform", qcfg_id=0, qsample=1.0)
-        ]
-        super().__init__(
-            qname, XIPQType.NORMAL, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         fvals = np.array(
@@ -45,7 +40,6 @@ class TaxiTripQ1(XIPQuery):
         enable_cache: bool = False,
         max_nchunks: int = 100,
         seed: int = 0,
-        n_cfgs: int = 5,
     ) -> None:
         self.window_hours = 1
         self.condition_cols = ["pickup_ntaname"]
@@ -70,21 +64,7 @@ class TaxiTripQ1(XIPQuery):
             f"sum_total_amount_{self.window_hours}h",
             f"std_fare_amount_{self.window_hours}h",
         ]
-
-        if n_cfgs == 0:
-            qsamples = [0.1, 0.5, 1.0]
-        elif n_cfgs == -1:
-            qsamples = [0.1, 1.0]
-        else:
-            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-            for i in range(len(qsamples))
-        ]
-
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
@@ -123,7 +103,6 @@ class TaxiTripQ2(XIPQuery):
         enable_cache: bool = False,
         max_nchunks: int = 100,
         seed: int = 0,
-        n_cfgs: int = 5,
     ) -> None:
         self.window_hours = 24
         self.condition_cols = ["pickup_ntaname", "dropoff_ntaname"]
@@ -149,21 +128,7 @@ class TaxiTripQ2(XIPQuery):
             f"max_tip_amount_{self.window_hours}h",
             f"median_tip_amount_{self.window_hours}h",
         ]
-
-        if n_cfgs == 0:
-            qsamples = [0.1, 0.5, 1.0]
-        elif n_cfgs == -1:
-            qsamples = [0.1, 1.0]
-        else:
-            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-            for i in range(len(qsamples))
-        ]
-
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
@@ -201,7 +166,6 @@ class TaxiTripQ3(XIPQuery):
         enable_cache: bool = False,
         max_nchunks: int = 100,
         seed: int = 0,
-        n_cfgs: int = 5,
     ) -> None:
         self.window_hours = 24 * 7
         self.condition_cols = ["pickup_ntaname", "dropoff_ntaname", "passenger_count"]
@@ -221,21 +185,7 @@ class TaxiTripQ3(XIPQuery):
         )
 
         fnames: List[str] = [f"max_trip_distance_{self.window_hours}h"]
-
-        if n_cfgs == 0:
-            qsamples = [0.1, 0.5, 1.0]
-        elif n_cfgs == -1:
-            qsamples = [0.1, 1.0]
-        else:
-            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-            for i in range(len(qsamples))
-        ]
-
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
@@ -287,7 +237,6 @@ class TaxiTripAGGFull(XIPQuery):
         enable_cache: bool = False,
         max_nchunks: int = 100,
         seed: int = 0,
-        n_cfgs: int = 5,
     ) -> None:
         self.window_hours = window_hours
         self.condition_cols = condition_cols
@@ -306,7 +255,8 @@ class TaxiTripAGGFull(XIPQuery):
             condition_cols=self.condition_cols,
             finished_only=self.finished_only,
         )
-        fname_suffix = f"{self.window_hours}h_cond_{'-'.join(self.condition_cols)}_{'finished' if self.finished_only else 'all'}"
+        fname_suffix = f"{self.window_hours}h_cond_{'-'.join(self.condition_cols)}"
+        fname_suffix += f"_{'finished' if self.finished_only else 'all'}"
         fnames = []
         for agg in self.aggs:
             if agg == "count":
@@ -320,20 +270,7 @@ class TaxiTripAGGFull(XIPQuery):
                     if dcol not in ["pickup_ntaname", "dropoff_ntaname"]:
                         fnames.append(f"{agg}_{dcol}_{fname_suffix}")
 
-        if n_cfgs == 0:
-            qsamples = [0.1, 0.5, 1.0]
-        elif n_cfgs == -1:
-            qsamples = [0.1, 1.0]
-        else:
-            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-            for i in range(len(qsamples))
-        ]
-
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]

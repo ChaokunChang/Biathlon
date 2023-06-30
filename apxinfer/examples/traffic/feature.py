@@ -9,7 +9,6 @@ from apxinfer.examples.traffic.query import TrafficQP3, TrafficQP4
 def get_fextractor(
     max_nchunks: int,
     seed: int,
-    n_cfgs: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
 ) -> XIPFeatureExtractor:
@@ -56,10 +55,7 @@ def get_fextractor(
         qname="query_1", data_loader=qp1_loader, enable_cache=not disable_query_cache
     )
     qp2 = TrafficQP2(
-        qname="query_2",
-        data_loader=qp2_loader,
-        enable_cache=not disable_query_cache,
-        n_cfgs=n_cfgs,
+        qname="query_2", data_loader=qp2_loader, enable_cache=not disable_query_cache
     )
     qp3 = TrafficQP3(
         qname="query_3", data_loader=qp3_loader, enable_cache=not disable_query_cache

@@ -16,33 +16,53 @@ class TrafficRequest(XIPRequest):
 
 
 def req_to_dt(request: TrafficRequest) -> dt.datetime:
-    datetime = dt.datetime(year=request['req_year'], month=request['req_month'],
-                           day=request['req_day'], hour=request['req_hour'])
+    datetime = dt.datetime(
+        year=request["req_year"],
+        month=request["req_month"],
+        day=request["req_day"],
+        hour=request["req_hour"],
+    )
     return datetime
 
 
 def dt_to_req(datetime: dt.datetime, req_id: int, borough: str) -> TrafficRequest:
-    request = TrafficRequest(req_id=req_id, req_year=datetime.year, req_month=datetime.month,
-                             req_day=datetime.day, req_hour=datetime.hour, req_borough=borough)
+    request = TrafficRequest(
+        req_id=req_id,
+        req_year=datetime.year,
+        req_month=datetime.month,
+        req_day=datetime.day,
+        req_hour=datetime.hour,
+        req_borough=borough,
+    )
     return request
 
 
 class TrafficDataIngestor(XIPDataIngestor):
-    def __init__(self, dsrc_type: str, dsrc: str, database: str, table: str, max_nchunks: int, seed: int) -> None:
+    def __init__(
+        self,
+        dsrc_type: str,
+        dsrc: str,
+        database: str,
+        table: str,
+        max_nchunks: int,
+        seed: int,
+    ) -> None:
         super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
         self.db_client = DBHelper.get_db_client()
 
     def create_database(self) -> None:
-        self.logger.info(f'Creating database {self.database}')
+        self.logger.info(f"Creating database {self.database}")
         if DBHelper.database_exists(self.db_client, self.database):
-            self.logger.info(f'Database {self.database} already exists')
+            self.logger.info(f"Database {self.database} already exists")
             return
-        self.db_client.command(f'CREATE DATABASE IF NOT EXISTS {self.database}')
+        self.db_client.command(f"CREATE DATABASE IF NOT EXISTS {self.database}")
 
     def create_table(self) -> None:
-        self.logger.info(f'Creating table {self.table} in database {self.database}')
+        self.logger.info(f"Creating table {self.table} in database {self.database}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} already exists in database {self.database}')
+            self.logger.info(
+                f"Table {self.table} already exists in database {self.database}"
+            )
             return
         sql = f""" CREATE TABLE IF NOT EXISTS {self.database}.{self.table} (
                     trip_id UInt32, -- also row id
@@ -87,7 +107,9 @@ class TrafficDataIngestor(XIPDataIngestor):
             """
         self.db_client.command(sql)
         if DBHelper.table_empty(self.db_client, self.database, aux_table):
-            self.logger.info(f'Ingesting data from {self.dsrc} into table {aux_table} in database {self.database}')
+            self.logger.info(
+                f"Ingesting data from {self.dsrc} into table {aux_table} in database {self.database}"
+            )
             sql = f"""
                 INSERT INTO {self.database}.{aux_table}
                 SELECT ID AS ID, SPEED AS SPEED, TRAVEL_TIME AS TRAVEL_TIME,
@@ -102,18 +124,26 @@ class TrafficDataIngestor(XIPDataIngestor):
         return DBHelper.get_table_size(self.db_client, self.database, aux_table)
 
     def ingest_data(self) -> None:
-        self.logger.info(f'Ingesting data from {self.dsrc} into table {self.table} in database {self.database}')
+        self.logger.info(
+            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+        )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} in database {self.database} is not empty')
+            self.logger.info(
+                f"Table {self.table} in database {self.database} is not empty"
+            )
             return
-        assert self.dsrc_type == 'user_files', f'Unsupported data source type {self.dsrc_type}'
+        assert (
+            self.dsrc_type == "user_files"
+        ), f"Unsupported data source type {self.dsrc_type}"
 
         # we first create an auxiliary table to store the data
-        aux_table = f'{self.table}_aux'
+        aux_table = f"{self.table}_aux"
         nrows = self.create_aux_table(aux_table)
 
         # we then insert the data into the main table
-        self.logger.info(f'Ingesting data from {aux_table} into table {self.table} in database {self.database}')
+        self.logger.info(
+            f"Ingesting data from {aux_table} into table {self.table} in database {self.database}"
+        )
         sql = f"""
             INSERT INTO {self.database}.{self.table}
             SELECT tmp1.*, tmp2.pid
@@ -144,27 +174,36 @@ class TrafficDataIngestor(XIPDataIngestor):
 
     def drop_table(self) -> None:
         DBHelper.drop_table(self.db_client, self.database, self.table)
-        self.drop_aux_table(f'{self.table}_aux')
+        self.drop_aux_table(f"{self.table}_aux")
 
     def clear_aux_table(self, aux_table: str) -> None:
         DBHelper.clear_table(self.db_client, self.database, aux_table)
 
     def clear_table(self) -> None:
         DBHelper.clear_table(self.db_client, self.database, self.table)
-        self.clear_aux_table(f'{self.table}_aux')
+        self.clear_aux_table(f"{self.table}_aux")
 
 
 class TrafficHourDataLoader(XIPDataLoader):
-    def __init__(self, ingestor: TrafficDataIngestor, enable_cache: bool = False) -> None:
-        super().__init__('clickhouse', ingestor.database, ingestor.table,
-                         ingestor.seed, enable_cache=enable_cache)
+    def __init__(
+        self, ingestor: TrafficDataIngestor, enable_cache: bool = False
+    ) -> None:
+        super().__init__(
+            "clickhouse",
+            ingestor.database,
+            ingestor.table,
+            ingestor.seed,
+            enable_cache=enable_cache,
+        )
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
         self.max_nchunks = ingestor.max_nchunks
 
-    def load_data(self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
-        to_pid = self.max_nchunks * qcfg['qsample']
+    def load_data(
+        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]
+    ) -> np.ndarray:
+        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
+        to_pid = self.max_nchunks * qcfg["qsample"]
         req_dt = req_to_dt(request)
         req_dt_plus_1h = req_dt + dt.timedelta(hours=1)
         sql = f"""
@@ -179,21 +218,25 @@ class TrafficHourDataLoader(XIPDataLoader):
 
 
 class TrafficFStoreIngestor(TrafficDataIngestor):
-    def __init__(self, dsrc_type: str, dsrc: str,
-                 database: str, table: str,
-                 granularity: str) -> None:
+    def __init__(
+        self, dsrc_type: str, dsrc: str, database: str, table: str, granularity: str
+    ) -> None:
         super().__init__(dsrc_type, dsrc, database, table, None, None)
-        self.all_granularities = ['year', 'month', 'day', 'hour', 'minute']
+        self.all_granularities = ["year", "month", "day", "hour", "minute"]
         self.granularity = granularity
-        self.keys = self.all_granularities[:self.all_granularities.index(self.granularity) + 1]
+        self.keys = self.all_granularities[
+            : self.all_granularities.index(self.granularity) + 1
+        ]
 
     def create_database(self) -> None:
         return super().create_database()
 
     def create_table(self) -> None:
-        self.logger.info(f'Creating table {self.table} in database {self.database}')
+        self.logger.info(f"Creating table {self.table} in database {self.database}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} already exists in database {self.database}')
+            self.logger.info(
+                f"Table {self.table} already exists in database {self.database}"
+            )
             return
         keys_w_type = [key + " UInt16" for key in self.keys]
         sql = f"""
@@ -218,13 +261,23 @@ class TrafficFStoreIngestor(TrafficDataIngestor):
         self.db_client.command(sql)
 
     def ingest_data(self) -> None:
-        self.logger.info(f'Ingesting data from {self.dsrc} into table {self.table} in database {self.database}')
+        self.logger.info(
+            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+        )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} in database {self.database} is not empty')
+            self.logger.info(
+                f"Table {self.table} in database {self.database} is not empty"
+            )
             return
-        assert self.dsrc_type == 'clickhouse', f'Unsupported data source type {self.dsrc_type}'
-        assert self.granularity in self.all_granularities, f'Unsupported granularity {self.granularity}'
-        assert self.granularity != 'minute', f'Granularity {self.granularity} is not supported'
+        assert (
+            self.dsrc_type == "clickhouse"
+        ), f"Unsupported data source type {self.dsrc_type}"
+        assert (
+            self.granularity in self.all_granularities
+        ), f"Unsupported granularity {self.granularity}"
+        assert (
+            self.granularity != "minute"
+        ), f"Granularity {self.granularity} is not supported"
 
         # ingest data into feature store, i.e. table {self.table}
         sql = f"""
@@ -248,10 +301,16 @@ class TrafficFStoreIngestor(TrafficDataIngestor):
 
 
 class TrafficFStoreLoader(XIPDataLoader):
-    def __init__(self, ingestor: TrafficFStoreIngestor,
-                 enable_cache: bool = False) -> None:
-        super().__init__('clickhouse', ingestor.database, ingestor.table,
-                         ingestor.seed, enable_cache=enable_cache)
+    def __init__(
+        self, ingestor: TrafficFStoreIngestor, enable_cache: bool = False
+    ) -> None:
+        super().__init__(
+            "clickhouse",
+            ingestor.database,
+            ingestor.table,
+            ingestor.seed,
+            enable_cache=enable_cache,
+        )
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
         self.granularity = self.ingestor.granularity
@@ -261,9 +320,11 @@ class TrafficFStoreLoader(XIPDataLoader):
         # self.granularity = granularity
         # self.keys = self.all_granularities[:self.all_granularities.index(self.granularity) + 1]
 
-    def load_data(self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
-        key_values = [request[f'req_{key}'] for key in self.keys]
-        conditions = [f'{key} = {value}' for key, value in zip(self.keys, key_values)]
+    def load_data(
+        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]
+    ) -> np.ndarray:
+        key_values = [request[f"req_{key}"] for key in self.keys]
+        conditions = [f"{key} = {value}" for key, value in zip(self.keys, key_values)]
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
@@ -272,14 +333,16 @@ class TrafficFStoreLoader(XIPDataLoader):
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         if df.empty:
-            self.logger.warning(f'No data found for request {request}')
+            self.logger.warning(f"No data found for request {request}")
             return np.zeros(len(cols))
         else:
             if len(df) == 1:
                 return df.values[0]
             else:
                 if self.granularity == self.ingestor.granularity:
-                    self.logger.warning(f'More than one record found for request {request}')
+                    self.logger.warning(
+                        f"More than one record found for request {request}"
+                    )
                 else:
                     # TODO: feature aggregation
-                    raise ValueError('feature aggregation is not supported yet')
+                    raise ValueError("feature aggregation is not supported yet")

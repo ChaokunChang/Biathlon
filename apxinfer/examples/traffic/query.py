@@ -27,12 +27,7 @@ class TrafficQP0(XIPQuery):
     def __init__(self, qname: str, enable_cache: bool = False) -> None:
         data_loader = None
         fnames = ["year", "month", "day", "hour", "borough"]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="transform", qcfg_id=0, qsample=1.0)
-        ]
-        super().__init__(
-            qname, XIPQType.NORMAL, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
         self.borough_map = get_borough_embedding()
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
@@ -71,12 +66,7 @@ class TrafficQP1(XIPQuery):
             "last_hour_median_speed",
             "last_hour_median_travel_time",
         ]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="fstore", qcfg_id=0, qsample=1.0)
-        ]
-        super().__init__(
-            qname, XIPQType.FSTORE, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         fcols = [fname.replace("last_hour_", "") for fname in self.fnames]
@@ -99,7 +89,6 @@ class TrafficQP2(XIPQuery):
         qname: str,
         data_loader: TrafficHourDataLoader,
         enable_cache: bool = False,
-        n_cfgs: int = 100,
     ) -> None:
         fnames = [
             "this_hour_cnt",
@@ -114,19 +103,7 @@ class TrafficQP2(XIPQuery):
             "this_hour_median_speed",
             "this_hour_median_travel_time",
         ]
-        if n_cfgs == 0:
-            qsamples = [0.1, 0.5, 1.0]
-        elif n_cfgs == -1:
-            qsamples = [0.1, 1.0]
-        else:
-            qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-            for i in range(len(qsamples))
-        ]
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
         self.cached_reqid = -1
         self.cached_qsample = 0
@@ -181,12 +158,7 @@ class TrafficQP3(XIPQuery):
             "last_day_median_speed",
             "last_day_median_travel_time",
         ]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="fstore", qcfg_id=0, qsample=1.0)
-        ]
-        super().__init__(
-            qname, XIPQType.FSTORE, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         fcols = [fname.replace("last_day_", "") for fname in self.fnames]
@@ -221,12 +193,7 @@ class TrafficQP4(XIPQuery):
             "last_dayhour_median_speed",
             "last_dayhour_median_travel_time",
         ]
-        cfg_pools = [
-            XIPQueryConfig(qname=qname, qtype="fstore", qcfg_id=0, qsample=1.0)
-        ]
-        super().__init__(
-            qname, XIPQType.FSTORE, data_loader, fnames, cfg_pools, enable_cache
-        )
+        super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         fcols = [fname.replace("last_dayhour_", "") for fname in self.fnames]

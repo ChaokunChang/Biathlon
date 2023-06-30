@@ -7,7 +7,6 @@ from apxinfer.examples.taxi.query import TaxiTripAGGFull
 def get_fextractor(
     max_nchunks: int,
     seed: int,
-    n_cfgs: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = False,
@@ -28,7 +27,6 @@ def get_fextractor(
                     enable_cache=not disable_query_cache,
                     max_nchunks=max_nchunks,
                     seed=seed,
-                    n_cfgs=n_cfgs,
                 )
             )
             queries.append(
@@ -42,7 +40,6 @@ def get_fextractor(
                     enable_cache=not disable_query_cache,
                     max_nchunks=max_nchunks,
                     seed=seed,
-                    n_cfgs=n_cfgs,
                 )
             )
             queries.append(
@@ -56,7 +53,6 @@ def get_fextractor(
                     enable_cache=not disable_query_cache,
                     max_nchunks=max_nchunks,
                     seed=seed,
-                    n_cfgs=n_cfgs,
                 )
             )
             queries.append(
@@ -79,7 +75,6 @@ def get_fextractor(
                     enable_cache=not disable_query_cache,
                     max_nchunks=max_nchunks,
                     seed=seed,
-                    n_cfgs=n_cfgs,
                 )
             )
     else:
@@ -88,21 +83,18 @@ def get_fextractor(
             enable_cache=not disable_query_cache,
             max_nchunks=max_nchunks,
             seed=seed,
-            n_cfgs=n_cfgs,
         )
         q2 = TaxiTripQ2(
             qname="query_2",
             enable_cache=not disable_query_cache,
             max_nchunks=max_nchunks,
             seed=seed,
-            n_cfgs=n_cfgs,
         )
         q3 = TaxiTripQ3(
             qname="query_3",
             enable_cache=not disable_query_cache,
             max_nchunks=max_nchunks,
             seed=seed,
-            n_cfgs=n_cfgs,
         )
         queries.extend([q1, q2, q3])
     # create fextractor

@@ -145,16 +145,3 @@ def merge_fvecs(
     fdists = list(itertools.chain.from_iterable([fvec["fdists"] for fvec in fvecs]))
     return XIPFeatureVec(fnames=fnames, fvals=fvals, fests=fests, fdists=fdists)
 
-
-def get_qcfg_pool(qname: str, n_cfgs: int) -> List[XIPQueryConfig]:
-    if n_cfgs == 0:
-        qsamples = [0.1, 0.5, 1.0]
-    elif n_cfgs == -1:
-        qsamples = [0.1, 1.0]
-    else:
-        qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-    cfg_pools = [
-        XIPQueryConfig(qname=qname, qtype="agg", qcfg_id=i, qsample=qsamples[i])
-        for i in range(len(qsamples))
-    ]
-    return cfg_pools

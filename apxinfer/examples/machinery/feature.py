@@ -6,7 +6,6 @@ from apxinfer.examples.machinery.query import MachineryQuery
 def get_fextractor(
     max_nchunks: int,
     seed: int,
-    n_cfgs: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = False,
@@ -21,7 +20,6 @@ def get_fextractor(
                 enable_cache=not disable_query_cache,
                 max_nchunks=max_nchunks,
                 seed=seed,
-                n_cfgs=n_cfgs,
             )
         )
     fextractor = XIPFeatureExtractor(

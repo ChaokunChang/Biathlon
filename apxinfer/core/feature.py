@@ -6,24 +6,36 @@ import itertools
 from sklearn import metrics
 from beaker.cache import CacheManager
 
-from apxinfer.core.utils import XIPFeatureVec, XIPRequest, XIPQueryConfig, QueryCostEstimation
+from apxinfer.core.utils import (
+    XIPFeatureVec,
+    XIPRequest,
+    XIPQueryConfig,
+    QueryCostEstimation,
+)
 from apxinfer.core.utils import merge_fvecs
 from apxinfer.core.query import XIPQuery
 
-fcache_manager = CacheManager(cache_regions={'feature': {'type': 'memory', 'expire': 3600}})
+fcache_manager = CacheManager(
+    cache_regions={"feature": {"type": "memory", "expire": 3600}}
+)
 logging.basicConfig(level=logging.INFO)
 
 
 class FEstimatorHelper:
     min_cnt = 30
 
-    def estimate_any(data: np.ndarray, p: float, func: Callable, nsamples: int = 100) -> XIPFeatureVec:
+    def estimate_any(
+        data: np.ndarray, p: float, func: Callable, nsamples: int = 100
+    ) -> XIPFeatureVec:
         if p >= 1.0:
             features = func(data)
-            fnames = [f'{func.__name__}_f{i}' for i in range(features.shape[0])]
-            return XIPFeatureVec(fnames=fnames, fvals=features,
-                                 fests=np.zeros_like(features),
-                                 fdists=['normal'] * features.shape[0])
+            fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
+            return XIPFeatureVec(
+                fnames=fnames,
+                fvals=features,
+                fests=np.zeros_like(features),
+                fdists=["normal"] * features.shape[0],
+            )
         cnt = data.shape[0]
         estimations = []
         for _ in range(nsamples):
@@ -34,26 +46,37 @@ class FEstimatorHelper:
             scales = 1e9 * np.ones_like(features)
         else:
             scales = np.std(estimations, axis=0, ddof=1)
-        fnames = [f'{func.__name__}_f{i}' for i in range(features.shape[0])]
-        return XIPFeatureVec(fnames=fnames, fvals=features, fests=scales, fdists=['normal'] * features.shape[0])
+        fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
+        return XIPFeatureVec(
+            fnames=fnames,
+            fvals=features,
+            fests=scales,
+            fdists=["normal"] * features.shape[0],
+        )
 
     def estimate_min(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x : np.min(x, axis=0))
+        return FEstimatorHelper.estimate_any(data, p, lambda x: np.min(x, axis=0))
 
     def estimate_max(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x : np.max(x, axis=0))
+        return FEstimatorHelper.estimate_any(data, p, lambda x: np.max(x, axis=0))
 
     def estimate_median(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x : np.median(x, axis=0))
+        return FEstimatorHelper.estimate_any(data, p, lambda x: np.median(x, axis=0))
 
     def estimate_stdPop(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x : np.std(x, axis=0, ddof=0))
+        return FEstimatorHelper.estimate_any(
+            data, p, lambda x: np.std(x, axis=0, ddof=0)
+        )
 
     def estimate_stdSamp(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x : np.std(x, axis=0, ddof=0))
+        return FEstimatorHelper.estimate_any(
+            data, p, lambda x: np.std(x, axis=0, ddof=0)
+        )
 
     def estimate_unique(data: np.ndarray, p: float) -> XIPFeatureVec:
-        unique_func: Callable = lambda x : np.array([len(np.unique(x[:, i])) for i in range(x.shape[1])])
+        unique_func: Callable = lambda x: np.array(
+            [len(np.unique(x[:, i])) for i in range(x.shape[1])]
+        )
         return FEstimatorHelper.estimate_any(data, p, unique_func)
 
     def compute_dvars(data: np.ndarray) -> np.ndarray:
@@ -64,8 +87,9 @@ class FEstimatorHelper:
         else:
             return np.var(data, axis=0, ddof=1)
 
-    def compute_closed_form_scale(features: np.ndarray, cnt: int,
-                                  dvars: np.ndarray, p: float) -> np.ndarray:
+    def compute_closed_form_scale(
+        features: np.ndarray, cnt: int, dvars: np.ndarray, p: float
+    ) -> np.ndarray:
         cnt = np.where(cnt < 1, 1.0, cnt)
         scales = np.sqrt(np.where(p >= 1.0, 0.0, dvars) / cnt)
         return scales
@@ -75,39 +99,60 @@ class FEstimatorHelper:
         features = np.mean(data, axis=0)
         dvars = FEstimatorHelper.compute_dvars(data)
         scales = FEstimatorHelper.compute_closed_form_scale(features, cnt, dvars, p)
-        fnames = [f'avg_f{i}' for i in range(features.shape[0])]
-        return XIPFeatureVec(fnames=fnames, fvals=features, fests=scales, fdists=['normal'] * features.shape[0])
+        fnames = [f"avg_f{i}" for i in range(features.shape[0])]
+        return XIPFeatureVec(
+            fnames=fnames,
+            fvals=features,
+            fests=scales,
+            fdists=["normal"] * features.shape[0],
+        )
 
     def estimate_count(data: np.ndarray, p: float) -> XIPFeatureVec:
         cnt = data.shape[0]
         features = np.array([cnt / p])
-        scales = FEstimatorHelper.compute_closed_form_scale(features, cnt, np.array([cnt * (1 - p) * p]), p)
-        fnames = ['cnt']
-        return XIPFeatureVec(fnames=fnames, fvals=features, fests=scales, fdists=['normal'] * features.shape[0])
+        scales = FEstimatorHelper.compute_closed_form_scale(
+            features, cnt, np.array([cnt * (1 - p) * p]), p
+        )
+        fnames = ["cnt"]
+        return XIPFeatureVec(
+            fnames=fnames,
+            fvals=features,
+            fests=scales,
+            fdists=["normal"] * features.shape[0],
+        )
 
     def estimate_sum(data: np.ndarray, p: float) -> XIPFeatureVec:
         features = np.sum(data, axis=0) / p
         cnt = data.shape[0]
         dvars = FEstimatorHelper.compute_dvars(data)
-        scales = FEstimatorHelper.compute_closed_form_scale(features, cnt, cnt * cnt * dvars, p)
-        fnames = [f'sum_f{i}' for i in range(features.shape[0])]
-        return XIPFeatureVec(fnames=fnames, fvals=features, fests=scales, fdists=['normal'] * features.shape[0])
+        scales = FEstimatorHelper.compute_closed_form_scale(
+            features, cnt, cnt * cnt * dvars, p
+        )
+        fnames = [f"sum_f{i}" for i in range(features.shape[0])]
+        return XIPFeatureVec(
+            fnames=fnames,
+            fvals=features,
+            fests=scales,
+            fdists=["normal"] * features.shape[0],
+        )
 
-    SUPPORTED_AGGS = {'min': estimate_min,
-                      'max': estimate_max,
-                      'median': estimate_median,
-                      'std': estimate_stdPop,
-                      'stdPop': estimate_stdPop,
-                      'stdSamp': estimate_stdSamp,
-                      'unique': estimate_unique,
-                      'avg': estimate_avg,
-                      'count': estimate_count,
-                      'sum': estimate_sum}
+    SUPPORTED_AGGS = {
+        "min": estimate_min,
+        "max": estimate_max,
+        "median": estimate_median,
+        "std": estimate_stdPop,
+        "stdPop": estimate_stdPop,
+        "stdSamp": estimate_stdSamp,
+        "unique": estimate_unique,
+        "avg": estimate_avg,
+        "count": estimate_count,
+        "sum": estimate_sum,
+    }
 
 
 SUPPORTED_DISTRIBUTIONS = {
     "normal": {"sampler": np.random.normal, "final_args": 0.0},
-    "fixed": {"sampler": lambda x, size : np.array([x] * size), "final_args": []},
+    "fixed": {"sampler": lambda x, size: np.array([x] * size), "final_args": []},
     "uniform": {"sampler": np.random.uniform, "final_args": []},
     "beta": {"sampler": np.random.beta, "final_args": []},
     "gamma": {"sampler": np.random.gamma, "final_args": []},
@@ -127,32 +172,42 @@ SUPPORTED_DISTRIBUTIONS = {
 }
 
 
-@fcache_manager.cache('feature', expire=3600)
-def get_feature_samples(fvals: float, dist: str, dist_args: Union[list, float], seed: int, n_samples: int = 1000) -> np.ndarray:
+@fcache_manager.cache("feature", expire=3600)
+def get_feature_samples(
+    fvals: float,
+    dist: str,
+    dist_args: Union[list, float],
+    seed: int,
+    n_samples: int = 1000,
+) -> np.ndarray:
     if dist == "fixed":
-        return SUPPORTED_DISTRIBUTIONS[dist]['sampler'](fvals, size=n_samples)
+        return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](fvals, size=n_samples)
     elif dist == "normal":
         scale = dist_args
-        return SUPPORTED_DISTRIBUTIONS[dist]['sampler'](fvals, scale, size=n_samples)
-    return SUPPORTED_DISTRIBUTIONS[dist]['sampler'](*dist_args, size=n_samples)
+        return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](fvals, scale, size=n_samples)
+    return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
 
 # @fcache_manager.cache('feature', expire=3600)
-def fvec_random_sample(fvec: List[XIPFeatureVec], n_samples: int, seed: int) -> np.ndarray:
-    fvals = fvec['fvals']
-    fests = fvec['fests']
-    fdists = fvec['fdists']
+def fvec_random_sample(
+    fvec: List[XIPFeatureVec], n_samples: int, seed: int
+) -> np.ndarray:
+    fvals = fvec["fvals"]
+    fests = fvec["fests"]
+    fdists = fvec["fdists"]
 
     p = len(fvals)
     np.random.seed(seed)
     samples = np.zeros((n_samples, p))
     for i in range(p):
-        samples[:, i] = get_feature_samples(fvals[i], fdists[i], fests[i], seed, n_samples)
+        samples[:, i] = get_feature_samples(
+            fvals[i], fdists[i], fests[i], seed, n_samples
+        )
     return samples
 
 
 def get_final_dist_args(dist: str) -> Union[list, float]:
-    return SUPPORTED_DISTRIBUTIONS[dist]['final_args']
+    return SUPPORTED_DISTRIBUTIONS[dist]["final_args"]
 
 
 def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
@@ -176,31 +231,40 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
     r2 = np.mean(r2s)
     maxe = np.mean(maxes)
 
-    return {"mse": mse, "mae": mae, "mape": mape,
-            "r2": r2, "maxe": maxe,
-            "mses": mses.tolist(), "maes": maes.tolist(),
-            "mapes": mapes.tolist(),
-            "r2s": r2s.tolist(), "maxes": maxes.tolist()}
+    return {
+        "mse": mse,
+        "mae": mae,
+        "mape": mape,
+        "r2": r2,
+        "maxe": maxe,
+        "mses": mses.tolist(),
+        "maes": maes.tolist(),
+        "mapes": mapes.tolist(),
+        "r2s": r2s.tolist(),
+        "maxes": maxes.tolist(),
+    }
 
 
 class XIPFeatureExtractor:
-    def __init__(self, queries: List[XIPQuery],
-                 enable_cache: bool = False) -> None:
+    def __init__(self, queries: List[XIPQuery], enable_cache: bool = False) -> None:
         self.queries = queries
         self.num_queries = len(queries)
-        self.q_keys = [qry.key for qry in self.queries]
-        assert len(self.q_keys) == len(set(self.q_keys)), "Query keys must be unique"
-        self.fnames = list(itertools.chain.from_iterable([qry.fnames for qry in self.queries]))
+        self.qnames = [qry.qname for qry in self.queries]
+        assert len(self.qnames) == len(set(self.qnames)), "Query names must be unique"
+        self.fnames = list(
+            itertools.chain.from_iterable([qry.fnames for qry in self.queries])
+        )
         assert len(self.fnames) == len(set(self.fnames)), "Feature names must be unique"
 
-        self.logger = logging.getLogger('XIPFeatureExtractor')
+        self.logger = logging.getLogger("XIPFeatureExtractor")
 
         self.enable_cache = enable_cache
         if self.enable_cache:
-            self.extract = fcache_manager.cache('feature', expire=3600)(self.extract)
+            self.extract = fcache_manager.cache("feature", expire=3600)(self.extract)
 
-    def extract(self, requets: XIPRequest,
-                qcfgs: List[XIPQueryConfig]) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
+    def extract(
+        self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]
+    ) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
         qcosts = []
         fvecs = []
         for i in range(self.num_queries):
@@ -208,12 +272,12 @@ class XIPFeatureExtractor:
             fvecs.append(self.queries[i].run(requets, qcfgs[i]))
             et = time.time()
             qcard = self.queries[i].estimate_cardinality(requets, qcfgs[i])
-            qcosts.append(QueryCostEstimation(time=et - st,
-                                              memory=None,
-                                              qcard=qcard))
+            qcosts.append(QueryCostEstimation(time=et - st, memory=None, qcard=qcard))
         return merge_fvecs(fvecs), qcosts
 
-    def extract_fs_only(self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]) -> XIPFeatureVec:
+    def extract_fs_only(
+        self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]
+    ) -> XIPFeatureVec:
         fvecs = []
         for i in range(self.num_queries):
             fvecs.append(self.queries[i].run(requets, qcfgs[i]))

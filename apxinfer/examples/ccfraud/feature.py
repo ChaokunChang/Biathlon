@@ -46,10 +46,10 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
     q3_loader = CCFraudTxnsLoader(txns_ingestor, enable_cache=not disable_sample_cache)
 
     # Create dataset
-    q0 = CCFraudQ0(key='query_0', database='xip', table='cc_fraud_txns', enable_cache=not disable_query_cache)
-    q1 = CCFraudQ1(key='query_1', data_loader=q1_loader, enable_cache=not disable_query_cache)
-    q2 = CCFraudQ2(key='query_2', data_loader=q2_loader, enable_cache=not disable_query_cache)
-    q3 = CCFraudQ3(key='query_3', data_loader=q3_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+    q0 = CCFraudQ0(qname='query_0', database='xip', table='cc_fraud_txns', enable_cache=not disable_query_cache)
+    q1 = CCFraudQ1(qname='query_1', data_loader=q1_loader, enable_cache=not disable_query_cache)
+    q2 = CCFraudQ2(qname='query_2', data_loader=q2_loader, enable_cache=not disable_query_cache)
+    q3 = CCFraudQ3(qname='query_3', data_loader=q3_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
     queries = [q0, q1, q2, q3]
 
     if plus:
@@ -62,7 +62,7 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
                                       window_size=30 * 12,
                                       condition_cols=['uid', 'card_index'],
                                       enable_cache=not disable_sample_cache)
-        q4 = CCFraudQ3(key='query_4', data_loader=q4_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+        q4 = CCFraudQ3(qname='query_4', data_loader=q4_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
 
         q5_loader = CCFraudTxnsLoader(CCFraudTxnsIngestor(dsrc_type='user_files',
                                                           dsrc=txns_src,
@@ -73,7 +73,7 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
                                       window_size=30 * 12,
                                       condition_cols=['uid', 'card_index'],
                                       enable_cache=not disable_sample_cache)
-        q5 = CCFraudQ4(key='query_5', data_loader=q5_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+        q5 = CCFraudQ4(qname='query_5', data_loader=q5_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
 
         q6_loader = CCFraudTxnsLoader(CCFraudTxnsIngestor(dsrc_type='user_files',
                                                           dsrc=txns_src,
@@ -84,7 +84,7 @@ def get_fextractor(max_nchunks: int, seed: int, n_cfgs: int,
                                       window_size=30 * 12,
                                       condition_cols=['uid', 'card_index'],
                                       enable_cache=not disable_sample_cache)
-        q6 = CCFraudQ5(key='query_6', data_loader=q6_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
+        q6 = CCFraudQ5(qname='query_6', data_loader=q6_loader, enable_cache=not disable_query_cache, n_cfgs=n_cfgs)
 
         queries = [q0, q1, q2, q3, q4, q5, q6]
 

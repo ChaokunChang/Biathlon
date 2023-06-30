@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec
+from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
 from apxinfer.core.utils import merge_fvecs
 from apxinfer.core.data import DBHelper
 from apxinfer.core.query import XIPQuery
@@ -22,17 +22,17 @@ def get_embedding(database: str, table: str, col: str) -> dict:
 
 
 class CCFraudQ0(XIPQuery):
-    def __init__(self, key: str, database: str, table: str, enable_cache: bool = False) -> None:
+    def __init__(self, qname: str, database: str, table: str, enable_cache: bool = False) -> None:
         data_loader = None
         self.dt_fnames = ['hour']
         self.num_fnames = ['amount', 'zip_code', 'mcc']
         self.cat_fnames = ['use_chip', 'merchant_name', 'merchant_city', 'merchant_state']
         fnames = self.dt_fnames + self.num_fnames + self.cat_fnames
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='transform',
                                     qcfg_id=0,
                                     qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, cfg_pools, enable_cache)
         self.embeddings = {k: get_embedding(database, table, k) for k in self.cat_fnames}
 
     def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
@@ -47,16 +47,16 @@ class CCFraudQ0(XIPQuery):
 
 
 class CCFraudQ1(XIPQuery):
-    def __init__(self, key: str, data_loader: CCFraudCardsLoader,
+    def __init__(self, qname: str, data_loader: CCFraudCardsLoader,
                  enable_cache: bool = False) -> None:
         self.num_fnames = ['cvv', 'has_chip', 'cards_issued', 'credit_limit', 'pin_last_changed', 'card_on_dark_web']
         self.cat_fnames = ['card_brand', 'card_type']
         fnames = self.num_fnames + self.cat_fnames
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='fstore',
                                     qcfg_id=0,
                                     qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.KeySearch, data_loader, fnames, cfg_pools, enable_cache)
         database = self.data_loader.database
         table = self.data_loader.table
         self.embeddings = {k: get_embedding(database, table, k) for k in self.cat_fnames}
@@ -72,16 +72,16 @@ class CCFraudQ1(XIPQuery):
 
 
 class CCFraudQ2(XIPQuery):
-    def __init__(self, key: str, data_loader: CCFraudUsersIngestor,
+    def __init__(self, qname: str, data_loader: CCFraudUsersIngestor,
                  enable_cache: bool = False) -> None:
         self.num_fnames = ['current_age', 'retirement_age', 'birth_year', 'birth_month', 'gender', 'per_capita_income', 'yearly_income', 'total_debt', 'fico_score', 'num_credit_cards']
         self.cat_fnames = ['uname', 'address', 'apartment', 'city', 'state', 'zipcode']
         fnames = self.num_fnames + self.cat_fnames
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='fstore',
                                     qcfg_id=0,
                                     qsample=1.0)]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.KeySearch, data_loader, fnames, cfg_pools, enable_cache)
         database = self.data_loader.database
         table = self.data_loader.table
         self.embeddings = {k: get_embedding(database, table, k) for k in self.cat_fnames}
@@ -97,7 +97,7 @@ class CCFraudQ2(XIPQuery):
 
 
 class CCFraudQ3(XIPQuery):
-    def __init__(self, key: str, data_loader: CCFraudTxnsLoader,
+    def __init__(self, qname: str, data_loader: CCFraudTxnsLoader,
                  enable_cache: bool = False, n_cfgs: int = 100) -> None:
         wsize = data_loader.window_size
         fnames = [f'cnt_{wsize}days',
@@ -113,12 +113,12 @@ class CCFraudQ3(XIPQuery):
             qsamples = [0.1, 1.0]
         else:
             qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='agg',
                                     qcfg_id=i,
                                     qsample=qsamples[i])
                      for i in range(len(qsamples))]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache)
 
         self.cached_reqid = -1
         self.cached_qsample = 0
@@ -150,7 +150,7 @@ class CCFraudQ3(XIPQuery):
 
 
 class CCFraudQ4(XIPQuery):
-    def __init__(self, key: str, data_loader: CCFraudTxnsLoader,
+    def __init__(self, qname: str, data_loader: CCFraudTxnsLoader,
                  enable_cache: bool = False, n_cfgs: int = 100) -> None:
         wsize = data_loader.window_size
         col = 'is_fraud'
@@ -162,12 +162,12 @@ class CCFraudQ4(XIPQuery):
             qsamples = [0.1, 1.0]
         else:
             qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='agg',
                                     qcfg_id=i,
                                     qsample=qsamples[i])
                      for i in range(len(qsamples))]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache)
 
         self.cached_reqid = -1
         self.cached_qsample = 0
@@ -199,7 +199,7 @@ class CCFraudQ4(XIPQuery):
 
 
 class CCFraudQ5(XIPQuery):
-    def __init__(self, key: str, data_loader: CCFraudTxnsLoader,
+    def __init__(self, qname: str, data_loader: CCFraudTxnsLoader,
                  enable_cache: bool = False, n_cfgs: int = 100) -> None:
         wsize = data_loader.window_size
         col = 'errors'
@@ -210,12 +210,12 @@ class CCFraudQ5(XIPQuery):
             qsamples = [0.1, 1.0]
         else:
             qsamples = [(i + 1.0) / n_cfgs for i in range(n_cfgs)]
-        cfg_pools = [XIPQueryConfig(qname=key,
+        cfg_pools = [XIPQueryConfig(qname=qname,
                                     qtype='agg',
                                     qcfg_id=i,
                                     qsample=qsamples[i])
                      for i in range(len(qsamples))]
-        super().__init__(key, data_loader, fnames, cfg_pools, enable_cache)
+        super().__init__(qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache)
 
         self.cached_reqid = -1
         self.cached_qsample = 0

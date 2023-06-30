@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, TypedDict, Union, Literal
+from typing import List, TypedDict, Union
 from enum import Enum
 import itertools
 
@@ -111,7 +111,7 @@ class XIPPipelineSettings:
         min_conf: float = 0.99,
         max_time: float = 60.0,
         max_memory: float = 2048 * 1.0,
-        max_rounds: int = 10,
+        max_rounds: int = 1000,
     ) -> None:
         self.termination_condition = termination_condition
         self.max_relative_error = max_relative_error
@@ -124,7 +124,9 @@ class XIPPipelineSettings:
     def __str__(self) -> str:
         return (
             f"{self.termination_condition}-{self.max_relative_error}"
-            f"-{self.max_error}-{self.min_conf}-{self.max_time}-{self.max_memory}-{self.max_rounds}"
+            f"-{self.max_error}-{self.min_conf}"
+            f"-{self.max_time}-{self.max_memory}"
+            f"-{self.max_rounds}"
         )
 
 

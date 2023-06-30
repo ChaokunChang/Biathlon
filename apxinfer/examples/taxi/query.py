@@ -7,7 +7,7 @@ from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import FEstimatorHelper
 
-from apxinfer.examples.taxi.data import TaxiTripRequest, TaxiTripQConfig
+from apxinfer.examples.taxi.data import TaxiTripRequest, XIPQueryConfig
 from apxinfer.examples.taxi.data import TaxiTripLoader
 
 
@@ -22,7 +22,7 @@ class TaxiTripQ0(XIPQuery):
             qname, XIPQType.NORMAL, data_loader, fnames, cfg_pools, enable_cache
         )
 
-    def run(self, request: TaxiTripRequest, qcfg: TaxiTripQConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         fvals = np.array(
             [
                 request["req_trip_distance"],
@@ -86,7 +86,7 @@ class TaxiTripQ1(XIPQuery):
             qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
         )
 
-    def run(self, request: TaxiTripRequest, qcfg: TaxiTripQConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         req_data = self.data_loader.load_data(request, qcfg, self.dcols)
 
@@ -165,7 +165,7 @@ class TaxiTripQ2(XIPQuery):
             qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
         )
 
-    def run(self, request: TaxiTripRequest, qcfg: TaxiTripQConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         req_data = self.data_loader.load_data(request, qcfg, self.dcols)
 
@@ -237,7 +237,7 @@ class TaxiTripQ3(XIPQuery):
             qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
         )
 
-    def run(self, request: TaxiTripRequest, qcfg: TaxiTripQConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         req_data = self.data_loader.load_data(request, qcfg, self.dcols)
 
@@ -335,7 +335,7 @@ class TaxiTripAGGFull(XIPQuery):
             qname, XIPQType.AGG, data_loader, fnames, cfg_pools, enable_cache
         )
 
-    def run(self, request: TaxiTripRequest, qcfg: TaxiTripQConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         req_data = self.data_loader.load_data(request, qcfg, self.dcols)
 

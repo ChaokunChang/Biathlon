@@ -20,18 +20,24 @@ class TaxiTripRequest(XIPRequest):
     req_trip_distance: float
 
 
-class TaxiTripQConfig(XIPQueryConfig, total=False):
-    pass
-
-
 class TaxiTripIngestor(XIPDataIngestor):
-    def __init__(self, dsrc_type: str, dsrc: str, database: str, table: str, max_nchunks: int, seed: int) -> None:
+    def __init__(
+        self,
+        dsrc_type: str,
+        dsrc: str,
+        database: str,
+        table: str,
+        max_nchunks: int,
+        seed: int,
+    ) -> None:
         super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
 
     def create_table(self) -> None:
-        self.logger.info(f'Creating table {self.table} in database {self.database}')
+        self.logger.info(f"Creating table {self.table} in database {self.database}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} already exists in database {self.database}')
+            self.logger.info(
+                f"Table {self.table} already exists in database {self.database}"
+            )
             return
         sql = f"""CREATE TABLE IF NOT EXISTS {self.database}.{self.table} (
                     trip_id UInt32,
@@ -65,12 +71,20 @@ class TaxiTripIngestor(XIPDataIngestor):
         self.db_client.command(sql)
 
     def ingest_data(self) -> None:
-        self.logger.info(f'Ingesting data from {self.dsrc} into table {self.table} in database {self.database}')
+        self.logger.info(
+            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+        )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(f'Table {self.table} in database {self.database} is not empty')
+            self.logger.info(
+                f"Table {self.table} in database {self.database} is not empty"
+            )
             return
-        assert self.dsrc_type == 'clickhouse', f'Unsupported data source type {self.dsrc_type}'
-        nrows = DBHelper.get_table_size(self.db_client, self.dsrc.split('.')[0], self.dsrc.split('.')[1])
+        assert (
+            self.dsrc_type == "clickhouse"
+        ), f"Unsupported data source type {self.dsrc_type}"
+        nrows = DBHelper.get_table_size(
+            self.db_client, self.dsrc.split(".")[0], self.dsrc.split(".")[1]
+        )
         sql = f"""
             INSERT INTO {self.database}.{self.table}
             SELECT trip_id, pickup_datetime, dropoff_datetime,
@@ -100,28 +114,42 @@ class TaxiTripIngestor(XIPDataIngestor):
 
 
 class TaxiTripLoader(XIPDataLoader):
-    def __init__(self, backend: str, database: str, table: str,
-                 seed: int, enable_cache: bool,
-                 max_nchunks: int,
-                 window_hours: int = 1,
-                 condition_cols: List[str] = ['pickup_ntaname'],
-                 finished_only: bool = False) -> None:
+    def __init__(
+        self,
+        backend: str,
+        database: str,
+        table: str,
+        seed: int,
+        enable_cache: bool,
+        max_nchunks: int,
+        window_hours: int = 1,
+        condition_cols: List[str] = ["pickup_ntaname"],
+        finished_only: bool = False,
+    ) -> None:
         super().__init__(backend, database, table, seed, enable_cache)
         self.max_nchunks = max_nchunks
         self.window_hours = window_hours  # window_size in hours
         self.condition_cols = condition_cols
         self.finished_only = finished_only
 
-    def load_data(self, req: TaxiTripRequest, qcfg: TaxiTripQConfig, cols: List[str]) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
-        to_pid = self.max_nchunks * qcfg['qsample']
+    def load_data(
+        self, req: TaxiTripRequest, qcfg: XIPQueryConfig, cols: List[str]
+    ) -> np.ndarray:
+        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
+        to_pid = self.max_nchunks * qcfg["qsample"]
 
-        to_dt = req['req_pickup_datetime']
+        to_dt = req["req_pickup_datetime"]
         from_dt = to_dt - dt.timedelta(hours=self.window_hours)
 
-        conditon_values = [req[f'req_{col}'] for col in self.condition_cols]
-        condtions = [f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)]
-        finished_only = f"dropoff_datetime IS NOT NULL AND dropoff_datetime <= '{to_dt}'" if self.finished_only else '1 = 1'
+        conditon_values = [req[f"req_{col}"] for col in self.condition_cols]
+        condtions = [
+            f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)
+        ]
+        finished_only = (
+            f"dropoff_datetime IS NOT NULL AND dropoff_datetime <= '{to_dt}'"
+            if self.finished_only
+            else "1 = 1"
+        )
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}

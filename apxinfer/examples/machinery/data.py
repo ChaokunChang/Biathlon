@@ -12,10 +12,6 @@ class MachineryRequest(XIPRequest):
     req_bid: int
 
 
-class MachineryQConfig(XIPQueryConfig, total=False):
-    pass
-
-
 def get_raw_data_files_list(data_dir: str) -> List[str]:
     normal_file_names = glob.glob(os.path.join(data_dir, "normal", "normal", "*.csv"))
     imnormal_file_names_6g = glob.glob(
@@ -161,7 +157,7 @@ class MachineryLoader(XIPDataLoader):
         super().__init__(backend, database, table, seed, enable_cache)
         self.max_nchunks = max_nchunks
 
-    def load_data(self, request: MachineryRequest, qcfg: MachineryQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: MachineryRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
         to_pid = self.max_nchunks * qcfg['qsample']
         bid = request['req_bid']

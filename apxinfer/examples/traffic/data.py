@@ -15,10 +15,6 @@ class TrafficRequest(XIPRequest):
     req_borough: str
 
 
-class TrafficQConfig(XIPQueryConfig, total=False):
-    pass
-
-
 def req_to_dt(request: TrafficRequest) -> dt.datetime:
     datetime = dt.datetime(year=request['req_year'], month=request['req_month'],
                            day=request['req_day'], hour=request['req_hour'])
@@ -166,7 +162,7 @@ class TrafficHourDataLoader(XIPDataLoader):
         self.db_client = ingestor.db_client
         self.max_nchunks = ingestor.max_nchunks
 
-    def load_data(self, request: TrafficRequest, qcfg: TrafficQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
         to_pid = self.max_nchunks * qcfg['qsample']
         req_dt = req_to_dt(request)
@@ -265,7 +261,7 @@ class TrafficFStoreLoader(XIPDataLoader):
         # self.granularity = granularity
         # self.keys = self.all_granularities[:self.all_granularities.index(self.granularity) + 1]
 
-    def load_data(self, request: TrafficRequest, qcfg: TrafficQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         key_values = [request[f'req_{key}'] for key in self.keys]
         conditions = [f'{key} = {value}' for key, value in zip(self.keys, key_values)]
         sql = f"""

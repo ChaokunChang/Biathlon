@@ -22,10 +22,6 @@ class CCFraudRequest(XIPRequest):
     req_errors: str
 
 
-class CCFraudQConfig(XIPQueryConfig, total=False):
-    pass
-
-
 class CCFraudTxnsIngestor(XIPDataIngestor):
     def __init__(self, dsrc_type: str, dsrc: str, database: str, table: str, max_nchunks: int, seed: int) -> None:
         super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
@@ -172,7 +168,7 @@ class CCFraudTxnsLoader(XIPDataLoader):
         self.window_size = window_size  # window size in days
         self.condition_cols = condition_cols
 
-    def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         from_pid = self.max_nchunks * qcfg.get('qoffset', 0)
         to_pid = self.max_nchunks * qcfg['qsample']
         req_dt = request['req_txn_datetime']
@@ -249,7 +245,7 @@ class CCFraudCardsLoader(XIPDataLoader):
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
 
-    def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         uid = request['req_uid']
         card_index = request['req_card_index']
         sql = f"""
@@ -345,7 +341,7 @@ class CCFraudUsersLoader(XIPDataLoader):
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
 
-    def load_data(self, request: CCFraudRequest, qcfg: CCFraudQConfig, cols: List[str]) -> np.ndarray:
+    def load_data(self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]) -> np.ndarray:
         uid = request['req_uid']
         sql = f"""
             SELECT {', '.join(cols)}

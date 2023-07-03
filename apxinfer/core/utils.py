@@ -144,4 +144,3 @@ def merge_fvecs(
     fests = np.concatenate([fvec["fests"] for fvec in fvecs])
     fdists = list(itertools.chain.from_iterable([fvec["fdists"] for fvec in fvecs]))
     return XIPFeatureVec(fnames=fnames, fvals=fvals, fests=fests, fdists=fdists)
-

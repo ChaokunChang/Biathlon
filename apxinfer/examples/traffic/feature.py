@@ -15,7 +15,7 @@ def get_fextractor(
     # ingestors
     dt_ingestor = TrafficDataIngestor(
         dsrc_type="user_files",
-        dsrc="file('DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
+        dsrc="file('traffic/DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
         database="xip",
         table="traffic",
         max_nchunks=max_nchunks,

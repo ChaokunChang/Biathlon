@@ -52,14 +52,17 @@ class XIPScheduler:
 
         if self.min_qsamples is None:
             self.min_qsamples = [
-                qry.get_qcfg(
-                    0, self.sample_grans[i] if qry.qtype == XIPQType.AGG else 1.0, 0.0
-                )
+                self.sample_grans[i] if qry.qtype == XIPQType.AGG else 1.0
                 for i, qry in enumerate(self.fextractor.queries)
             ]
 
         if self.max_qsamples is None:
-            return [qry.get_qcfg(100, 1.0, 0.0) for qry in self.fextractor.queries]
+            self.max_qsamples = [1.0] * self.fextractor.num_queries
+
+        self.max_qcfg_ids = [
+            int((self.max_qsamples[i] - self.min_qsamples[i]) / self.sample_grans[i])
+            for i in range(self.fextractor.num_queries)
+        ]
 
         self.logger = logging.getLogger("XIPScheduler")
         if verbose:
@@ -75,8 +78,10 @@ class XIPScheduler:
     def get_final_qcfgs(self, request: XIPRequest) -> List[XIPQueryConfig]:
         """Get the final set of qcfgs to finish the scheduler"""
         return [
-            qry.get_qcfg(0, qsample, 0.0)
-            for qry, qsample in zip(self.fextractor.queries, self.max_qsamples)
+            qry.get_qcfg(qcfg_id, qsample, 0.0)
+            for qry, qcfg_id, qsample in zip(
+                self.fextractor.queries, self.max_qcfg_ids, self.max_qsamples
+            )
         ]
 
     def start(self, request: XIPRequest) -> List[XIPQueryConfig]:
@@ -138,13 +143,15 @@ class XIPScheduler:
             for qid in sorted_qids:
                 if nsteps == 0:
                     break
-                if qcfgs[qid]["qsample"] == self.max_qsamples[qid]:
+                if next_qcfgs[qid]["qsample"] == self.max_qsamples[qid]:
                     continue
-                next_qcfgs[qid] = qcfgs[qid]["qsample"] + self.sample_grans[qid]
+                next_qcfgs[qid]["qcfg_id"] += 1
+                next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
                 nsteps -= 1
 
         # if qcard is too small, just use final qcfgs
         for qid in range(len(qcfgs)):
             if qcosts[qid]["qcard"] is not None and qcosts[qid]["qcard"] < 30:
+                next_qcfgs[qid] = self.max_qcfg_ids[qid]
                 next_qcfgs[qid] = self.max_qsamples[qid]
         return next_qcfgs

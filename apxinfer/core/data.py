@@ -171,7 +171,7 @@ class XIPDataLoader:
         self.logger = logging.getLogger("XIPDataLoader")
 
         if self.enable_cache:
-            # cache the load_data function, 
+            # cache the load_data function,
             # TODO: self managed cache for incremental computation
             # self.load_data = cache_region('short_term')(self.load_data)
             self._load_data = self.load_data

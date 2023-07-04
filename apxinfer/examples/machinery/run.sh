@@ -6,7 +6,7 @@ python online.py --task machinery --model mlp --exact
 python online.py --task machinery --model mlp  # default setting
 python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 0.99
 python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 1.0
-python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --n_cfgs 3
-python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --n_cfgs 3
-python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --n_cfgs 10
-python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --n_cfgs 10
+python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --ncfgs 3
+python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --ncfgs 3
+python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --ncfgs 10
+python online.py --task machinery --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --ncfgs 10

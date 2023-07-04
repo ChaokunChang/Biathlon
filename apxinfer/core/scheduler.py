@@ -140,11 +140,16 @@ class XIPScheduler:
         ]
         nsteps = min(np.sum(valid_nsteps), nsteps)
         while nsteps > 0:
-            for qid in sorted_qids:
+            candidates = [
+                qid
+                for qid in sorted_qids
+                if next_qcfgs[qid]["qsample"] < self.max_qsamples[qid]
+            ]
+            if len(candidates) == 0:
+                break
+            for qid in candidates:
                 if nsteps == 0:
                     break
-                if next_qcfgs[qid]["qsample"] == self.max_qsamples[qid]:
-                    continue
                 next_qcfgs[qid]["qcfg_id"] += 1
                 next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
                 nsteps -= 1

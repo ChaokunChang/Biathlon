@@ -28,7 +28,7 @@ class TrainerArgs(BaseXIPArgs):
 
 class OnlineArgs(BaseXIPArgs):
     num_requests: int = 0  # number of test requests
-    n_cfgs: int = 5  # number of query configurations
+    ncfgs: int = 5  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
     disable_query_cache: bool = False  # whether to disable cache the query in loader
@@ -97,7 +97,7 @@ class DIRHelper:
         if args.exact:
             online_dir = os.path.join(online_dir, "exact")
         else:
-            online_dir = os.path.join(online_dir, f"ncfgs-{args.n_cfgs}")
+            online_dir = os.path.join(online_dir, f"ncfgs-{args.ncfgs}")
             online_dir = os.path.join(
                 online_dir,
                 f"pest-{args.pest_constraint}-{args.pest}"

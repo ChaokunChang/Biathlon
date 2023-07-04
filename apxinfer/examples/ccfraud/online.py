@@ -93,7 +93,7 @@ if __name__ == "__main__":
             pred_estimator=pred_estimator,
             qinf_estimator=qinf_estimator,
             qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.n_cfgs, 2)] * fextractor.num_queries,
+            sample_grans=[round(1.0 / args.ncfgs, 2)] * fextractor.num_queries,
             verbose=verbose,
         )
     else:

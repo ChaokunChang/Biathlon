@@ -6,7 +6,7 @@ python online.py --task machinery_multiclass_plus --model mlp --exact --multicla
 python online.py --task machinery_multiclass_plus --model mlp --multiclass --plus
 python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --multiclass --plus
 python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --multiclass --plus
-python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --n_cfgs 3 --multiclass --plus
-python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --n_cfgs 3 --multiclass --plus
-python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --n_cfgs 10 --multiclass --plus
-python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --n_cfgs 10 --multiclass --plus
+python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --ncfgs 3 --multiclass --plus
+python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --ncfgs 3 --multiclass --plus
+python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 0.99 --ncfgs 10 --multiclass --plus
+python online.py --task machinery_multiclass_plus --model mlp --pest_constraint error --max_error 0 --min_conf 1.0 --ncfgs 10 --multiclass --plus

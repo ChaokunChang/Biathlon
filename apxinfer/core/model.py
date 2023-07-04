@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from typing import Literal
+from typing import Literal, Union
 import logging
 from sklearn import metrics
 from sklearn.base import BaseEstimator
@@ -14,6 +14,8 @@ from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.inspection import permutation_importance
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.preprocessing import StandardScaler
 import xgboost as xgb
 from lightgbm import LGBMClassifier, LGBMRegressor
 from beaker.cache import CacheManager
@@ -111,29 +113,57 @@ SUPPORTED_MODELS = {
 }
 
 
-def create_model(
+def create_estimators(
     model_type: Literal["regressor", "classifier"],
     model_name: str,
+    scaler_type: str = None,
     multi_class: bool = False,
-    **kwargs
-) -> XIPModel:
+    **kwargs,
+) -> Union[BaseEstimator, Pipeline]:
     """Create a model"""
     if model_type == "regressor":
         if model_name == "lr":
-            return XIPRegressor(LinearRegression())
+            model = LinearRegression()
         elif model_name == "huber":
-            return XIPRegressor(HuberRegressor())
+            model = HuberRegressor()
         elif model_name == "quantile":
-            return XIPRegressor(QuantileRegressor())
+            model = QuantileRegressor()
         elif model_name == "knn":
-            return XIPRegressor(KNeighborsRegressor())
+            model = KNeighborsRegressor()
         elif model_name == "svm":
-            return XIPRegressor(SVR())
+            model = SVR()
         else:
-            return XIPRegressor(SUPPORTED_MODELS["regressor"][model_name](**kwargs))
+            model = SUPPORTED_MODELS["regressor"][model_name](**kwargs)
+    elif model_type == "classifier":
+        model = SUPPORTED_MODELS["classifier"][model_name](**kwargs)
+    else:
+        raise NotImplementedError
+    if scaler_type is not None and scaler_type != "":
+        print(f"build model with scaler {scaler_type}")
+        if scaler_type == "standard":
+            scaler = StandardScaler()
+        else:
+            raise NotImplementedError
+        return make_pipeline(scaler, model)
+    else:
+        return model
+
+
+def create_model(
+    model_type: Literal["regressor", "classifier"],
+    model_name: str,
+    scaler_type: str = None,
+    multi_class: bool = False,
+    **kwargs,
+) -> XIPModel:
+    """Create a model"""
+    if model_type == "regressor":
+        return XIPRegressor(
+            create_estimators(model_type, model_name, scaler_type, **kwargs)
+        )
     elif model_type == "classifier":
         return XIPClassifier(
-            SUPPORTED_MODELS["classifier"][model_name](**kwargs),
+            create_estimators(model_type, model_name, scaler_type, **kwargs),
             multi_class=multi_class,
         )
     else:
@@ -142,12 +172,7 @@ def create_model(
 
 def get_model_type(model: XIPModel) -> Literal["regressor", "classifier"]:
     """Get the model type of the pipeline"""
-    if isinstance(model.model, tuple(SUPPORTED_MODELS["classifier"].values())):
-        return "classifier"
-    elif isinstance(model.model, tuple(SUPPORTED_MODELS["regressor"].values())):
-        return "regressor"
-    else:
-        raise NotImplementedError
+    return model.model_type
 
 
 def evaluate_regressor(

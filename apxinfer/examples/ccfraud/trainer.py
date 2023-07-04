@@ -35,5 +35,7 @@ if __name__ == "__main__":
     seed = args.seed
     working_dir = DIRHelper.get_prepare_dir(args)
 
-    trainer = CCFraudTrainer(working_dir, model_type, model_name, seed)
+    trainer = CCFraudTrainer(
+        working_dir, model_type, model_name, seed, scaler_type=args.scaler_type
+    )
     trainer.run()

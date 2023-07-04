@@ -22,12 +22,14 @@ class XIPTrainer:
         model_type: str,
         model_name: str,
         seed: int,
+        scaler_type: str = None,
         multi_class: bool = False,
     ) -> None:
         self.working_dir = working_dir
 
         self.model_type = model_type
         self.model_name = model_name
+        self.scaler_type = scaler_type
         self.multi_class = multi_class
 
         self.seed = seed
@@ -41,6 +43,7 @@ class XIPTrainer:
         model = create_model(
             self.model_type,
             self.model_name,
+            scaler_type=self.scaler_type,
             multi_class=self.multi_class,
             random_state=self.seed,
         )

@@ -38,17 +38,27 @@ class TrafficPrepareWorker(XIPPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         self.logger.info("Getting requests")
         sql = f"""
-            SELECT year, month, day, hour, borough
+            SELECT year, month, day, hour, borough, count() AS cnt
             FROM {self.database}.{self.table}
             GROUP BY year, month, day, hour, borough
             ORDER BY year, month, day, hour, borough
             """
         df: pd.DataFrame = self.db_client.query_df(sql)
+        df = df.iloc[1000:]
+
         if self.max_requests > 0 and self.max_requests < len(df):
             # select max_requests in the middle
-            start = int((len(df) - self.max_requests) / 2)
-            end = start + self.max_requests
-            df = df.iloc[start:end]
+            # start = int((len(df) - self.max_requests) / 2)
+            # end = start + self.max_requests
+            # df = df.iloc[start:end]
+            df = df.sample(
+                n=self.max_requests,
+                replace=False,
+                weights='cnt',
+                random_state=self.seed,
+                ignore_index=True,
+            )
+        df.drop(columns=["cnt"], inplace=True)
         self.logger.info(f"Got of {len(df)}x of requests")
         df.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return df

@@ -37,6 +37,11 @@ if __name__ == "__main__":
     working_dir = DIRHelper.get_prepare_dir(args)
 
     trainer = MachineryTrainer(
-        working_dir, model_type, model_name, seed, multi_class=args.multiclass
+        working_dir,
+        model_type,
+        model_name,
+        seed,
+        scaler_type=args.scaler_type,
+        multi_class=args.multiclass,
     )
     trainer.run()

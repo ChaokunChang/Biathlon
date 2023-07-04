@@ -113,7 +113,9 @@ class XIPTrainer:
         self.logger.info(
             f"Calculating feature importance for {self.model_type} {self.model_name}"
         )
-        feature_importance = model.get_feature_importances()
+        feature_importance = model.get_feature_importances(
+            X_val=valid_set[fnames].values, y_val=valid_set[label_name].values
+        )
         gfimps: pd.DataFrame = pd.DataFrame(
             {"fname": fnames, "importance": feature_importance},
             columns=["fname", "importance"],
@@ -125,3 +127,17 @@ class XIPTrainer:
             index=False,
         )
         self.logger.info(gfimps)
+
+        self.logger.info("Calculating permutation feature importance")
+        perm_fimps = model.get_permutation_fimps(
+            X_val=valid_set[fnames].values, y_val=valid_set[label_name].values
+        )
+        pfimps: pd.DataFrame = pd.DataFrame(
+            {"fname": fnames, "importance": perm_fimps},
+            columns=["fname", "importance"],
+        )
+        pfimps.to_csv(
+            osp.join(self.working_dir, "model", f"{self.model_name}_pfimps.csv"),
+            index=False,
+        )
+        self.logger.info(pfimps)

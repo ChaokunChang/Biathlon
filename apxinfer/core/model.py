@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.neural_network import MLPRegressor, MLPClassifier
+from sklearn.inspection import permutation_importance
 import xgboost as xgb
 from lightgbm import LGBMClassifier, LGBMRegressor
 from beaker.cache import CacheManager
@@ -49,14 +50,25 @@ class XIPModel(BaseEstimator):
     def set_params(self, **params) -> None:
         self.model.set_params(**params)
 
-    def get_feature_importances(self) -> np.ndarray:
+    def get_permutation_fimps(self, X_val: np.array, y_val: np.array) -> np.array:
+        r = permutation_importance(
+            self.model, X_val, y_val, n_repeats=30, random_state=0
+        )
+        return r.importances_mean
+
+    def get_feature_importances(
+        self, X_val: np.array = None, y_val: np.array = None
+    ) -> np.ndarray:
         try:
             return self.model.feature_importances_
         except AttributeError:
             try:
-                return self.model.coef_
+                fimps = self.model.coef_
+                if len(fimps.shape) > 1:
+                    fimps = fimps[0]
+                return fimps
             except AttributeError:
-                return None
+                return self.get_permutation_fimps(X_val=X_val, y_val=y_val)
 
 
 class XIPClassifier(XIPModel):

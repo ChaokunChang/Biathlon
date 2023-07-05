@@ -40,11 +40,23 @@ class XIPModel(BaseEstimator):
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
 
+    def keras_predict(self, X: np.ndarray) -> np.ndarray:
+        return self.model.predict(X.reshape((X.shape[0], 1, X.shape[1])), verbose=0)
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict_proba(X)
 
     def score(self, X: np.ndarray, y: np.ndarray) -> float:
         return self.model.score(X, y)
+
+    def keras_score(self, X: np.ndarray, y: np.ndarray) -> float:
+        if self.model_type == "regressor":
+            y_pred = self.keras_predict(X)
+            return metrics.mean_squared_error(y, y_pred)
+        elif self.model_type == "classifier":
+            return metrics.accuracy_score(y, y_pred)
+        else:
+            raise NotImplementedError
 
     def get_params(self, deep: bool = True) -> dict:
         return self.model.get_params(deep)
@@ -53,9 +65,7 @@ class XIPModel(BaseEstimator):
         self.model.set_params(**params)
 
     def get_permutation_fimps(self, X_val: np.array, y_val: np.array) -> np.array:
-        r = permutation_importance(
-            self.model, X_val, y_val, n_repeats=30, random_state=0
-        )
+        r = permutation_importance(self, X_val, y_val, n_repeats=30, random_state=0)
         return r.importances_mean
 
     def get_feature_importances(

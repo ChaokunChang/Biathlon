@@ -150,6 +150,19 @@ class FEstimatorHelper:
     }
 
 
+def get_fvec_auto(
+    fnames: List[str], req_data: np.ndarray, dcol_aggs: List[List[str]], qsample: float
+) -> XIPFeatureVec:
+    fvecs = []
+    for i, aggs in enumerate(dcol_aggs):
+        for agg in aggs:
+            fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
+                req_data[:, i : i + 1], qsample
+            )
+            fvecs.append(fvec)
+    return merge_fvecs(fvecs, new_names=fnames)
+
+
 SUPPORTED_DISTRIBUTIONS = {
     "normal": {"sampler": np.random.normal, "final_args": 0.0},
     "fixed": {"sampler": lambda x, size: np.array([x] * size), "final_args": []},

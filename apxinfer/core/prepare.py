@@ -97,7 +97,6 @@ class XIPPrepareWorker:
                 total=num_requests,
             ):
                 fvec: XIPFeatureVec = query.run(req, final_qcfg)
-                # print(fvec)
                 qfeatures[rid] = fvec["fvals"]
             self.logger.info(f"Extracted features {query.fnames}")
             qfeatures_list.append(qfeatures)

@@ -43,7 +43,7 @@ class XIPQuery:
         qsample = qcfg["qsample"]
         fvals = np.zeros(len(self.fnames))
         if qsample >= 1.0:
-            self.logger.warning(f"no data for {request}")
+            self.logger.warning(f"no data for {request} in {self.qname}")
             fests = np.zeros(len(self.fnames))
         else:
             fests = np.ones(len(self.fnames)) * 1e9
@@ -52,6 +52,13 @@ class XIPQuery:
             fvals=fvals,
             fests=fests,
             fdists=["normal"] * len(self.fnames),
+        )
+
+    def get_fvec_with_default_est(self, fvals: np.ndarray) -> XIPFeatureVec:
+        fests = np.zeros_like(fvals)
+        fdists = ["normal"] * len(fvals)
+        return XIPFeatureVec(
+            fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists
         )
 
     def estimate_cost(self, request: XIPRequest, qcfg: XIPQueryConfig) -> float:

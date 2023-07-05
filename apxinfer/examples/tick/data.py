@@ -1,6 +1,5 @@
 from typing import List
 import numpy as np
-import pandas as pd
 import datetime as dt
 import os
 from tqdm import tqdm
@@ -11,7 +10,7 @@ from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 class TickRequest(XIPRequest):
     req_dt: dt.datetime
-    cpair: str
+    req_cpair: str
 
 
 def get_all_files(data_dir: str) -> List[str]:
@@ -64,8 +63,7 @@ class TickDataIngestor(XIPDataIngestor):
             self.logger.info(f"Ingesting data from {self.dsrc} into table {aux_table}")
             assert self.dsrc_type == "user_files_dir"
             files = get_all_files(self.dsrc)
-            for fpath in tqdm(files, desc='ingesting into aux',
-                              total=len(files)):
+            for fpath in tqdm(files, desc="ingesting into aux", total=len(files)):
                 sql = f""" INSERT INTO {self.database}.{aux_table} \
                         SELECT cpair , parseDateTime64BestEffort(dt_str) as tick_dt, \
                                 bid, ask \
@@ -145,7 +143,7 @@ class TickThisHourDataLoader(XIPDataLoader):
     ) -> np.ndarray:
         from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
         to_pid = self.max_nchunks * qcfg["qsample"]
-        cpair = request["cpair"]
+        cpair = request["req_cpair"]
         tick_dt = request["req_dt"]
         from_dt = tick_dt
         to_dt = from_dt + dt.timedelta(hours=1)
@@ -153,22 +151,126 @@ class TickThisHourDataLoader(XIPDataLoader):
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
             WHERE pid >= {from_pid} AND pid < {to_pid}
-                AND cpair = {cpair}
+                AND cpair = '{cpair}'
                 AND tick_dt >= '{from_dt}' AND tick_dt < '{to_dt}'
             SETTINGS max_threads = 1
         """
         return self.db_client.query_np(sql)
 
 
+class TickHourFStoreIngestor(XIPDataIngestor):
+    def __init__(
+        self,
+        dsrc_type: str,
+        dsrc: str,
+        database: str,
+        table: str,
+        max_nchunks: int,
+        seed: int,
+    ) -> None:
+        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        self.agg_ops = [
+            "count",
+            "avg",
+            "sum",
+            "varPop",
+            "stddevPop",
+            "median",
+            "min",
+            "max",
+        ]
+        self.agg_cols = ["bid", "ask"]
+        self.time_keys = ["year", "month", "day", "hour"]
+        self.time_ops = ["toYear", "toMonth", "toDayOfMonth", "toHour"]
+
+    def create_table(self) -> None:
+        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        if DBHelper.table_exists(self.db_client, self.database, self.table):
+            self.logger.info(
+                f"Table {self.table} already exists in database {self.database}"
+            )
+            return
+        aggs = [f"{agg}_{col} Float32" for col in self.agg_cols for agg in self.agg_ops]
+        key_cols = [f"{key} Int32" for key in self.time_keys]
+        sql = f"""
+            CREATE TABLE IF NOT EXISTS {self.database}.{self.table} (
+                cpair String,
+                {', '.join(key_cols)},
+                {', '.join(aggs)}
+            ) ENGINE = MergeTree()
+            PARTITION BY cpair
+            ORDER BY ({', '.join(self.time_keys)})
+            """
+        self.db_client.command(sql)
+
+    def ingest_data(self) -> None:
+        self.logger.info(
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
+        )
+        if not DBHelper.table_empty(self.db_client, self.database, self.table):
+            self.logger.info(
+                f"Table {self.table} in database {self.database} is not empty"
+            )
+            return
+        assert (
+            self.dsrc_type == "clickhouse"
+        ), f"Unsupported data source type {self.dsrc_type}"
+        aggs = [
+            f"{agg}({col}) AS {agg}_{col}"
+            for col in self.agg_cols
+            for agg in self.agg_ops
+        ]
+        assert len(self.time_ops) == len(self.time_keys)
+        time_cols = [
+            f"{self.time_ops[i]}(tick_dt) as {self.time_keys[i]}"
+            for i in range(len(self.time_keys))
+        ]
+        sql = f"""
+            INSERT INTO {self.database}.{self.table}
+            SELECT cpair, {', '.join(time_cols)},
+                {', '.join(aggs)}
+            FROM {self.dsrc}
+            GROUP BY cpair, {', '.join(self.time_keys)}
+        """
+        self.db_client.command(sql)
+
+
+class TickHourFStoreDataLoader(XIPDataLoader):
+    def load_data(
+        self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str]
+    ) -> np.ndarray:
+        cpair = request["req_cpair"]
+        tick_dt = request["req_dt"]
+        sql = f"""
+            SELECT {', '.join(cols)}
+            FROM {self.database}.{self.table}
+            WHERE cpair = '{cpair}'
+                  AND year = {tick_dt.year} AND month = {tick_dt.month}
+                  AND day = {tick_dt.day} AND hour = {tick_dt.hour}
+            SETTINGS max_threads = 1
+        """
+        return self.load_from_fstore(request, qcfg, cols, sql)
+
+
 if __name__ == "__main__":
     dsrc_type = "user_files_dir"
-    dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data/April2020"
+    dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data"
     ingestor = TickDataIngestor(
         dsrc_type=dsrc_type,
         dsrc=dsrc,
         database="xip",
         table="tick",
         max_nchunks=100,
+        seed=0,
+    )
+    ingestor.run()
+
+    ingestor = TickHourFStoreIngestor(
+        dsrc_type="clickhouse",
+        dsrc="xip.tick",
+        database="xip",
+        table="tick_fstore_hour",
+        max_nchunks=0,
         seed=0,
     )
     ingestor.run()

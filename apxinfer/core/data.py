@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import pandas as pd
 from typing import List
 import logging
 import warnings
@@ -190,6 +191,20 @@ class XIPDataLoader:
             qcard = int(len(self.cached_data) / self.cached_qsample)
             return qcard
         return None
+
+    def load_from_fstore(
+        self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str], sql: str
+    ) -> np.ndarray:
+        df: pd.DataFrame = self.db_client.query_df(sql)
+        if df.empty:
+            self.logger.warning(f"No feature in {self.table} for request {request}")
+            ret = np.zeros(len(cols))
+        else:
+            if len(df) == 1:
+                ret = df.values[0]
+            else:
+                self.logger.warning(f"More than one record found for request {request}")
+        return ret
 
     def load_data(
         self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str]

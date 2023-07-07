@@ -44,10 +44,10 @@ class TrafficDataIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
         self.db_client = DBHelper.get_db_client()
 
     def create_database(self) -> None:
@@ -162,7 +162,7 @@ class TrafficDataIngestor(XIPDataIngestor):
             ) as tmp1
             JOIN
             (
-                SELECT rowNumberInAllBlocks() as trip_id, value % {self.max_nchunks} as pid
+                SELECT rowNumberInAllBlocks() as trip_id, value % {self.nparts} as pid
                 FROM generateRandom('value UInt32', {self.seed})
                 LIMIT {nrows}
             ) as tmp2
@@ -198,13 +198,13 @@ class TrafficHourDataLoader(XIPDataLoader):
         )
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
-        self.max_nchunks = ingestor.max_nchunks
+        self.nparts = ingestor.nparts
 
     def load_data(
         self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
-        to_pid = self.max_nchunks * qcfg["qsample"]
+        from_pid = self.nparts * qcfg.get("qoffset", 0)
+        to_pid = self.nparts * qcfg["qsample"]
         req_dt = req_to_dt(request)
         req_dt_plus_1h = req_dt + dt.timedelta(hours=1)
         sql = f"""

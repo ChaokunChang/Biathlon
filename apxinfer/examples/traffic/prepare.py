@@ -54,7 +54,7 @@ class TrafficPrepareWorker(XIPPrepareWorker):
             df = df.sample(
                 n=self.max_requests,
                 replace=False,
-                weights='cnt',
+                weights="cnt",
                 random_state=self.seed,
                 ignore_index=True,
             )
@@ -109,7 +109,7 @@ class TrafficPrepareArgs(PrepareArgs):
 if __name__ == "__main__":
     # Configurations
     args = TrafficPrepareArgs().parse_args()
-    max_nchunks = args.max_nchunks
+    nparts = args.nparts
     skip_dataset = args.skip_dataset
     max_requests = args.max_requests
     train_ratio = args.train_ratio
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     working_dir = DIRHelper.get_prepare_dir(args)
 
     fextractor = get_fextractor(
-        max_nchunks, seed, disable_sample_cache=True, disable_query_cache=True
+        nparts, seed, disable_sample_cache=True, disable_query_cache=True
     )
     pworker = TrafficPrepareWorker(
         working_dir,

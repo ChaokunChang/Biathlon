@@ -38,7 +38,7 @@ class TaxiTripQ1(XIPQuery):
         self,
         qname: str,
         enable_cache: bool = False,
-        max_nchunks: int = 100,
+        nparts: int = 100,
         seed: int = 0,
     ) -> None:
         self.window_hours = 1
@@ -52,7 +52,7 @@ class TaxiTripQ1(XIPQuery):
             table="trips",
             seed=seed,
             enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             window_hours=self.window_hours,
             condition_cols=self.condition_cols,
             finished_only=self.finished_only,
@@ -102,7 +102,7 @@ class TaxiTripQ2(XIPQuery):
         self,
         qname: str,
         enable_cache: bool = False,
-        max_nchunks: int = 100,
+        nparts: int = 100,
         seed: int = 0,
     ) -> None:
         self.window_hours = 24
@@ -116,7 +116,7 @@ class TaxiTripQ2(XIPQuery):
             table="trips",
             seed=seed,
             enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             window_hours=self.window_hours,
             condition_cols=self.condition_cols,
             finished_only=self.finished_only,
@@ -171,7 +171,7 @@ class TaxiTripQ3(XIPQuery):
         self,
         qname: str,
         enable_cache: bool = False,
-        max_nchunks: int = 100,
+        nparts: int = 100,
         seed: int = 0,
     ) -> None:
         self.window_hours = 24 * 7
@@ -185,7 +185,7 @@ class TaxiTripQ3(XIPQuery):
             table="trips",
             seed=seed,
             enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             window_hours=self.window_hours,
             condition_cols=self.condition_cols,
             finished_only=self.finished_only,
@@ -244,7 +244,7 @@ class TaxiTripAGGFull(XIPQuery):
             "variance",
         ],
         enable_cache: bool = False,
-        max_nchunks: int = 100,
+        nparts: int = 100,
         seed: int = 0,
     ) -> None:
         self.window_hours = window_hours
@@ -259,7 +259,7 @@ class TaxiTripAGGFull(XIPQuery):
             table="trips",
             seed=seed,
             enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             window_hours=self.window_hours,
             condition_cols=self.condition_cols,
             finished_only=self.finished_only,

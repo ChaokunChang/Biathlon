@@ -27,10 +27,10 @@ class TaxiTripIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
 
     def create_table(self) -> None:
         self.logger.info(f"Creating table {self.table} in database {self.database}")
@@ -104,7 +104,7 @@ class TaxiTripIngestor(XIPDataIngestor):
             ) as tmp1
             JOIN
             (
-                SELECT value % {self.max_nchunks} as pid, rowNumberInAllBlocks() as row_id
+                SELECT value % {self.nparts} as pid, rowNumberInAllBlocks() as row_id
                 FROM (
                     SELECT *
                     FROM generateRandom('value UInt32', {self.seed})
@@ -124,13 +124,13 @@ class TaxiTripLoader(XIPDataLoader):
         table: str,
         seed: int,
         enable_cache: bool,
-        max_nchunks: int,
+        nparts: int,
         window_hours: int = 1,
         condition_cols: List[str] = ["pickup_ntaname"],
         finished_only: bool = False,
     ) -> None:
         super().__init__(backend, database, table, seed, enable_cache)
-        self.max_nchunks = max_nchunks
+        self.nparts = nparts
         self.window_hours = window_hours  # window_size in hours
         self.condition_cols = condition_cols
         self.finished_only = finished_only
@@ -138,8 +138,8 @@ class TaxiTripLoader(XIPDataLoader):
     def load_data(
         self, req: TaxiTripRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
-        to_pid = self.max_nchunks * qcfg["qsample"]
+        from_pid = self.nparts * qcfg.get("qoffset", 0)
+        to_pid = self.nparts * qcfg["qsample"]
 
         to_dt = req["req_pickup_datetime"]
         from_dt = to_dt - dt.timedelta(hours=self.window_hours)

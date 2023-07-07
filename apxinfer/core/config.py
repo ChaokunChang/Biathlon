@@ -9,7 +9,7 @@ class BaseXIPArgs(Tap):
     task: str = "test"  # task name
     model: str = "lgbm"  # model name
     seed: int = 0  # seed for prediction estimation
-    max_nchunks = 100  # maximum number of chunks to sample
+    nparts = 100  # maximum number of partitions of dataset
 
 
 class PrepareArgs(BaseXIPArgs):
@@ -23,7 +23,7 @@ class PrepareArgs(BaseXIPArgs):
 
 class TrainerArgs(BaseXIPArgs):
     plus: bool = False  # whether to use plus features
-    scaler_type: Literal['standard'] = None
+    scaler_type: Literal["standard"] = None
     multiclass: bool = False  # whether to use multiclass features
 
 

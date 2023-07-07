@@ -75,14 +75,14 @@ class MachineryPrepareArgs(PrepareArgs):
     multiclass: bool = False
 
 
-def ingest_data(max_nchunks: int = 100, seed: int = 0) -> None:
+def ingest_data(nparts: int = 100, seed: int = 0) -> None:
     dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
     ingestor = MachineryIngestor(
         dsrc_type="csv_dir",
         dsrc=dsrc,
         database="xip",
         table="mach_imbalance",
-        max_nchunks=max_nchunks,
+        nparts=nparts,
         seed=seed,
     )
     ingestor.run()
@@ -90,7 +90,7 @@ def ingest_data(max_nchunks: int = 100, seed: int = 0) -> None:
 
 if __name__ == "__main__":
     args = MachineryPrepareArgs().parse_args()
-    max_nchunks = args.max_nchunks
+    nparts = args.nparts
     skip_dataset = args.skip_dataset
     max_requests = args.max_requests
     train_ratio = args.train_ratio
@@ -100,10 +100,10 @@ if __name__ == "__main__":
     seed = args.seed
     working_dir = DIRHelper.get_prepare_dir(args)
 
-    ingest_data(max_nchunks=max_nchunks, seed=seed)
+    ingest_data(nparts=nparts, seed=seed)
 
     fextractor = get_fextractor(
-        max_nchunks,
+        nparts,
         seed,
         disable_sample_cache=True,
         disable_query_cache=True,

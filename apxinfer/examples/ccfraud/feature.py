@@ -8,7 +8,7 @@ from apxinfer.examples.ccfraud.query import CCFraudQ3, CCFraudQ4, CCFraudQ5
 
 
 def get_fextractor(
-    max_nchunks: int,
+    nparts: int,
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
@@ -22,7 +22,7 @@ def get_fextractor(
         dsrc=txns_src,
         database="xip",
         table="cc_fraud_txns",
-        max_nchunks=max_nchunks,
+        nparts=nparts,
         seed=seed,
     )
     txns_ingestor.run()
@@ -33,7 +33,7 @@ def get_fextractor(
         dsrc=cards_src,
         database="xip",
         table="cc_fraud_cards",
-        max_nchunks=max_nchunks,
+        nparts=nparts,
         seed=seed,
     )
     cards_ingestor.run()
@@ -44,7 +44,7 @@ def get_fextractor(
         dsrc=users_src,
         database="xip",
         table="cc_fraud_users",
-        max_nchunks=max_nchunks,
+        nparts=nparts,
         seed=seed,
     )
     users_ingestor.run()
@@ -84,7 +84,7 @@ def get_fextractor(
                 dsrc=txns_src,
                 database="xip",
                 table="cc_fraud_txns",
-                max_nchunks=max_nchunks,
+                nparts=nparts,
                 seed=seed,
             ),
             window_size=30 * 12,
@@ -101,7 +101,7 @@ def get_fextractor(
                 dsrc=txns_src,
                 database="xip",
                 table="cc_fraud_txns",
-                max_nchunks=max_nchunks,
+                nparts=nparts,
                 seed=seed,
             ),
             window_size=30 * 12,
@@ -118,7 +118,7 @@ def get_fextractor(
                 dsrc=txns_src,
                 database="xip",
                 table="cc_fraud_txns",
-                max_nchunks=max_nchunks,
+                nparts=nparts,
                 seed=seed,
             ),
             window_size=30 * 12,

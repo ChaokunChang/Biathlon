@@ -3,7 +3,7 @@ from apxinfer.examples.tick.query import TickQP0, TickQP1, TickQP2
 
 
 def get_fextractor(
-    max_nchunks: int,
+    nparts: int,
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,

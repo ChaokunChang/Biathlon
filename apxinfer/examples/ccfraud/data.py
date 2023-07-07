@@ -29,10 +29,10 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
         self.db_client = DBHelper.get_db_client()
 
     def create_table(self) -> None:
@@ -150,7 +150,7 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
             ) as tmp1
             JOIN
             (
-                SELECT rowNumberInAllBlocks() as txn_id, value % {self.max_nchunks} as pid
+                SELECT rowNumberInAllBlocks() as txn_id, value % {self.nparts} as pid
                 FROM generateRandom('value UInt32', {self.seed})
                 LIMIT {nrows}
             ) as tmp2
@@ -193,15 +193,15 @@ class CCFraudTxnsLoader(XIPDataLoader):
         )
         self.ingestor = ingestor
         self.db_client = ingestor.db_client
-        self.max_nchunks = ingestor.max_nchunks
+        self.nparts = ingestor.nparts
         self.window_size = window_size  # window size in days
         self.condition_cols = condition_cols
 
     def load_data(
         self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
-        to_pid = self.max_nchunks * qcfg["qsample"]
+        from_pid = self.nparts * qcfg.get("qoffset", 0)
+        to_pid = self.nparts * qcfg["qsample"]
         req_dt = request["req_txn_datetime"]
         from_dt = req_dt + dt.timedelta(days=-self.window_size)
         conditon_values = [request[f"req_{col}"] for col in self.condition_cols]
@@ -427,7 +427,7 @@ if __name__ == "__main__":
         dsrc=txns_src,
         database="xip",
         table="cc_fraud_txns",
-        max_nchunks=100,
+        nparts=100,
         seed=0,
     )
     txns_ingestor.run()
@@ -438,7 +438,7 @@ if __name__ == "__main__":
         dsrc=cards_src,
         database="xip",
         table="cc_fraud_cards",
-        max_nchunks=100,
+        nparts=100,
         seed=0,
     )
     cards_ingestor.run()
@@ -449,7 +449,7 @@ if __name__ == "__main__":
         dsrc=users_src,
         database="xip",
         table="cc_fraud_users",
-        max_nchunks=100,
+        nparts=100,
         seed=0,
     )
     users_ingestor.run()

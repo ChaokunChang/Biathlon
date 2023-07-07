@@ -4,7 +4,7 @@ from apxinfer.examples.machinery.query import MachineryQuery
 
 
 def get_fextractor(
-    max_nchunks: int,
+    nparts: int,
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
@@ -18,7 +18,7 @@ def get_fextractor(
                 dcols=[col],
                 aggs=["avg", "std", "min", "max", "median"] if plus else ["avg"],
                 enable_cache=not disable_query_cache,
-                max_nchunks=max_nchunks,
+                nparts=nparts,
                 seed=seed,
             )
         )

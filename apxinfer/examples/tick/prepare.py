@@ -109,7 +109,7 @@ class TickPrepareWorker(XIPPrepareWorker):
 if __name__ == "__main__":
     # Configurations
     args = PrepareArgs().parse_args()
-    max_nchunks = args.max_nchunks
+    nparts = args.nparts
     skip_dataset = args.skip_dataset
     max_requests = args.max_requests
     train_ratio = args.train_ratio
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     working_dir = DIRHelper.get_prepare_dir(args)
 
     fextractor = get_fextractor(
-        max_nchunks, seed, disable_sample_cache=True, disable_query_cache=True
+        nparts, seed, disable_sample_cache=True, disable_query_cache=True
     )
     pworker = TickPrepareWorker(
         working_dir,

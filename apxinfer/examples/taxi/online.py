@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     # create a feature extractor for this task
     fextractor = get_fextractor(
-        args.max_nchunks,
+        args.nparts,
         args.seed,
         disable_sample_cache=args.disable_sample_cache,
         disable_query_cache=args.disable_query_cache,

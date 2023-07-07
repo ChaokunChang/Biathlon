@@ -5,7 +5,7 @@ from apxinfer.examples.taxi.query import TaxiTripAGGFull
 
 
 def get_fextractor(
-    max_nchunks: int,
+    nparts: int,
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
@@ -25,7 +25,7 @@ def get_fextractor(
                     dcols=["trip_distance", "passenger_count"],
                     aggs=["count", "avg", "sum", "max", "min", "median", "unique"],
                     enable_cache=not disable_query_cache,
-                    max_nchunks=max_nchunks,
+                    nparts=nparts,
                     seed=seed,
                 )
             )
@@ -38,7 +38,7 @@ def get_fextractor(
                     dcols=["trip_distance", "passenger_count"],
                     aggs=["count", "avg", "sum", "max", "min", "median", "unique"],
                     enable_cache=not disable_query_cache,
-                    max_nchunks=max_nchunks,
+                    nparts=nparts,
                     seed=seed,
                 )
             )
@@ -51,7 +51,7 @@ def get_fextractor(
                     dcols=["trip_distance", "passenger_count"],
                     aggs=["count", "avg", "sum", "max", "min", "median", "unique"],
                     enable_cache=not disable_query_cache,
-                    max_nchunks=max_nchunks,
+                    nparts=nparts,
                     seed=seed,
                 )
             )
@@ -73,7 +73,7 @@ def get_fextractor(
                     ],
                     aggs=["count", "avg", "sum", "max", "min", "median", "unique"],
                     enable_cache=not disable_query_cache,
-                    max_nchunks=max_nchunks,
+                    nparts=nparts,
                     seed=seed,
                 )
             )
@@ -81,19 +81,19 @@ def get_fextractor(
         q1 = TaxiTripQ1(
             qname="query_1",
             enable_cache=not disable_query_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             seed=seed,
         )
         q2 = TaxiTripQ2(
             qname="query_2",
             enable_cache=not disable_query_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             seed=seed,
         )
         q3 = TaxiTripQ3(
             qname="query_3",
             enable_cache=not disable_query_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
             seed=seed,
         )
         queries.extend([q1, q2, q3])

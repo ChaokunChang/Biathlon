@@ -52,10 +52,10 @@ class MachineryIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
 
     def create_table(self) -> None:
         self.logger.info(f"Creating table {self.table} in database {self.database}")
@@ -95,7 +95,7 @@ class MachineryIngestor(XIPDataIngestor):
         start_bid: int,
         file_nrows: int,
         segment_nrows: int,
-        nchunks: int,
+        nparts: int,
         seed: int,
     ) -> str:
         values = ", ".join([f"sensor_{i} AS sensor_{i}" for i in range(8)])
@@ -115,7 +115,7 @@ class MachineryIngestor(XIPDataIngestor):
                     JOIN \
                     ( \
                         SELECT ({table_size} + rowNumberInAllBlocks()) as rid, \
-                                random_number % {nchunks} as pid \
+                                random_number % {nparts} as pid \
                         FROM ( \
                             SELECT * \
                             FROM generateRandom('random_number UInt32', {seed}) \
@@ -144,7 +144,7 @@ class MachineryIngestor(XIPDataIngestor):
         file_nrows = 250000
         segments_per_file = 5
         segment_nrows = file_nrows // segments_per_file
-        nchunks = self.max_nchunks
+        nparts = self.nparts
         for bid, src in tqdm(
             enumerate(files),
             desc=f"Ingesting data to {self.database}.{self.table}",
@@ -167,7 +167,7 @@ class MachineryIngestor(XIPDataIngestor):
                 start_bid,
                 file_nrows,
                 segment_nrows,
-                nchunks,
+                nparts,
                 seed=self.seed,
             )
             command = f"""clickhouse-client --query "{query}" < {src}"""
@@ -196,16 +196,16 @@ class MachineryLoader(XIPDataLoader):
         table: str,
         seed: int,
         enable_cache: bool,
-        max_nchunks: int,
+        nparts: int,
     ) -> None:
         super().__init__(backend, database, table, seed, enable_cache)
-        self.max_nchunks = max_nchunks
+        self.nparts = nparts
 
     def load_data(
         self, request: MachineryRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
-        to_pid = self.max_nchunks * qcfg["qsample"]
+        from_pid = self.nparts * qcfg.get("qoffset", 0)
+        to_pid = self.nparts * qcfg["qsample"]
         bid = request["req_bid"]
         sql = f"""
             SELECT {', '.join(cols)}
@@ -225,10 +225,10 @@ class MSensorsIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
         self.sid = sid
 
     def create_table(self) -> None:
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         dsrc=dsrc,
         database="xip",
         table="mach_imbalance",
-        max_nchunks=100,
+        nparts=100,
         seed=0,
     )
     ingestor.run()
@@ -292,7 +292,7 @@ if __name__ == "__main__":
             dsrc="xip.mach_imbalance",
             database="xip",
             table=f"msensors_{i}",
-            max_nchunks=100,
+            nparts=100,
             seed=0,
         )
         ingestor.run()

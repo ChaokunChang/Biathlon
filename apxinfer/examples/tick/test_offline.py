@@ -65,12 +65,12 @@ class OfflineExecutor:
         self,
         working_dir: str,
         fextractor: XIPFeatureExtractor,
-        max_nchunks: int,
+        nparts: int,
         ncfgs: int,
         verbose: bool = False,
     ) -> None:
         self.fextractor: XIPFeatureExtractor = fextractor
-        self.max_nchunks = max_nchunks
+        self.nparts = nparts
         self.ncfgs = ncfgs
         self.verbose = verbose
         self.working_dir = working_dir
@@ -152,16 +152,16 @@ class OfflineExecutor:
                     agg_fids.append(cnt + i)
             cnt += len(qry.fnames)
 
-        fig, ax  = plt.subplots(1, len(agg_fids), figsize=(8, 6*len(agg_fids)))
+        fig, ax = plt.subplots(1, len(agg_fids), figsize=(8, 6 * len(agg_fids)))
         for i, profiles in enumerate(records):
             for fid in agg_fids:
                 samples = []
                 scales = []
                 for profile in profiles:
-                    samples.append(profile["qcfgs"][agg_qids[0]]['qsample'])
-                    scales.append(profile["fvec"]['fests'][fid])
+                    samples.append(profile["qcfgs"][agg_qids[0]]["qsample"])
+                    scales.append(profile["fvec"]["fests"][fid])
                 ax[fid].plot(samples, scales)
-        plt.savefig('./tmp.pdf', bbox_inches='tight')
+        plt.savefig("./tmp.pdf", bbox_inches="tight")
 
 
 if __name__ == "__main__":
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     # create a feature extractor for this task
     fextractor = get_fextractor(
-        args.max_nchunks,
+        args.nparts,
         args.seed,
         disable_sample_cache=False,
         disable_query_cache=False,

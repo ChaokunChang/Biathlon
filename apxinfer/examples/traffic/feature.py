@@ -7,7 +7,7 @@ from apxinfer.examples.traffic.query import TrafficQP3, TrafficQP4
 
 
 def get_fextractor(
-    max_nchunks: int,
+    nparts: int,
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
@@ -18,7 +18,7 @@ def get_fextractor(
         dsrc="file('traffic/DOT_Traffic_Speeds_NBE.csv', 'CSVWithNames')",
         database="xip",
         table="traffic",
-        max_nchunks=max_nchunks,
+        nparts=nparts,
         seed=seed,
     )
     fs_ingestor_hour = TrafficFStoreIngestor(

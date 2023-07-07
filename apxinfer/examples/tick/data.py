@@ -104,7 +104,7 @@ class TickDataIngestor(XIPDataIngestor):
             JOIN
             (
                 SELECT rowNumberInAllBlocks() as txn_id,
-                        value % {self.max_nchunks} as pid
+                        value % {self.nparts} as pid
                 FROM generateRandom('value UInt32', {self.seed})
                 LIMIT {nrows}
             ) as tmp2
@@ -136,13 +136,13 @@ class TickThisHourDataLoader(XIPDataLoader):
     ) -> None:
         super().__init__(backend, database, table, seed, enable_cache)
         sql = f"""SELECT max(pid) from {self.database}.{self.table}"""
-        self.max_nchunks = self.db_client.command(sql)
+        self.nparts = self.db_client.command(sql)
 
     def load_data(
         self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
-        from_pid = self.max_nchunks * qcfg.get("qoffset", 0)
-        to_pid = self.max_nchunks * qcfg["qsample"]
+        from_pid = self.nparts * qcfg.get("qoffset", 0)
+        to_pid = self.nparts * qcfg["qsample"]
         cpair = request["req_cpair"]
         tick_dt = request["req_dt"]
         from_dt = tick_dt
@@ -165,10 +165,10 @@ class TickHourFStoreIngestor(XIPDataIngestor):
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
-        super().__init__(dsrc_type, dsrc, database, table, max_nchunks, seed)
+        super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
         self.agg_ops = [
             "count",
             "avg",
@@ -260,7 +260,7 @@ if __name__ == "__main__":
         dsrc=dsrc,
         database="xip",
         table="tick",
-        max_nchunks=100,
+        nparts=100,
         seed=0,
     )
     ingestor.run()
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         dsrc="xip.tick",
         database="xip",
         table="tick_fstore_hour",
-        max_nchunks=0,
+        nparts=0,
         seed=0,
     )
     ingestor.run()

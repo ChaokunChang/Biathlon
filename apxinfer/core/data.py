@@ -92,7 +92,7 @@ class XIPDataIngestor:
         If dsrc_type is 'csv', then dsrc is the path to the csv file.
         If dsrc_type is 'clickhouse', then dsrc is db.table, e.g. xip.trips.
         If drsc_type is 'user_files', then dsrc is file('filename.csv', CSVWithNames)
-    max_nchunks: int the maximum number of chunks of target table
+    nparts: int the number of partitions of target table
         It is used for sampling, indicating the minumun sampling granularity
         It is usually set as 100
     """
@@ -103,14 +103,14 @@ class XIPDataIngestor:
         dsrc: str,
         database: str,
         table: str,
-        max_nchunks: int,
+        nparts: int,
         seed: int,
     ) -> None:
         self.dsrc_type = dsrc_type
         self.dsrc = dsrc
         self.database = database
         self.table = table
-        self.max_nchunks = max_nchunks
+        self.nparts = nparts
         self.seed = seed
 
         self.db_client = DBHelper.get_db_client()

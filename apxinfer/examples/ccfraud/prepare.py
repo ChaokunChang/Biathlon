@@ -109,7 +109,7 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
 
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         self.logger.info(f"Getting labels for {len(requests)}x requests")
-        txn_ids = [str(x) for x in requests['req_txn_id'].values]
+        txn_ids = [str(x) for x in requests["req_txn_id"].values]
         sql = f"""
             SELECT txn_id, is_fraud
             FROM {self.database}.{self.table}
@@ -133,7 +133,7 @@ class CCFraudPrepareArgs(PrepareArgs):
 if __name__ == "__main__":
     # Configurations
     args = CCFraudPrepareArgs().parse_args()
-    max_nchunks = args.max_nchunks
+    nparts = args.nparts
     skip_dataset = args.skip_dataset
     max_requests = args.max_requests
     train_ratio = args.train_ratio
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     working_dir = DIRHelper.get_prepare_dir(args)
 
     fextractor = get_fextractor(
-        max_nchunks,
+        nparts,
         seed,
         disable_sample_cache=True,
         disable_query_cache=True,

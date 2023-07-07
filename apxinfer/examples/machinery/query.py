@@ -16,7 +16,7 @@ class MachineryQuery(XIPQuery):
         dcols: List[str],
         aggs: List[str] = ["avg"],
         enable_cache: bool = False,
-        max_nchunks: int = 100,
+        nparts: int = 100,
         seed: int = 0,
     ) -> None:
         self.aggs = aggs
@@ -28,7 +28,7 @@ class MachineryQuery(XIPQuery):
             table="mach_imbalance",
             seed=seed,
             enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
+            nparts=nparts,
         )
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
@@ -40,7 +40,7 @@ class MachineryQuery(XIPQuery):
             fvecs = []
             for agg in self.aggs:
                 fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                    req_data, qcfg["qsample"], self.data_loader.statistics['tsize']
+                    req_data, qcfg["qsample"], self.data_loader.statistics["tsize"]
                 )
                 fvecs.append(fvec)
             fvec = merge_fvecs(fvecs, new_names=self.fnames)

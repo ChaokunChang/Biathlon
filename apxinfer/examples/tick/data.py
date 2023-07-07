@@ -1,5 +1,6 @@
 from typing import List
 import numpy as np
+import pandas as pd
 import datetime as dt
 import os
 from tqdm import tqdm
@@ -9,7 +10,7 @@ from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 
 class TickRequest(XIPRequest):
-    req_dt: dt.datetime
+    req_dt: str
     req_cpair: str
 
 
@@ -144,7 +145,7 @@ class TickThisHourDataLoader(XIPDataLoader):
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
         cpair = request["req_cpair"]
-        tick_dt = request["req_dt"]
+        tick_dt = pd.to_datetime(request["req_dt"])
         from_dt = tick_dt
         to_dt = from_dt + dt.timedelta(hours=1)
         sql = f"""
@@ -240,7 +241,7 @@ class TickHourFStoreDataLoader(XIPDataLoader):
         self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str]
     ) -> np.ndarray:
         cpair = request["req_cpair"]
-        tick_dt = request["req_dt"]
+        tick_dt = pd.to_datetime(request["req_dt"])
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}

@@ -27,9 +27,6 @@ def load_dataset(args: OnlineArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
     dataset = pd.read_csv(ds_path)
     if nreqs > 0:
         dataset = dataset[:nreqs]
-    dataset["req_txn_datetime"] = pd.to_datetime(dataset["req_txn_datetime"])
-    # req_merchant_name should be string
-    dataset["req_merchant_name"] = dataset["req_merchant_name"].apply(lambda x: f"{x}")
     return dataset
 
 

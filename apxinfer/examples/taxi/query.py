@@ -1,5 +1,6 @@
 from typing import List
 import numpy as np
+import pandas as pd
 
 from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
 from apxinfer.core.utils import merge_fvecs
@@ -18,11 +19,12 @@ class TaxiTripQ0(XIPQuery):
         super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
 
     def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+        req_pickup_datetime = pd.to_datetime(request["req_pickup_datetime"])
         fvals = np.array(
             [
                 request["req_trip_distance"],
-                request["req_pickup_datetime"].weekday(),
-                request["req_pickup_datetime"].hour,
+                req_pickup_datetime.weekday(),
+                req_pickup_datetime.hour,
                 request["req_passenger_count"],
             ]
         )

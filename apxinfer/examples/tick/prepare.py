@@ -84,7 +84,7 @@ class TickPrepareWorker(XIPPrepareWorker):
             total=len(requests),
         ):
             cpair: str = req["req_cpair"]
-            req_dt: dt.datetime = req["req_dt"]
+            req_dt: dt.datetime = pd.to_datetime(req["req_dt"])
 
             target_dt = req_dt + dt.timedelta(hours=1)
             year = target_dt.year

@@ -66,19 +66,27 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
         ):
             group_cnt = min(cnt_fraud, 5)
             sql = f"""
-                SELECT *
+                SELECT txn_id, uid, card_index,
+                        toString(txn_datetime) as txn_datetime,
+                        amount, use_chip, merchant_name,
+                        merchant_city, merchant_state, zip_code,
+                        mcc, errors
                 FROM {self.database}.{self.table}
                 WHERE uid = {uid} AND card_index = {card_index} AND is_fraud = 1
-                ORDER BY txn_datetime DESC
+                ORDER BY {self.database}.{self.table}.txn_datetime DESC
                 LIMIT {group_cnt}
                 """
             df_fraudulent: pd.DataFrame = self.db_client.query_df(sql)
             group_cnt = min(cnt - cnt_fraud, 5)
             sql = f"""
-                SELECT *
+                SELECT txn_id, uid, card_index,
+                        toString(txn_datetime) as txn_datetime,
+                        amount, use_chip, merchant_name,
+                        merchant_city, merchant_state, zip_code,
+                        mcc, errors
                 FROM {self.database}.{self.table}
                 WHERE uid = {uid} AND card_index = {card_index} AND is_fraud = 0
-                ORDER BY txn_datetime DESC
+                ORDER BY {self.database}.{self.table}.txn_datetime DESC
                 LIMIT {group_cnt}
                 """
             df_non_fraudulent: pd.DataFrame = self.db_client.query_df(sql)
@@ -91,12 +99,6 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
                 else:
                     requests = pd.concat([requests, df], axis=0, ignore_index=True)
         self.logger.info(f"Got {len(requests)}x of requests")
-        # remove column 'pid' and 'is_fraud'
-        requests = requests.drop(columns=["pid", "is_fraud"])
-        # the txn_datetime must -8 hours
-        requests["txn_datetime"] = pd.to_datetime(
-            requests["txn_datetime"]
-        ) + pd.Timedelta(hours=8)
 
         if self.max_requests > 0 and self.max_requests < len(requests):
             # select max_requests in the middle

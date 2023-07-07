@@ -11,7 +11,7 @@ class CCFraudRequest(XIPRequest):
     req_txn_id: int
     req_uid: int
     req_card_index: int
-    req_txn_datetime: dt.datetime
+    req_txn_datetime: str
     req_amount: float
     req_use_chip: str
     req_merchant_name: str
@@ -202,7 +202,7 @@ class CCFraudTxnsLoader(XIPDataLoader):
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
-        req_dt = request["req_txn_datetime"]
+        req_dt = pd.to_datetime(request["req_txn_datetime"])
         from_dt = req_dt + dt.timedelta(days=-self.window_size)
         conditon_values = [request[f"req_{col}"] for col in self.condition_cols]
         condtions = [

@@ -43,14 +43,12 @@ class CCFraudQ0(XIPQuery):
         }
 
     def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        txn_dt = request["req_txn_datetime"]
+        txn_dt = pd.to_datetime(request["req_txn_datetime"])
         dt_fvals = np.array([txn_dt.hour])
         num_fvals = np.array([request[f"req_{key}"] for key in self.num_fnames])
+        cat_keys = [f"req_{key}" for key in self.cat_fnames]
         cat_fvals = np.array(
-            [
-                self.embeddings[key].get(request[f"req_{key}"], 0)
-                for key in self.cat_fnames
-            ]
+            [self.embeddings[key].get(f"{request[key]}", 0) for key in cat_keys]
         )
         fvals = np.concatenate([dt_fvals, num_fvals, cat_fvals])
         fests = np.zeros_like(fvals)

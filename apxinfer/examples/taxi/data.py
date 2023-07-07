@@ -9,7 +9,7 @@ from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 class TaxiTripRequest(XIPRequest):
     req_trip_id: int
-    req_pickup_datetime: dt.datetime
+    req_pickup_datetime: str
     req_pickup_ntaname: str
     req_dropoff_ntaname: str
     req_pickup_longitude: float
@@ -141,7 +141,7 @@ class TaxiTripLoader(XIPDataLoader):
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
 
-        to_dt = req["req_pickup_datetime"]
+        to_dt = pd.to_datetime(req["req_pickup_datetime"])
         from_dt = to_dt - dt.timedelta(hours=self.window_hours)
 
         conditon_values = [req[f"req_{col}"] for col in self.condition_cols]

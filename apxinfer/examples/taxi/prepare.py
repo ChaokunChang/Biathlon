@@ -47,21 +47,19 @@ class TaxiTripPrepareWorker(XIPPrepareWorker):
         self.logger.info(f"Total number of trips: {total_num}")
         # as there is too much trips (around 5M), we should sample some of them
         sampling_rate = 0.01
-        sql = f""" SELECT
-                        trip_id, pickup_datetime,
-                        pickup_ntaname, dropoff_ntaname,
-                        pickup_longitude, pickup_latitude,
-                        dropoff_longitude, dropoff_latitude,
-                        passenger_count, trip_distance
-                    FROM {self.database}.{self.table}
-                    WHERE pickup_datetime >= '{trips_from}'
-                          AND pickup_datetime < '{trips_to}'
-                          AND intHash64(trip_id) % ({int(1.0/sampling_rate)}) == 0
+        sql = f"""
+                SELECT
+                    trip_id, toString(pickup_datetime) as pickup_datetime,
+                    pickup_ntaname, dropoff_ntaname,
+                    pickup_longitude, pickup_latitude,
+                    dropoff_longitude, dropoff_latitude,
+                    passenger_count, trip_distance
+                FROM {self.database}.{self.table}
+                WHERE {self.database}.{self.table}.pickup_datetime >= '{trips_from}'
+                        AND {self.database}.{self.table}.pickup_datetime < '{trips_to}'
+                        AND intHash64(trip_id) % ({int(1.0/sampling_rate)}) == 0
                 """
         requests: pd.DataFrame = self.db_client.query_df(sql)
-        requests["pickup_datetime"] = pd.to_datetime(
-            requests["pickup_datetime"]
-        ) + pd.Timedelta(hours=8)
         # drop requests with invalid pickup/dropoff locations or ntaname is ''
         before_size = len(requests)
         requests = requests[requests["pickup_ntaname"] != ""]

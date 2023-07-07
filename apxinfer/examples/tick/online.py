@@ -27,9 +27,6 @@ def load_dataset(args: OnlineArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
     dataset = pd.read_csv(ds_path)
     if nreqs > 0:
         dataset = dataset[:nreqs]
-    dataset["req_dt"] = dataset["req_dt"].apply(
-        lambda x: pd.to_datetime(x).to_pydatetime()
-    )
     return dataset
 
 

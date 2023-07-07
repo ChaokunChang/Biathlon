@@ -97,9 +97,10 @@ class TickQP2(XIPQuery):
         ]
 
     def run(self, request: TickRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+        last_hour = pd.to_datetime(request["req_dt"]) - dt.timedelta(hours=self.offset),
         req: TickRequest = TickRequest(
             req_id=request["req_id"],
-            req_dt=request["req_dt"] - dt.timedelta(hours=self.offset),
+            req_dt=last_hour.__str__(),
             req_cpair=request["req_cpair"],
         )
         fvals = self.data_loader.load_data(req, qcfg, cols=self.fstore_cols)

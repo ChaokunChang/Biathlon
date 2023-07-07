@@ -21,12 +21,12 @@ def load_model(args: OnlineArgs) -> XIPModel:
     return model
 
 
-def load_dataset(args: OnlineArgs, name: str, num_requests: int = 0) -> pd.DataFrame:
+def load_dataset(args: OnlineArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
     dataset_dir = DIRHelper.get_dataset_dir(args)
     ds_path = os.path.join(dataset_dir, f"{name}_set.csv")
     dataset = pd.read_csv(ds_path)
-    if num_requests > 0:
-        dataset = dataset[:num_requests]
+    if nreqs > 0:
+        dataset = dataset[:nreqs]
     dataset["req_dt"] = dataset["req_dt"].apply(
         lambda x: pd.to_datetime(x).to_pydatetime()
     )
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     args = OnlineArgs().parse_args()
 
     # load test data
-    test_set = load_dataset(args, "test", args.num_requests)
+    test_set = load_dataset(args, "test", args.nreqs)
     verbose = args.verbose_execution and len(test_set) <= 10
 
     # load xip model

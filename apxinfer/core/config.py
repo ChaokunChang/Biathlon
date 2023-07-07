@@ -28,7 +28,7 @@ class TrainerArgs(BaseXIPArgs):
 
 
 class OnlineArgs(BaseXIPArgs):
-    num_requests: int = 0  # number of test requests
+    nreqs: int = 0  # number of test requests
     ncfgs: int = 5  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader

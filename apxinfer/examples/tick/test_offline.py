@@ -31,17 +31,17 @@ def load_model(args: BaseXIPArgs) -> XIPModel:
     return model
 
 
-def load_dataset(args: BaseXIPArgs, name: str, num_requests: int = 0) -> pd.DataFrame:
+def load_dataset(args: BaseXIPArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
     dataset_dir = DIRHelper.get_dataset_dir(args)
     ds_path = os.path.join(dataset_dir, f"{name}_set.csv")
     dataset = pd.read_csv(ds_path)
-    if num_requests > 0:
-        dataset = dataset[:num_requests]
+    if nreqs > 0:
+        dataset = dataset[:nreqs]
     return dataset
 
 
 class OfflineArgs(BaseXIPArgs):
-    num_requests: int = 0  # number of test requests
+    nreqs: int = 0  # number of test requests
     n_cfgs: int = 10  # number of query configurations
     verbose: bool = False
 
@@ -54,7 +54,7 @@ class TickOfflineArgs(OfflineArgs):
 def get_offline_dir(args: OfflineArgs) -> str:
     working_dir = DIRHelper.get_working_dir(args)
     offline_dir = os.path.join(working_dir, "offline", args.model)
-    offline_dir = os.path.join(offline_dir, f"nreqs-{args.num_requests}")
+    offline_dir = os.path.join(offline_dir, f"nreqs-{args.nreqs}")
     offline_dir = os.path.join(offline_dir, f"ncfgs-{args.ncfgs}")
     os.makedirs(offline_dir, exist_ok=True)
     return offline_dir
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     args = TickOfflineArgs().parse_args()
 
     # load test data
-    test_set = load_dataset(args, "valid", args.num_requests)
+    test_set = load_dataset(args, "valid", args.nreqs)
     verbose = args.verbose and len(test_set) <= 10
 
     # load xip model

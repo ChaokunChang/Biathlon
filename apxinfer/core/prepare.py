@@ -78,8 +78,8 @@ class XIPPrepareWorker:
         raise NotImplementedError
 
     def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
-        num_requests = len(requests)
-        self.logger.info(f"Getting features for {num_requests}x requests")
+        nreqs = len(requests)
+        self.logger.info(f"Getting features for {nreqs}x requests")
         fnames = []
         qfeatures_list = []
         qcosts = []
@@ -88,13 +88,13 @@ class XIPPrepareWorker:
             num_qf = len(query.fnames)
             fnames.extend(query.fnames)
 
-            qfeatures = np.zeros((num_requests, num_qf))
+            qfeatures = np.zeros((nreqs, num_qf))
             self.logger.info(f"Extracting features {query.fnames}")
             final_qcfg = query.get_qcfg(100, 1.0)
             for rid, req in tqdm(
                 enumerate(requests.to_dict(orient="records")),
                 desc=f"Extracting {qid}",
-                total=num_requests,
+                total=nreqs,
             ):
                 fvec: XIPFeatureVec = query.run(req, final_qcfg)
                 qfeatures[rid] = fvec["fvals"]
@@ -104,7 +104,7 @@ class XIPPrepareWorker:
         features = np.concatenate(qfeatures_list, axis=1)
         features = pd.DataFrame(features, columns=fnames)
         with open(osp.join(self.working_dir, "qcosts.json"), "w") as f:
-            json.dump({"num_requests": num_requests, "qcosts": qcosts}, f, indent=4)
+            json.dump({"nreqs": nreqs, "qcosts": qcosts}, f, indent=4)
         features.to_csv(osp.join(self.working_dir, "features.csv"), index=False)
         return features
 

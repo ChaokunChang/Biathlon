@@ -23,7 +23,7 @@ class PrepareArgs(BaseXIPArgs):
 
 class TrainerArgs(BaseXIPArgs):
     plus: bool = False  # whether to use plus features
-    scaler_type: Literal["standard"] = None
+    scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     multiclass: bool = False  # whether to use multiclass features
 
 

@@ -15,7 +15,12 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import (
+    StandardScaler,
+    MinMaxScaler,
+    RobustScaler,
+    MaxAbsScaler,
+)
 import xgboost as xgb
 from lightgbm import LGBMClassifier, LGBMRegressor
 from beaker.cache import CacheManager
@@ -152,6 +157,12 @@ def create_estimators(
         print(f"build model with scaler {scaler_type}")
         if scaler_type == "standard":
             scaler = StandardScaler()
+        elif scaler_type == "minmax":
+            scaler = MinMaxScaler()
+        elif scaler_type == "robust":
+            scaler = RobustScaler()
+        elif scaler_type == "maxabs":
+            scaler = MaxAbsScaler()
         else:
             raise NotImplementedError
         return make_pipeline(scaler, model)

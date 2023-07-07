@@ -6,6 +6,7 @@ import logging
 import json
 from sklearn import metrics
 
+from apxinfer.core.config import DIRHelper
 from apxinfer.core.model import XIPModel, create_model, evaluate_model
 
 logging.basicConfig(level=logging.INFO)
@@ -60,9 +61,8 @@ class XIPTrainer:
         label_name = cols[-1]
 
         model = self.build_model(train_set[fnames], train_set[label_name])
-        joblib.dump(
-            model, osp.join(self.working_dir, "model", f"{self.model_name}.pkl")
-        )
+        model_tag = DIRHelper.get_model_tag(self.model_name, self.scaler_type)
+        joblib.dump(model, osp.join(self.model_dir, f"{model_tag}.pkl"))
 
         train_pred = model.predict(train_set[fnames].values)
         valid_pred = model.predict(valid_set[fnames].values)

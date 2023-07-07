@@ -8,6 +8,7 @@ EXP_HOME = "/home/ckchang/.cache/apxinf/xip"
 class BaseXIPArgs(Tap):
     task: str = "test"  # task name
     model: str = "lgbm"  # model name
+    scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
     nparts = 100  # maximum number of partitions of dataset
 
@@ -23,7 +24,6 @@ class PrepareArgs(BaseXIPArgs):
 
 class TrainerArgs(BaseXIPArgs):
     plus: bool = False  # whether to use plus features
-    scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     multiclass: bool = False  # whether to use multiclass features
 
 
@@ -88,13 +88,21 @@ class DIRHelper:
         os.makedirs(model_dir, exist_ok=True)
         return model_dir
 
+    def get_model_tag(model: str, scaler: str) -> str:
+        if scaler is None:
+            return model
+        else:
+            return f"{model}_{scaler}"
+
     def get_model_path(args: BaseXIPArgs) -> str:
         model_dir = DIRHelper.get_model_dir(args)
-        return os.path.join(model_dir, f"{args.model}.pkl")
+        model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
+        return os.path.join(model_dir, f"{model_tag}.pkl")
 
     def get_online_dir(args: OnlineArgs) -> str:
         working_dir = DIRHelper.get_working_dir(args)
-        online_dir = os.path.join(working_dir, "online", args.model)
+        model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
+        online_dir = os.path.join(working_dir, "online", model_tag)
         if args.exact:
             online_dir = os.path.join(online_dir, "exact")
         else:

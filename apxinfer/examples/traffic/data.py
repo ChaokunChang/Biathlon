@@ -84,7 +84,8 @@ class TrafficDataIngestor(XIPDataIngestor):
                     minute UInt8, -- minute of data_as_of
                     pid UInt32 -- partition key, used for sampling
                 ) ENGINE = MergeTree()
-                ORDER BY (pid, borough, data_as_of)
+                PARTITION BY pid
+                ORDER BY (borough, data_as_of)
                 SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)

@@ -133,7 +133,7 @@ class TrafficQP2(XIPQuery):
         fvecs = []
         for i, agg in enumerate(aggs):
             fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample
+                req_data, qsample, self.data_loader.statistics["tsize"]
             )
             fvecs.append(fvec)
         fvec = merge_fvecs(fvecs, new_names=self.fnames)

@@ -63,7 +63,8 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
                     is_fraud UInt8,
                     pid UInt32 -- partition key, used for sampling
                 ) ENGINE = MergeTree()
-                ORDER BY (pid, uid, card_index, txn_datetime)
+                PARTITION BY pid
+                ORDER BY (uid, card_index, txn_datetime)
                 SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)

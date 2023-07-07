@@ -23,9 +23,14 @@ logging.basicConfig(level=logging.INFO)
 
 class FEstimatorHelper:
     min_cnt = 30
+    bs_nsamp: int = 1000
+    bias_correction: bool = True
 
     def estimate_any(
-        data: np.ndarray, p: float, func: Callable, nsamples: int = 100
+        data: np.ndarray,
+        p: float,
+        func: Callable,
+        tsize: int,
     ) -> XIPFeatureVec:
         if p >= 1.0:
             features = func(data)
@@ -38,7 +43,7 @@ class FEstimatorHelper:
             )
         cnt = data.shape[0]
         estimations = []
-        for _ in range(nsamples):
+        for _ in range(FEstimatorHelper.bs_nsamp):
             sample = data[np.random.choice(cnt, size=cnt, replace=True)]
             estimations.append(func(sample))
         features = np.mean(estimations, axis=0)
@@ -46,6 +51,10 @@ class FEstimatorHelper:
             scales = 1e9 * np.ones_like(features)
         else:
             scales = np.std(estimations, axis=0, ddof=1)
+        if FEstimatorHelper.bias_correction:
+            # Bias Correction
+            bias = func(data) - features
+            features = func(data) + bias
         fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
         return XIPFeatureVec(
             fnames=fnames,
@@ -54,51 +63,65 @@ class FEstimatorHelper:
             fdists=["normal"] * features.shape[0],
         )
 
-    def estimate_min(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x: np.min(x, axis=0))
-
-    def estimate_max(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x: np.max(x, axis=0))
-
-    def estimate_median(data: np.ndarray, p: float) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(data, p, lambda x: np.median(x, axis=0))
-
-    def estimate_stdPop(data: np.ndarray, p: float) -> XIPFeatureVec:
+    def estimate_min(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         return FEstimatorHelper.estimate_any(
-            data, p, lambda x: np.std(x, axis=0, ddof=0)
+            data, p, lambda x: np.min(x, axis=0), tsize
         )
 
-    def estimate_stdSamp(data: np.ndarray, p: float) -> XIPFeatureVec:
+    def estimate_max(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         return FEstimatorHelper.estimate_any(
-            data, p, lambda x: np.std(x, axis=0, ddof=0)
+            data, p, lambda x: np.max(x, axis=0), tsize
         )
 
-    def estimate_unique(data: np.ndarray, p: float) -> XIPFeatureVec:
+    def estimate_median(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        return FEstimatorHelper.estimate_any(
+            data, p, lambda x: np.median(x, axis=0), tsize
+        )
+
+    def estimate_stdPop(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        return FEstimatorHelper.estimate_any(
+            data, p, lambda x: np.std(x, axis=0, ddof=0), tsize
+        )
+
+    def estimate_stdSamp(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        return FEstimatorHelper.estimate_any(
+            data, p, lambda x: np.std(x, axis=0, ddof=0), tsize
+        )
+
+    def estimate_unique(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         unique_func: Callable = lambda x: np.array(
             [len(np.unique(x[:, i])) for i in range(x.shape[1])]
         )
-        return FEstimatorHelper.estimate_any(data, p, unique_func)
+        return FEstimatorHelper.estimate_any(data, p, unique_func, tsize)
 
-    def compute_dvars(data: np.ndarray) -> np.ndarray:
+    def compute_dvars(data: np.ndarray, ddof: int = 1) -> np.ndarray:
         cnt = data.shape[0]
         if cnt < FEstimatorHelper.min_cnt:
             # if cnt is too small, set scale as big number
             return 1e9 * np.ones_like(data[0])
         else:
-            return np.var(data, axis=0, ddof=1)
+            return np.var(data, axis=0, ddof=ddof)
 
-    def compute_closed_form_scale(
-        features: np.ndarray, cnt: int, dvars: np.ndarray, p: float
-    ) -> np.ndarray:
-        cnt = np.where(cnt < 1, 1.0, cnt)
-        scales = np.sqrt(np.where(p >= 1.0, 0.0, dvars) / cnt)
-        return scales
+    def fstds_crop(fstds: np.ndarray, p: float, card: int) -> np.ndarray:
+        if p >= 1.0:
+            return np.zeros_like(fstds)
+        elif card < FEstimatorHelper.min_cnt:
+            return 1e9 * np.ones_like(fstds)
+        else:
+            return fstds
 
-    def estimate_avg(data: np.ndarray, p: float) -> XIPFeatureVec:
+    def estimate_avg(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         cnt = data.shape[0]
         features = np.mean(data, axis=0)
         dvars = FEstimatorHelper.compute_dvars(data)
-        scales = FEstimatorHelper.compute_closed_form_scale(features, cnt, dvars, p)
+        fscales = np.sqrt(dvars / cnt)
+        scales = FEstimatorHelper.fstds_crop(fscales, p, cnt)
+
+        # the following is a better estimator with better variance.
+        # tcnt = cnt / p
+        # fscales = np.sqrt(dvars) * np.sqrt((tcnt - cnt) / (tcnt * cnt - cnt))
+        # scales = FEstimatorHelper.fstds_crop(fscales, p, cnt)
+
         fnames = [f"avg_f{i}" for i in range(features.shape[0])]
         return XIPFeatureVec(
             fnames=fnames,
@@ -107,32 +130,39 @@ class FEstimatorHelper:
             fdists=["normal"] * features.shape[0],
         )
 
-    def estimate_count(data: np.ndarray, p: float) -> XIPFeatureVec:
-        cnt = data.shape[0]
-        features = np.array([cnt / p])
-        scales = FEstimatorHelper.compute_closed_form_scale(
-            features, cnt, np.array([cnt * (1 - p) * p]), p
+    def estimate_count(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        ssize = int(tsize * p)
+        scnt = data.shape[0]
+        tcnt = int(scnt / p)
+        slct = tcnt / tsize
+        fstds = tsize * np.sqrt(
+            (tsize - ssize) * slct * (1 - slct) / (ssize * (tsize - 1))
         )
+        features = np.array([tcnt])
+        fstds = FEstimatorHelper.fstds_crop([fstds], p, scnt)
         fnames = ["cnt"]
         return XIPFeatureVec(
             fnames=fnames,
             fvals=features,
-            fests=scales,
+            fests=fstds,
             fdists=["normal"] * features.shape[0],
         )
 
-    def estimate_sum(data: np.ndarray, p: float) -> XIPFeatureVec:
+    def estimate_sum(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        ssize = int(tsize * p)
+        scnt = data.shape[0]
+        # tcnt = int(scnt / p)
+
         features = np.sum(data, axis=0) / p
-        cnt = data.shape[0]
-        dvars = FEstimatorHelper.compute_dvars(data)
-        scales = FEstimatorHelper.compute_closed_form_scale(
-            features, cnt, cnt * cnt * dvars, p
-        )
+        sdvars = FEstimatorHelper.compute_dvars(data)
+        fstds = tsize * sdvars * np.sqrt((tsize - ssize) / (ssize * (tsize - 1)))
+        fstds = FEstimatorHelper.fstds_crop(fstds, p, scnt)
+
         fnames = [f"sum_f{i}" for i in range(features.shape[0])]
         return XIPFeatureVec(
             fnames=fnames,
             fvals=features,
-            fests=scales,
+            fests=fstds,
             fdists=["normal"] * features.shape[0],
         )
 
@@ -151,13 +181,17 @@ class FEstimatorHelper:
 
 
 def get_fvec_auto(
-    fnames: List[str], req_data: np.ndarray, dcol_aggs: List[List[str]], qsample: float
+    fnames: List[str],
+    req_data: np.ndarray,
+    dcol_aggs: List[List[str]],
+    qsample: float,
+    tsize: int,
 ) -> XIPFeatureVec:
     fvecs = []
     for i, aggs in enumerate(dcol_aggs):
         for agg in aggs:
             fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data[:, i : i + 1], qsample
+                req_data[:, i : i + 1], qsample, tsize
             )
             fvecs.append(fvec)
     return merge_fvecs(fvecs, new_names=fnames)
@@ -165,7 +199,7 @@ def get_fvec_auto(
 
 SUPPORTED_DISTRIBUTIONS = {
     "normal": {"sampler": np.random.normal, "final_args": 0.0},
-    "fixed": {"sampler": lambda x, size: np.array([x] * size), "final_args": []},
+    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": []},
     "uniform": {"sampler": np.random.uniform, "final_args": []},
     "beta": {"sampler": np.random.beta, "final_args": []},
     "gamma": {"sampler": np.random.gamma, "final_args": []},
@@ -182,6 +216,7 @@ SUPPORTED_DISTRIBUTIONS = {
     "dirichlet": {"sampler": np.random.dirichlet, "final_args": []},
     "multinomial": {"sampler": np.random.multinomial, "final_args": []},
     "multivariate_normal": {"sampler": np.random.multivariate_normal, "final_args": []},
+    "unknown": {"sampler": None, "final_args": []}
 }
 
 
@@ -198,6 +233,12 @@ def get_feature_samples(
     elif dist == "normal":
         scale = dist_args
         return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](fvals, scale, size=n_samples)
+    elif dist == "unknown":
+        # in this case, dist_args is the samples itself
+        if dist_args is None or len(dist_args) == 0:
+            return np.ones(n_samples) * fvals
+        else:
+            return dist_args
     return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
 

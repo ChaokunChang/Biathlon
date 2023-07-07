@@ -67,6 +67,7 @@ class TickQP1(XIPQuery):
                 req_data=req_data,
                 dcol_aggs=self.dcol_aggs,
                 qsample=qcfg["qsample"],
+                tsize=self.data_loader.statistics["tsize"],
             )
         return ret
 

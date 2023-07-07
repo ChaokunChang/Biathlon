@@ -42,8 +42,8 @@ class TickDataIngestor(XIPDataIngestor):
             ask Float32,
             pid UInt32
         ) ENGINE = MergeTree()
-        PARTITION BY cpair
-        ORDER BY (pid, tick_dt)
+        PARTITION BY pid
+        ORDER BY (cpair, tick_dt)
         SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)

@@ -79,7 +79,8 @@ class MachineryIngestor(XIPDataIngestor):
                     tag String,
                     pid UInt32 -- partition key, used for sampling
                 ) ENGINE = MergeTree()
-                ORDER BY (pid, bid)
+                PARTITION BY pid
+                ORDER BY bid
                 SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)

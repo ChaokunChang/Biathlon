@@ -180,7 +180,7 @@ class CCFraudQ3(XIPQuery):
         fvecs = []
         for i, agg in enumerate(aggs):
             fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample
+                req_data, qsample, self.data_loader.statistics["tsize"]
             )
             fvecs.append(fvec)
         fvec = merge_fvecs(fvecs, new_names=self.fnames)
@@ -227,7 +227,7 @@ class CCFraudQ4(XIPQuery):
         fvecs = []
         for i, agg in enumerate(aggs):
             fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample
+                req_data, qsample, self.data_loader.statistics["tsize"]
             )
             fvecs.append(fvec)
         fvec = merge_fvecs(fvecs, new_names=self.fnames)
@@ -274,7 +274,7 @@ class CCFraudQ5(XIPQuery):
         fvecs = []
         for i, agg in enumerate(aggs):
             fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample
+                req_data, qsample, self.data_loader.statistics["tsize"]
             )
             fvecs.append(fvec)
         fvec = merge_fvecs(fvecs, new_names=self.fnames)

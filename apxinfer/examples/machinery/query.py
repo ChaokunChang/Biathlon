@@ -40,7 +40,7 @@ class MachineryQuery(XIPQuery):
             fvecs = []
             for agg in self.aggs:
                 fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                    req_data, qcfg["qsample"]
+                    req_data, qcfg["qsample"], self.data_loader.statistics['tsize']
                 )
                 fvecs.append(fvec)
             fvec = merge_fvecs(fvecs, new_names=self.fnames)

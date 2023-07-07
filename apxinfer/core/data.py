@@ -171,6 +171,24 @@ class XIPDataLoader:
         self.db_client = DBHelper.get_db_client()
         self.logger = logging.getLogger("XIPDataLoader")
 
+        # collect some statistics from the underlying db
+        dbt = f"{self.database}.{self.table}"
+        table_size: int = self.db_client.command(f"SELECT count() FROM {dbt}")
+        tdesc: pd.DataFrame = self.db_client.query_df(f"DESCRIBE TABLE {dbt}")
+        tcols = tdesc["name"].to_list()
+        if "pid" in tcols:
+            part_sizes: List[int] = self.db_client.query_np(
+                f"SELECT pid, count() as cnt FROM {dbt} GROUP BY pid ORDER BY pid"
+            )
+        else:
+            part_sizes: List[int] = []
+        nparts: int = len(part_sizes)
+        self.statistics = {
+            "tsize": table_size,
+            "nparts": nparts,
+            "psizes": part_sizes,
+        }
+
         if self.enable_cache:
             # cache the load_data function,
             # TODO: self managed cache for incremental computation

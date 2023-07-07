@@ -84,13 +84,14 @@ class TaxiTripQ1(XIPQuery):
                 fdists=["normal"] * len(self.fnames),
             )
         else:
-            # fvecs = [FEstimatorHelper.SUPPORTED_AGGS['count'](req_data, qsample)]
             fvecs = []
             dcol_aggs = [["sum"], ["sum"], ["std"]]
             for i, aggs in enumerate(dcol_aggs):
                 for agg in aggs:
                     fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                        req_data[:, i : i + 1], qsample
+                        req_data[:, i : i + 1],
+                        qsample,
+                        self.data_loader.statistics["tsize"],
                     )
                     fvecs.append(fvec)
             return merge_fvecs(fvecs, new_names=self.fnames)
@@ -148,12 +149,18 @@ class TaxiTripQ2(XIPQuery):
                 fdists=["normal"] * len(self.fnames),
             )
         else:
-            fvecs = [FEstimatorHelper.SUPPORTED_AGGS["count"](req_data, qsample)]
+            fvecs = [
+                FEstimatorHelper.SUPPORTED_AGGS["count"](
+                    req_data, qsample, self.data_loader.statistics["tsize"]
+                )
+            ]
             dcol_aggs = [["sum"], ["max"], ["max", "median"]]
             for i, aggs in enumerate(dcol_aggs):
                 for agg in aggs:
                     fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                        req_data[:, i : i + 1], qsample
+                        req_data[:, i : i + 1],
+                        qsample,
+                        self.data_loader.statistics["tsize"],
                     )
                     fvecs.append(fvec)
             return merge_fvecs(fvecs, new_names=self.fnames)
@@ -210,7 +217,9 @@ class TaxiTripQ3(XIPQuery):
             for i, aggs in enumerate(dcol_aggs):
                 for agg in aggs:
                     fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                        req_data[:, i : i + 1], qsample
+                        req_data[:, i : i + 1],
+                        qsample,
+                        self.data_loader.statistics["tsize"],
                     )
                     fvecs.append(fvec)
             return merge_fvecs(fvecs, new_names=self.fnames)
@@ -293,7 +302,9 @@ class TaxiTripAGGFull(XIPQuery):
             fvecs = []
             for agg in self.aggs:
                 if agg == "count":
-                    fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](req_data, qsample)
+                    fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
+                        req_data, qsample, self.data_loader.statistics["tsize"]
+                    )
                     fvecs.append(fvec)
                 elif agg == "unique":
                     for dcol in self.dcols:
@@ -304,7 +315,9 @@ class TaxiTripAGGFull(XIPQuery):
                         ]:
                             col_id = self.dcols.index(dcol)
                             fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                                req_data[:, col_id : col_id + 1], qsample
+                                req_data[:, col_id : col_id + 1],
+                                qsample,
+                                self.data_loader.statistics["tsize"],
                             )
                             fvecs.append(fvec)
                 else:
@@ -312,7 +325,9 @@ class TaxiTripAGGFull(XIPQuery):
                         if dcol not in ["pickup_ntaname", "dropoff_ntaname"]:
                             col_id = self.dcols.index(dcol)
                             fvec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                                req_data[:, col_id : col_id + 1], qsample
+                                req_data[:, col_id : col_id + 1],
+                                qsample,
+                                self.data_loader.statistics["tsize"],
                             )
                             fvecs.append(fvec)
             return merge_fvecs(fvecs, new_names=self.fnames)

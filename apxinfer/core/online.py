@@ -224,10 +224,11 @@ class OnlineExecutor:
                 tag = "debug"
             else:
                 tag = self.ppl.settings.__str__()
-        with open(f"{self.working_dir}/evals_{tag}.json", "w") as f:
+        eval_path = f"{self.working_dir}/evals_{tag}.json"
+        with open(eval_path, "w") as f:
             json.dump(evals, f, indent=4)
 
         self.logger.info(
-            f"Finished running online executor, evals are saved in {self.working_dir}"
+            f"Finished running online executor, evals are saved in {eval_path}"
         )
         return results

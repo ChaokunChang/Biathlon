@@ -271,28 +271,3 @@ class MSensorsIngestor(XIPDataIngestor):
                 SELECT rid, bid, sensor_{self.sid} as signal, label, tag, pid
                 FROM {self.dsrc}"""
         )
-
-
-if __name__ == "__main__":
-    dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
-    ingestor = MachineryIngestor(
-        dsrc_type="csv_dir",
-        dsrc=dsrc,
-        database="xip",
-        table="mach_imbalance",
-        nparts=100,
-        seed=0,
-    )
-    ingestor.run()
-
-    for i in range(8):
-        ingestor = MSensorsIngestor(
-            sid=i,
-            dsrc_type="clickhouse",
-            dsrc="xip.mach_imbalance",
-            database="xip",
-            table=f"msensors_{i}",
-            nparts=100,
-            seed=0,
-        )
-        ingestor.run()

@@ -2,7 +2,7 @@ from apxinfer.core.config import DIRHelper, LoadingHelper
 from apxinfer.core.config import OfflineArgs
 from apxinfer.core.offline import OfflineExecutor
 
-from apxinfer.examples.ccfraud.feature import get_fextractor
+from apxinfer.examples.tick.feature import get_fextractor
 
 
 if __name__ == "__main__":

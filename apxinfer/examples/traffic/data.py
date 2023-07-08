@@ -169,6 +169,7 @@ class TrafficDataIngestor(XIPDataIngestor):
             ON tmp1.trip_id = tmp2.trip_id
         """
         self.db_client.command(sql)
+        self.drop_aux_table(aux_table)
 
     def drop_aux_table(self, aux_table: str) -> None:
         DBHelper.drop_table(self.db_client, self.database, aux_table)

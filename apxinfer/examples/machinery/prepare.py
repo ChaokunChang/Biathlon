@@ -42,6 +42,9 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
             ORDER BY bid
         """
         requests: pd.DataFrame = self.db_client.query_df(sql)
+        if self.max_requests > 0 and self.max_requests < len(requests):
+            requests = requests.sample(self.max_requests, replace=False)
+        self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
 
@@ -77,6 +80,7 @@ class MachineryPrepareArgs(PrepareArgs):
 
 def ingest_data(nparts: int = 100, seed: int = 0) -> None:
     dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
+    dsrc = "/public/ckchang/db/clickhouse/user_files/machinery"
     ingestor = MachineryIngestor(
         dsrc_type="csv_dir",
         dsrc=dsrc,

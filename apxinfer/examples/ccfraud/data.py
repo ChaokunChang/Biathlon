@@ -418,38 +418,3 @@ class CCFraudUsersLoader(XIPDataLoader):
                 return df.values[0]
             else:
                 raise ValueError("feature aggregation is not supported yet")
-
-
-if __name__ == "__main__":
-    txns_src = "file('credit-card-transactions/credit_card_transactions-ibm_v2.csv', CSVWithNames)"
-    txns_ingestor = CCFraudTxnsIngestor(
-        dsrc_type="user_files",
-        dsrc=txns_src,
-        database="xip",
-        table="cc_fraud_txns",
-        nparts=100,
-        seed=0,
-    )
-    txns_ingestor.run()
-
-    cards_src = "file('credit-card-transactions/sd254_cards.csv', CSVWithNames)"
-    cards_ingestor = CCFraudCardsIngestor(
-        dsrc_type="user_files",
-        dsrc=cards_src,
-        database="xip",
-        table="cc_fraud_cards",
-        nparts=100,
-        seed=0,
-    )
-    cards_ingestor.run()
-
-    users_src = "file('credit-card-transactions/sd254_users.csv', CSVWithNames)"
-    users_ingestor = CCFraudUsersIngestor(
-        dsrc_type="user_files",
-        dsrc=users_src,
-        database="xip",
-        table="cc_fraud_users",
-        nparts=100,
-        seed=0,
-    )
-    users_ingestor.run()

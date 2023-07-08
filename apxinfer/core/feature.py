@@ -135,10 +135,13 @@ class FEstimatorHelper:
         scnt = data.shape[0]
         tcnt = int(scnt / p)
         slct = tcnt / tsize
-        fstds = tsize * np.sqrt(
-            (tsize - ssize) * slct * (1 - slct) / (ssize * (tsize - 1))
-        )
         features = np.array([tcnt])
+        if ssize * (tsize - 1) > 0:
+            fstds = tsize * np.sqrt(
+                (tsize - ssize) * slct * (1 - slct) / (ssize * (tsize - 1))
+            )
+        else:
+            fstds = np.zeros_like(features)
         fstds = FEstimatorHelper.fstds_crop([fstds], p, scnt)
         fnames = ["cnt"]
         return XIPFeatureVec(
@@ -155,7 +158,10 @@ class FEstimatorHelper:
 
         features = np.sum(data, axis=0) / p
         sdvars = FEstimatorHelper.compute_dvars(data)
-        fstds = tsize * sdvars * np.sqrt((tsize - ssize) / (ssize * (tsize - 1)))
+        if ssize * (tsize - 1) > 0:
+            fstds = tsize * sdvars * np.sqrt((tsize - ssize) / (ssize * (tsize - 1)))
+        else:
+            fstds = np.zeros_like(features)
         fstds = FEstimatorHelper.fstds_crop(fstds, p, scnt)
 
         fnames = [f"sum_f{i}" for i in range(features.shape[0])]
@@ -216,7 +222,7 @@ SUPPORTED_DISTRIBUTIONS = {
     "dirichlet": {"sampler": np.random.dirichlet, "final_args": []},
     "multinomial": {"sampler": np.random.multinomial, "final_args": []},
     "multivariate_normal": {"sampler": np.random.multivariate_normal, "final_args": []},
-    "unknown": {"sampler": None, "final_args": []}
+    "unknown": {"sampler": None, "final_args": []},
 }
 
 

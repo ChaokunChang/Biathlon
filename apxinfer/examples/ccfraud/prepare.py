@@ -6,6 +6,11 @@ from apxinfer.core.feature import XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
 from apxinfer.core.config import PrepareArgs, DIRHelper
 
+from apxinfer.examples.ccfraud.data import (
+    CCFraudCardsIngestor,
+    CCFraudTxnsIngestor,
+    CCFraudUsersIngestor,
+)
 from apxinfer.examples.ccfraud.feature import get_fextractor
 
 
@@ -132,6 +137,41 @@ class CCFraudPrepareArgs(PrepareArgs):
     plus: bool = False
 
 
+def ingest_data(nparts: int = 100, seed: int = 0):
+    txns_src = "file('credit-card-transactions/credit_card_transactions-ibm_v2.csv', CSVWithNames)"
+    txns_ingestor = CCFraudTxnsIngestor(
+        dsrc_type="user_files",
+        dsrc=txns_src,
+        database="xip",
+        table="cc_fraud_txns",
+        nparts=nparts,
+        seed=seed,
+    )
+    txns_ingestor.run()
+
+    cards_src = "file('credit-card-transactions/sd254_cards.csv', CSVWithNames)"
+    cards_ingestor = CCFraudCardsIngestor(
+        dsrc_type="user_files",
+        dsrc=cards_src,
+        database="xip",
+        table="cc_fraud_cards",
+        nparts=nparts,
+        seed=seed,
+    )
+    cards_ingestor.run()
+
+    users_src = "file('credit-card-transactions/sd254_users.csv', CSVWithNames)"
+    users_ingestor = CCFraudUsersIngestor(
+        dsrc_type="user_files",
+        dsrc=users_src,
+        database="xip",
+        table="cc_fraud_users",
+        nparts=nparts,
+        seed=seed,
+    )
+    users_ingestor.run()
+
+
 if __name__ == "__main__":
     # Configurations
     args = CCFraudPrepareArgs().parse_args()
@@ -143,9 +183,9 @@ if __name__ == "__main__":
     model_name = args.model
     model_type = "classifier"
     seed = args.seed
-    # working_dir = f'/home/ckchang/.cache/apxinf/tmp/{model_name}/seed-{seed}/prepare'
-    # os.makedirs(working_dir, exist_ok=True)
     working_dir = DIRHelper.get_prepare_dir(args)
+
+    ingest_data(nparts=nparts, seed=seed)
 
     fextractor = get_fextractor(
         nparts,

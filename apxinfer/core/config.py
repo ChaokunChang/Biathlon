@@ -1,6 +1,8 @@
 import os
 from typing import Literal
 from tap import Tap
+import joblib
+import pandas as pd
 
 EXP_HOME = "/home/ckchang/.cache/apxinf/xip"
 
@@ -135,3 +137,20 @@ class DIRHelper:
             )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir
+
+
+class LoadingHelper:
+    from apxinfer.core.model import XIPModel
+
+    def load_model(args: BaseXIPArgs) -> XIPModel:
+        model_path = DIRHelper.get_model_path(args)
+        model = joblib.load(model_path)
+        return model
+
+    def load_dataset(args: BaseXIPArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
+        dataset_dir = DIRHelper.get_dataset_dir(args)
+        ds_path = os.path.join(dataset_dir, f"{name}_set.csv")
+        dataset = pd.read_csv(ds_path)
+        if nreqs > 0:
+            dataset = dataset[:nreqs]
+        return dataset

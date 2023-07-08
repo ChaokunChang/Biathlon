@@ -8,6 +8,7 @@ from apxinfer.core.feature import XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
 from apxinfer.core.config import PrepareArgs, DIRHelper
 
+from apxinfer.examples.tick.data import TickDataIngestor, TickHourFStoreIngestor
 from apxinfer.examples.tick.feature import get_fextractor
 
 
@@ -69,7 +70,6 @@ class TickPrepareWorker(XIPPrepareWorker):
                 ORDER BY (cpair, year, month, day, hour)
                 """
         df: pd.DataFrame = self.db_client.query_df(sql)
-        df["dt"] = df["dt"].apply(lambda x: pd.to_datetime(x).to_pydatetime())
         self.logger.info(f"Got of {len(df)}x of requests")
         df.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return df
@@ -106,6 +106,30 @@ class TickPrepareWorker(XIPPrepareWorker):
         return labels_pds
 
 
+def ingest_data(nparts: int = 100, seed: int = 0):
+    dsrc_type = "user_files_dir"
+    dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data"
+    ingestor = TickDataIngestor(
+        dsrc_type=dsrc_type,
+        dsrc=dsrc,
+        database="xip",
+        table="tick",
+        nparts=nparts,
+        seed=seed,
+    )
+    ingestor.run()
+
+    ingestor = TickHourFStoreIngestor(
+        dsrc_type="clickhouse",
+        dsrc="xip.tick",
+        database="xip",
+        table="tick_fstore_hour",
+        nparts=nparts,
+        seed=seed,
+    )
+    ingestor.run()
+
+
 if __name__ == "__main__":
     # Configurations
     args = PrepareArgs().parse_args()
@@ -117,9 +141,9 @@ if __name__ == "__main__":
     model_name = args.model
     model_type = "regressor"
     seed = args.seed
-    # working_dir = f'/home/ckchang/.cache/apxinf/tmp/{model_name}/seed-{seed}/prepare'
-    # os.makedirs(working_dir, exist_ok=True)
     working_dir = DIRHelper.get_prepare_dir(args)
+
+    ingest_data(nparts=nparts, seed=seed)
 
     fextractor = get_fextractor(
         nparts, seed, disable_sample_cache=True, disable_query_cache=True

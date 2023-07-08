@@ -48,7 +48,10 @@ class CCFraudQ0(XIPQuery):
         num_fvals = np.array([request[f"req_{key}"] for key in self.num_fnames])
         cat_keys = [f"req_{key}" for key in self.cat_fnames]
         cat_fvals = np.array(
-            [self.embeddings[key].get(f"{request[key]}", 0) for key in cat_keys]
+            [
+                self.embeddings[key.replace("req_", "")].get(f"{request[key]}", 0)
+                for key in cat_keys
+            ]
         )
         fvals = np.concatenate([dt_fvals, num_fvals, cat_fvals])
         fests = np.zeros_like(fvals)

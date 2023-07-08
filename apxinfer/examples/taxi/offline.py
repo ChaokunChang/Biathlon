@@ -2,7 +2,7 @@ from apxinfer.core.config import DIRHelper, LoadingHelper
 from apxinfer.core.config import OfflineArgs
 from apxinfer.core.offline import OfflineExecutor
 
-from apxinfer.examples.ccfraud.feature import get_fextractor
+from apxinfer.examples.taxi.feature import get_fextractor
 
 
 if __name__ == "__main__":
@@ -17,10 +17,7 @@ if __name__ == "__main__":
 
     # create a feature extractor for this task
     fextractor = get_fextractor(
-        args.nparts,
-        args.seed,
-        disable_sample_cache=False,
-        disable_query_cache=False,
+        args.nparts, args.seed, disable_sample_cache=False, disable_query_cache=False
     )
 
     executor = OfflineExecutor(

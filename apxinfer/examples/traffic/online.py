@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     # load test data
     test_set = load_dataset(args, "test", args.nreqs)
-    verbose = args.verbose_execution and len(test_set) <= 10
+    verbose = args.verbose and len(test_set) <= 10
 
     # load xip model
     model = load_model(args)

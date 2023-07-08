@@ -24,12 +24,19 @@ class PrepareArgs(BaseXIPArgs):
 
 class TrainerArgs(BaseXIPArgs):
     plus: bool = False  # whether to use plus features
-    multiclass: bool = False  # whether to use multiclass features
+    multiclass: bool = False  # whether the model is multi-class
+
+
+class OfflineArgs(BaseXIPArgs):
+    nreqs: int = 0  # number of test requests
+    ncfgs: int = 10  # number of query configurations
+    verbose: bool = False
+    clear_cache: bool = False
 
 
 class OnlineArgs(BaseXIPArgs):
     nreqs: int = 0  # number of test requests
-    ncfgs: int = 5  # number of query configurations
+    ncfgs: int = 10  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
     disable_query_cache: bool = False  # whether to disable cache the query in loader
@@ -58,7 +65,7 @@ class OnlineArgs(BaseXIPArgs):
     max_rounds: int = 1000  # maximum rounds
 
     exact: bool = False  # run exact version
-    verbose_execution: bool = False  # whether to print execution details
+    verbose: bool = False  # whether to print execution details
 
     def process_args(self):
         assert self.termination_condition != self.pest_constraint
@@ -98,6 +105,16 @@ class DIRHelper:
         model_dir = DIRHelper.get_model_dir(args)
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
         return os.path.join(model_dir, f"{model_tag}.pkl")
+
+    def get_offline_dir(args: OfflineArgs) -> str:
+        working_dir = DIRHelper.get_working_dir(args)
+        model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
+        offline_dir = os.path.join(working_dir, "offline", model_tag)
+        offline_dir = os.path.join(offline_dir, f"nparts-{args.nparts}")
+        offline_dir = os.path.join(offline_dir, f"ncfgs-{args.ncfgs}")
+        offline_dir = os.path.join(offline_dir, f"nreqs-{args.nreqs}")
+        os.makedirs(offline_dir, exist_ok=True)
+        return offline_dir
 
     def get_online_dir(args: OnlineArgs) -> str:
         working_dir = DIRHelper.get_working_dir(args)

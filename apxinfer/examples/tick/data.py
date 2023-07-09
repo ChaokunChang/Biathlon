@@ -248,26 +248,3 @@ class TickHourFStoreDataLoader(XIPDataLoader):
         """
         return self.load_from_fstore(request, qcfg, cols, sql)
 
-
-if __name__ == "__main__":
-    dsrc_type = "user_files_dir"
-    dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data"
-    ingestor = TickDataIngestor(
-        dsrc_type=dsrc_type,
-        dsrc=dsrc,
-        database="xip",
-        table="tick",
-        nparts=100,
-        seed=0,
-    )
-    ingestor.run()
-
-    ingestor = TickHourFStoreIngestor(
-        dsrc_type="clickhouse",
-        dsrc="xip.tick",
-        database="xip",
-        table="tick_fstore_hour",
-        nparts=0,
-        seed=0,
-    )
-    ingestor.run()

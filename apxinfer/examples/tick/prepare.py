@@ -109,6 +109,8 @@ class TickPrepareWorker(XIPPrepareWorker):
 def ingest_data(nparts: int = 100, seed: int = 0):
     dsrc_type = "user_files_dir"
     dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data"
+    if not os.path.exists(dsrc):
+        dsrc = "/mnt/sdb/dataset/tick-data"
     ingestor = TickDataIngestor(
         dsrc_type=dsrc_type,
         dsrc=dsrc,

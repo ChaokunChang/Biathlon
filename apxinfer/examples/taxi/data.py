@@ -107,7 +107,8 @@ class TaxiTripIngestor(XIPDataIngestor):
         sql_insert = f"""
             -- insert data into trips from lcoal files (20m records)
             INSERT INTO {dtable}
-            FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
+            SELECT * FROM file('{dsrc_home}', TSVWithNames)
+            -- FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
             """
         sql_alter = f"""
             -- add new column trip_duration as (dropoff_datetime - pickup_datetime)

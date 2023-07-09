@@ -12,7 +12,7 @@ from apxinfer.core.utils import (
     XIPQueryConfig,
     QueryCostEstimation,
 )
-from apxinfer.core.utils import merge_fvecs
+from apxinfer.core.utils import merge_fvecs, is_same_float
 from apxinfer.core.query import XIPQuery
 
 fcache_manager = CacheManager(
@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 class FEstimatorHelper:
     min_cnt = 30
-    bs_nsamp: int = 1000
+    bs_nsamp: int = 100
     bias_correction: bool = True
 
     def estimate_any(
@@ -32,7 +32,7 @@ class FEstimatorHelper:
         func: Callable,
         tsize: int,
     ) -> XIPFeatureVec:
-        if p >= 1.0:
+        if is_same_float(p, 1.0):
             features = func(data)
             fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
             return XIPFeatureVec(
@@ -103,7 +103,7 @@ class FEstimatorHelper:
             return np.var(data, axis=0, ddof=ddof)
 
     def fstds_crop(fstds: np.ndarray, p: float, card: int) -> np.ndarray:
-        if p >= 1.0:
+        if is_same_float(p, 1.0):
             return np.zeros_like(fstds)
         elif card < FEstimatorHelper.min_cnt:
             return 1e9 * np.ones_like(fstds)

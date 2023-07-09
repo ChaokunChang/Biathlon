@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
-from apxinfer.core.utils import merge_fvecs
+from apxinfer.core.utils import merge_fvecs, is_same_float
 from apxinfer.core.data import DBHelper
 from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import FEstimatorHelper
@@ -125,7 +125,9 @@ class CCFraudQ2(XIPQuery):
         fcols = self.fnames
         fvals = self.data_loader.load_data(request, qcfg, fcols)
         for i in range(len(self.num_fnames), len(fvals)):
-            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(fvals[i], 0)
+            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
+                fvals[i], 0
+            )
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(
@@ -162,7 +164,7 @@ class CCFraudQ3(XIPQuery):
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
-            if qsample >= 1.0:
+            if is_same_float(qsample, 1.0):
                 self.logger.warning(f"no data for {request}")
                 fests = np.zeros(len(self.fnames))
             else:
@@ -209,7 +211,7 @@ class CCFraudQ4(XIPQuery):
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
-            if qsample >= 1.0:
+            if is_same_float(qsample, 1.0):
                 self.logger.warning(f"no data for {request}")
                 fests = np.zeros(len(self.fnames))
             else:
@@ -256,7 +258,7 @@ class CCFraudQ5(XIPQuery):
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
-            if qsample >= 1.0:
+            if is_same_float(qsample, 1.0):
                 self.logger.warning(f"no data for {request}")
                 fests = np.zeros(len(self.fnames))
             else:

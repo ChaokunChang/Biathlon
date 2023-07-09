@@ -254,7 +254,10 @@ def evaluate_classifier(
     f1 = metrics.f1_score(y, y_pred)
     prec = metrics.precision_score(y, y_pred)
     rec = metrics.recall_score(y, y_pred)
-    auc = metrics.roc_auc_score(y, y_pred)
+    try:
+        auc = metrics.roc_auc_score(y, y_pred)
+    except ValueError:
+        auc = np.nan
     return ClassifierEvaluation(
         acc=acc, f1=f1, prec=prec, rec=rec, auc=auc, size=len(y), time=et - st
     )

@@ -3,7 +3,13 @@ import logging
 import numpy as np
 from beaker.cache import CacheManager
 
-from apxinfer.core.utils import XIPFeatureVec, XIPRequest, XIPQType, XIPQueryConfig
+from apxinfer.core.utils import (
+    XIPFeatureVec,
+    XIPRequest,
+    XIPQType,
+    XIPQueryConfig,
+    is_same_float,
+)
 from apxinfer.core.data import XIPDataLoader
 
 fcache_manager = CacheManager(
@@ -42,7 +48,7 @@ class XIPQuery:
     ) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         fvals = np.zeros(len(self.fnames))
-        if qsample >= 1.0:
+        if is_same_float(qsample, 1.0):
             self.logger.warning(f"no data for {request} in {self.qname}")
             fests = np.zeros(len(self.fnames))
         else:

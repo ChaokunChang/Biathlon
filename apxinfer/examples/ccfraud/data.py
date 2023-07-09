@@ -209,7 +209,7 @@ class CCFraudTxnsLoader(XIPDataLoader):
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
-            WHERE pid >= {from_pid} AND pid < {to_pid}
+            WHERE pid >= {int(from_pid)} AND pid < {int(to_pid)}
                 AND txn_datetime >= '{from_dt}' AND txn_datetime < '{req_dt}'
                 AND {' AND '.join(condtions)}
                 SETTINGS max_threads = 1

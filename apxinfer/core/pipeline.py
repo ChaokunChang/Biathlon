@@ -7,7 +7,7 @@ from apxinfer.core.utils import XIPRequest, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 
 # from apxinfer.core.utils import QueryCostEstimation
-from apxinfer.core.utils import XIPPipelineSettings
+from apxinfer.core.utils import XIPPipelineSettings, is_same_float
 from apxinfer.core.feature import XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator
@@ -36,7 +36,9 @@ class XIPPipeline:
         self.logger = logging.getLogger("XIPPipeline")
 
     def is_exact_pred(self, pred: XIPPredEstimation) -> bool:
-        return pred["pred_error"] == 0.0 and pred["pred_conf"] == 1.0
+        return is_same_float(pred["pred_error"], 0.0) and is_same_float(
+            pred["pred_conf"], 1.0
+        )
 
     def meet_termination_condition(
         self,
@@ -47,7 +49,7 @@ class XIPPipeline:
     ) -> bool:
         if self.is_exact_pred(pred):
             return True
-        elif np.all([qcfg["qsample"] >= 1.0 for qcfg in qcfgs]):
+        elif np.all([is_same_float(qcfg["qsample"], 1.0) for qcfg in qcfgs]):
             return True
         if self.settings.termination_condition == "min_max":
             return (

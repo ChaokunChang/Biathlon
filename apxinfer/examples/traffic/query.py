@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
-from apxinfer.core.utils import merge_fvecs
+from apxinfer.core.utils import merge_fvecs, is_same_float
 from apxinfer.core.data import DBHelper
 from apxinfer.core.query import XIPQuery
 from apxinfer.core.feature import FEstimatorHelper
@@ -19,7 +19,9 @@ def get_borough_embedding() -> dict:
     boroughs: pd.DataFrame = db_client.query_df(
         "select distinct borough from xip.traffic order by borough"
     )
-    borough_map = {borough: i + 1 for i, borough in enumerate(boroughs["borough"].values)}
+    borough_map = {
+        borough: i + 1 for i, borough in enumerate(boroughs["borough"].values)
+    }
     return borough_map
 
 
@@ -116,7 +118,7 @@ class TrafficQP2(XIPQuery):
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
-            if qsample >= 1.0:
+            if is_same_float(qsample, 1.0):
                 self.logger.warning(f"no data for {request}")
                 fests = np.zeros(len(self.fnames))
             else:

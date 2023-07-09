@@ -144,3 +144,7 @@ def merge_fvecs(
     fests = np.concatenate([fvec["fests"] for fvec in fvecs])
     fdists = list(itertools.chain.from_iterable([fvec["fdists"] for fvec in fvecs]))
     return XIPFeatureVec(fnames=fnames, fvals=fvals, fests=fests, fdists=fdists)
+
+
+def is_same_float(f1: float, f2: float, eps: float = 1e-6):
+    return abs(f1 - f2) < eps

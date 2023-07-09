@@ -48,7 +48,10 @@ class DBHelper:
             database=database, table=table
         )
         res = db_client.command(sql)
-        return len(res) > 0
+        try:
+            return len(res) > 0
+        except:
+            return False
 
     def get_table_size(db_client: Client, database, table) -> int:
         """Get the number of rows in the table"""

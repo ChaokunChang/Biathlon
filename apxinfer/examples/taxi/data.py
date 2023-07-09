@@ -109,18 +109,18 @@ class TaxiTripIngestor(XIPDataIngestor):
             INSERT INTO {dtable}
             FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
             """
-        sql_alter = """
+        sql_alter = f"""
             -- add new column trip_duration as (dropoff_datetime - pickup_datetime)
             ALTER TABLE {dtable}
             ADD COLUMN trip_duration Float32
             """
-        sql_update = """
+        sql_update = f"""
             -- update trip_duration
             ALTER TABLE {dtable}
             UPDATE trip_duration = (dropoff_datetime - pickup_datetime)
             WHERE 1
             """
-        sql_clean = """
+        sql_clean = f"""
             -- clean the data.
             -- remove records with negative trip_duration, trip_distance, fare_amount, total_amount, and passenger_count, 
             ALTER TABLE {dtable} DELETE

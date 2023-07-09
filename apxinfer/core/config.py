@@ -12,7 +12,7 @@ class BaseXIPArgs(Tap):
     model: str = "lgbm"  # model name
     scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
-    nparts = 100  # maximum number of partitions of dataset
+    nparts: int = 100  # maximum number of partitions of dataset
 
 
 class PrepareArgs(BaseXIPArgs):

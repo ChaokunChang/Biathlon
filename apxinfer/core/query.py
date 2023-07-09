@@ -80,6 +80,6 @@ class XIPQuery:
             qname=self.qname,
             qtype=self.qtype,
             qcfg_id=cfg_id,
-            qoffset=min(offset, 0.0),
-            qsample=max(sample, 1.0),
+            qoffset=max(offset, 0.0),
+            qsample=min(sample, 1.0),
         )

@@ -27,8 +27,17 @@ ncfgs=10
 
 echo running $task with model $model and $error_cons, $min_conf, $ncfgs
 
+echo running prepare with $interpreter $task/prepare.py --task test/$task --max_requests $max_requests --skip_dataset
 $interpreter $task/prepare.py --task test/$task --max_requests $max_requests --skip_dataset
+
+echo running trainer with $interpreter $task/trainer.py --task test/$task --model $model
 $interpreter $task/trainer.py --task test/$task --model $model
+
+echo running offline with $interpreter $task/offline.py --task test/$task --model $model --nreqs 10 --clear_cache
 $interpreter $task/offline.py --task test/$task --model $model --nreqs 10 --clear_cache
+
+echo running online with $interpreter $task/online.py --task test/$task --model $model --exact
 $interpreter $task/online.py --task test/$task --model $model --exact
+
+echo running online with $interpreter $task/online.py --task test/$task --model $model --min_conf $min_conf --ncfgs $ncfgs $error_cons
 $interpreter $task/online.py --task test/$task --model $model --min_conf $min_conf --ncfgs $ncfgs $error_cons

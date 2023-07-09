@@ -31,6 +31,7 @@ class OfflineExecutor:
         self.agg_qids = []
         self.agg_fids = []
         self.agg_fnames = []
+        self.agg_fid2qid = {}
         cnt = 0
         for qid, qry in enumerate(self.fextractor.queries):
             if qry.qtype == XIPQType.AGG:
@@ -38,6 +39,7 @@ class OfflineExecutor:
                 for i in range(len(qry.fnames)):
                     self.agg_fids.append(cnt + i)
                     self.agg_fnames.append(qry.fnames[i])
+                    self.agg_fid2qid[cnt + i] = qid
             cnt += len(qry.fnames)
 
     def preprocess(self, dataset: pd.DataFrame) -> dict:
@@ -75,7 +77,7 @@ class OfflineExecutor:
                 qcfgs = []
                 for qid, qry in enumerate(self.fextractor.queries):
                     if qry.qtype == XIPQType.AGG:
-                        sample = cfg_id / self.ncfgs
+                        sample = cfg_id * 1.0 / self.ncfgs
                     else:
                         sample = 1.0
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
@@ -119,11 +121,12 @@ class OfflineExecutor:
         for i, profiles in enumerate(records):
             for j, profile in enumerate(profiles):
                 for k, fid in enumerate(self.agg_fids):
-                    qsample = profile["qcfgs"][self.agg_qids[0]]["qsample"]
+                    qsample = profile["qcfgs"][self.agg_fid2qid[fid]]["qsample"]
                     fvar = profile["fvec"]["fests"][fid]
                     qsamples[i][j][k] = qsample
                     fvars[i][j][k] = fvar
-
+        self.logger.info(f"qsamples={qsamples[0]}")
+        self.logger.info(f"fvars={fvars[0]}")
         # plot the fvars
         self.plot_fvars(qsamples, fvars)
 

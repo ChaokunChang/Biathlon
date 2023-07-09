@@ -80,7 +80,10 @@ class MachineryPrepareArgs(PrepareArgs):
 
 def ingest_data(nparts: int = 100, seed: int = 0) -> None:
     dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
-    dsrc = "/public/ckchang/db/clickhouse/user_files/machinery"
+    if not os.path.exists(dsrc):
+        dsrc = "/public/ckchang/db/clickhouse/user_files/machinery"
+    if not os.path.exists(dsrc):
+        dsrc = "/home/ckchang/Documents/dataset/machinery"
     ingestor = MachineryIngestor(
         dsrc_type="csv_dir",
         dsrc=dsrc,

@@ -86,9 +86,9 @@ class CCFraudQ1(XIPQuery):
         fcols = self.fnames
         fvals = self.data_loader.load_data(request, qcfg, fcols)
         for i in range(len(self.num_fnames), len(fvals)):
-            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]][
-                fvals[i]
-            ]
+            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
+                fvals[i], 0
+            )
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(
@@ -125,9 +125,7 @@ class CCFraudQ2(XIPQuery):
         fcols = self.fnames
         fvals = self.data_loader.load_data(request, qcfg, fcols)
         for i in range(len(self.num_fnames), len(fvals)):
-            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]][
-                fvals[i]
-            ]
+            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(fvals[i], 0)
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(

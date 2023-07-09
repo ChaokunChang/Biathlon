@@ -103,7 +103,7 @@ class OfflineExecutor:
         plt.savefig(f"{self.working_dir}/fvars.pdf", bbox_inches="tight")
 
     def run(self, dataset: pd.DataFrame, clear_cache: bool = False) -> dict:
-        self.logger.info("Running online executor")
+        self.logger.info("Running offline executor")
         results = self.preprocess(dataset)
         records_path = f"{self.working_dir}/records.pkl"
         if os.path.exists(records_path) and not clear_cache:

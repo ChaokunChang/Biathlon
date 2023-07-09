@@ -19,7 +19,7 @@ def get_borough_embedding() -> dict:
     boroughs: pd.DataFrame = db_client.query_df(
         "select distinct borough from xip.traffic order by borough"
     )
-    borough_map = {borough: i for i, borough in enumerate(boroughs["borough"].values)}
+    borough_map = {borough: i + 1 for i, borough in enumerate(boroughs["borough"].values)}
     return borough_map
 
 
@@ -31,7 +31,7 @@ class TrafficQP0(XIPQuery):
         self.borough_map = get_borough_embedding()
 
     def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        borough = self.borough_map[request["req_borough"]]
+        borough = self.borough_map.get(request["req_borough"], 0)
         fvals = np.array(
             [
                 request["req_year"],

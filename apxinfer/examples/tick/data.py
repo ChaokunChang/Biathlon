@@ -29,7 +29,7 @@ def get_all_files(data_dir: str) -> List[str]:
 
 class TickDataIngestor(XIPDataIngestor):
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -79,9 +79,7 @@ class TickDataIngestor(XIPDataIngestor):
     def ingest_data(self) -> None:
         self.logger.info(f"Ingesting data from {self.dsrc} into table {self.table}")
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "user_files_dir"
@@ -185,7 +183,7 @@ class TickHourFStoreIngestor(XIPDataIngestor):
         self.time_ops = ["toYear", "toMonth", "toDayOfMonth", "toHour"]
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -209,9 +207,7 @@ class TickHourFStoreIngestor(XIPDataIngestor):
             f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
         )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "clickhouse"

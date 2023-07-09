@@ -138,7 +138,7 @@ class XIPDataIngestor:
     def run(self) -> None:
         self.logger.info(f"Creating database {self.database}")
         self.create_database()
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         self.create_table()
         self.logger.info(f"Ingesting data from {self.dsrc_type}::{self.dsrc}")
         self.ingest_data()

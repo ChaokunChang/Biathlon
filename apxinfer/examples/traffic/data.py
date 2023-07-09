@@ -58,7 +58,7 @@ class TrafficDataIngestor(XIPDataIngestor):
         self.db_client.command(f"CREATE DATABASE IF NOT EXISTS {self.database}")
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -126,12 +126,10 @@ class TrafficDataIngestor(XIPDataIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(
-            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
         )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "user_files"
@@ -143,7 +141,7 @@ class TrafficDataIngestor(XIPDataIngestor):
 
         # we then insert the data into the main table
         self.logger.info(
-            f"Ingesting data from {aux_table} into table {self.table} in database {self.database}"
+            f"Ingesting data from {aux_table} into table {self.database}.{self.table}"
         )
         sql = f"""
             INSERT INTO {self.database}.{self.table}
@@ -234,7 +232,7 @@ class TrafficFStoreIngestor(TrafficDataIngestor):
         return super().create_database()
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -264,12 +262,10 @@ class TrafficFStoreIngestor(TrafficDataIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(
-            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
         )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "clickhouse"

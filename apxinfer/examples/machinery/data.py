@@ -58,7 +58,7 @@ class MachineryIngestor(XIPDataIngestor):
         super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -129,12 +129,10 @@ class MachineryIngestor(XIPDataIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(
-            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
         )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "csv_dir"
@@ -232,14 +230,14 @@ class MSensorsIngestor(XIPDataIngestor):
         self.sid = sid
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
             )
             return
 
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         self.db_client.command(
             f"""CREATE TABLE IF NOT EXISTS {self.database}.{self.table}(
                                 rid UInt32,
@@ -256,12 +254,10 @@ class MSensorsIngestor(XIPDataIngestor):
 
     def ingest_data(self) -> None:
         self.logger.info(
-            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
         )
         if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
             return
         assert (
             self.dsrc_type == "clickhouse"

@@ -33,7 +33,7 @@ class TaxiTripIngestor(XIPDataIngestor):
         super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
 
     def create_table(self) -> None:
-        self.logger.info(f"Creating table {self.table} in database {self.database}")
+        self.logger.info(f"Creating table {self.database}.{self.table}")
         if DBHelper.table_exists(self.db_client, self.database, self.table):
             self.logger.info(
                 f"Table {self.table} already exists in database {self.database}"
@@ -73,18 +73,92 @@ class TaxiTripIngestor(XIPDataIngestor):
             """
         self.db_client.command(sql)
 
+    def create_dsrc(self, dtable: str):
+        sql_create = f"""
+            -- create tables for trips in clickhouse
+            CREATE TABLE {dtable} (
+                trip_id UInt32,
+                pickup_datetime DateTime,
+                dropoff_datetime DateTime,
+                pickup_longitude Nullable(Float64),
+                pickup_latitude Nullable(Float64),
+                dropoff_longitude Nullable(Float64),
+                dropoff_latitude Nullable(Float64),
+                passenger_count UInt8,
+                trip_distance Float32,
+                fare_amount Float32,
+                extra Float32,
+                tip_amount Float32,
+                tolls_amount Float32,
+                total_amount Float32,
+                payment_type Enum(
+                    'CSH' = 1,
+                    'CRE' = 2,
+                    'NOC' = 3,
+                    'DIS' = 4,
+                    'UNK' = 5
+                ),
+                pickup_ntaname LowCardinality(String),
+                dropoff_ntaname LowCardinality(String)
+            ) ENGINE = MergeTree PARTITION BY passenger_count
+            ORDER BY (pickup_datetime, dropoff_datetime)
+            """
+        dsrc_home = "/var/lib/clickhouse/user_files/taxi-2015/trips_{0..19}.gz"
+        sql_insert = f"""
+            -- insert data into trips from lcoal files (20m records)
+            INSERT INTO {dtable}
+            FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
+            """
+        sql_alter = """
+            -- add new column trip_duration as (dropoff_datetime - pickup_datetime)
+            ALTER TABLE {dtable}
+            ADD COLUMN trip_duration Float32
+            """
+        sql_update = """
+            -- update trip_duration
+            ALTER TABLE {dtable}
+            UPDATE trip_duration = (dropoff_datetime - pickup_datetime)
+            WHERE 1
+            """
+        sql_clean = """
+            -- clean the data.
+            -- remove records with negative trip_duration, trip_distance, fare_amount, total_amount, and passenger_count, 
+            ALTER TABLE {dtable} DELETE
+            WHERE trip_duration < 0
+                OR trip_distance < 0
+                OR fare_amount < 0
+                OR extra < 0
+                OR tip_amount < 0
+                OR total_amount < 0
+                OR passenger_count < 0
+            """
+        self.db_client.command(sql_create)
+        self.db_client.command(sql_insert)
+        self.db_client.command(sql_alter)
+        self.db_client.command(sql_update)
+        self.db_client.command(sql_clean)
+
     def ingest_data(self) -> None:
-        self.logger.info(
-            f"Ingesting data from {self.dsrc} into table {self.table} in database {self.database}"
-        )
-        if not DBHelper.table_empty(self.db_client, self.database, self.table):
-            self.logger.info(
-                f"Table {self.table} in database {self.database} is not empty"
-            )
-            return
         assert (
             self.dsrc_type == "clickhouse"
         ), f"Unsupported data source type {self.dsrc_type}"
+
+        self.logger.info(
+            f"Ingesting data from {self.dsrc} into table {self.database}.{self.table}"
+        )
+
+        if not DBHelper.table_exists(
+            self.db_client, self.dsrc.split(".")[0], self.dsrc.split(".")[1]
+        ):
+            self.create_dsrc(self.dsrc)
+        elif DBHelper.table_empty(
+            self.db_client, self.dsrc.split(".")[0], self.dsrc.split(".")[1]
+        ):
+            self.create_dsrc(self.dsrc)
+
+        if not DBHelper.table_empty(self.db_client, self.database, self.table):
+            self.logger.info(f"Table {self.database}.{self.table} is not empty")
+            return
         nrows = DBHelper.get_table_size(
             self.db_client, self.dsrc.split(".")[0], self.dsrc.split(".")[1]
         )

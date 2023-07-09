@@ -109,6 +109,26 @@ class TickDataIngestor(XIPDataIngestor):
             ) as tmp2
             ON tmp1.txn_id = tmp2.txn_id
         """
+        if nrows > 1e8:
+            nrows = int(1e8)
+            sql = f"""
+                INSERT INTO {self.database}.{self.table}
+                SELECT tmp1.*, tmp2.pid
+                FROM
+                (
+                    SELECT rowNumberInAllBlocks() as txn_id, *
+                    FROM {self.database}.{aux_table}
+                ) as tmp1
+                JOIN
+                (
+                    SELECT rowNumberInAllBlocks() as txn_id,
+                            value % {self.nparts} as pid
+                    FROM generateRandom('value UInt32', {self.seed})
+                    LIMIT {nrows}
+                ) as tmp2
+                ON (tmp1.txn_id % {nrows}) = tmp2.txn_id
+            """
+
         self.db_client.command(sql)
 
         # we drop the auxiliary table
@@ -222,14 +242,27 @@ class TickHourFStoreIngestor(XIPDataIngestor):
             f"{self.time_ops[i]}(tick_dt) as {self.time_keys[i]}"
             for i in range(len(self.time_keys))
         ]
-        sql = f"""
-            INSERT INTO {self.database}.{self.table}
-            SELECT cpair, {', '.join(time_cols)},
-                {', '.join(aggs)}
-            FROM {self.dsrc}
-            GROUP BY cpair, {', '.join(self.time_keys)}
-        """
-        self.db_client.command(sql)
+        sql = f"""select distinct cpair from {self.dsrc}"""
+        all_cpairs = self.db_client.query_np(sql)
+        for cpair in tqdm(all_cpairs, desc="ingesting by cpair", total=len(all_cpairs)):
+            sql = f"""
+                INSERT INTO {self.database}.{self.table}
+                SELECT '{cpair[0]}' AS cpair, {', '.join(time_cols)},
+                    {', '.join(aggs)}
+                FROM {self.dsrc}
+                WHERE cpair='{cpair[0]}'
+                GROUP BY {', '.join(self.time_keys)}
+            """
+            self.db_client.command(sql)
+        # # the following code could crash due to OOM
+        # sql = f"""
+        #     INSERT INTO {self.database}.{self.table}
+        #     SELECT cpair, {', '.join(time_cols)},
+        #         {', '.join(aggs)}
+        #     FROM {self.dsrc}
+        #     GROUP BY cpair, {', '.join(self.time_keys)}
+        # """
+        # self.db_client.command(sql)
 
 
 class TickHourFStoreDataLoader(XIPDataLoader):
@@ -247,4 +280,3 @@ class TickHourFStoreDataLoader(XIPDataLoader):
             SETTINGS max_threads = 1
         """
         return self.load_from_fstore(request, qcfg, cols, sql)
-

@@ -6,6 +6,7 @@ import copy
 from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.utils import QueryCostEstimation, XIPExecutionProfile
+from apxinfer.core.utils import is_same_float
 from apxinfer.core.feature import XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator
@@ -69,6 +70,10 @@ class XIPScheduler:
         self.logger = logging.getLogger("XIPScheduler")
         if verbose:
             self.logger.setLevel(logging.DEBUG)
+
+        self.logger.debug(f'sample_grans: {self.sample_grans}')
+        self.logger.debug(f'min_qsamples: {self.min_qsamples}')
+        self.logger.debug(f'max_qsamples: {self.max_qsamples}')
 
     def get_init_qcfgs(self, request: XIPRequest) -> List[XIPQueryConfig]:
         """Get the initial set of qcfgs to start the scheduler"""
@@ -157,7 +162,7 @@ class XIPScheduler:
             candidates = [
                 qid
                 for qid in sorted_qids
-                if next_qcfgs[qid]["qsample"] < self.max_qsamples[qid]
+                if not is_same_float(next_qcfgs[qid]["qsample"], self.max_qsamples[qid])
             ]
             if len(candidates) == 0:
                 break

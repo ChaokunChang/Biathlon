@@ -40,5 +40,5 @@ $interpreter $task/offline.py --task test/$task --nparts $nparts --ncfgs $ncfgs 
 echo running online with $interpreter $task/online.py --task test/$task --nparts $nparts --ncfgs $ncfgs --model $model --exact
 $interpreter $task/online.py --task test/$task --nparts $nparts --ncfgs $ncfgs --model $model --exact
 
-echo running online with $interpreter $task/online.py --task test/$task  --nparts $nparts --ncfgs $ncfgs --model $model --min_conf $min_conf --ncfgs $ncfgs $error_cons
+echo running online with $interpreter $task/online.py --task test/$task --nparts $nparts --ncfgs $ncfgs --model $model --min_conf $min_conf --ncfgs $ncfgs $error_cons
 $interpreter $task/online.py --task test/$task --nparts $nparts --ncfgs $ncfgs --model $model --min_conf $min_conf --ncfgs $ncfgs $error_cons

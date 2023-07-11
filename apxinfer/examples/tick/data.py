@@ -242,18 +242,25 @@ class TickHourFStoreIngestor(XIPDataIngestor):
             f"{self.time_ops[i]}(tick_dt) as {self.time_keys[i]}"
             for i in range(len(self.time_keys))
         ]
-        sql = f"""select distinct cpair from {self.dsrc}"""
-        all_cpairs = self.db_client.query_np(sql)
-        for cpair in tqdm(all_cpairs, desc="ingesting by cpair", total=len(all_cpairs)):
+        sql = (
+            f"""select distinct (toYear(tick_dt), toMonth(tick_dt)) from {self.dsrc}"""
+        )
+        all_rounds = self.db_client.command(sql).split("\n")
+        print(f"all_rounds={all_rounds}")
+        for round in tqdm(all_rounds, desc="ingesting by month", total=len(all_rounds)):
+            year, month = round[1:-1].split(",")
             sql = f"""
                 INSERT INTO {self.database}.{self.table}
-                SELECT '{cpair[0]}' AS cpair, {', '.join(time_cols)},
-                    {', '.join(aggs)}
-                FROM {self.dsrc}
-                WHERE cpair='{cpair[0]}'
-                GROUP BY {', '.join(self.time_keys)}
+                SELECT cpair, {', '.join(time_cols)}, {', '.join(aggs)}
+                FROM (SELECT *
+                    FROM {self.dsrc}
+                    WHERE toYear(tick_dt) = '{year}'
+                        AND toMonth(tick_dt) = '{month}'
+                    )
+                GROUP BY cpair, {', '.join(self.time_keys)}
             """
             self.db_client.command(sql)
+
         # # the following code could crash due to OOM
         # sql = f"""
         #     INSERT INTO {self.database}.{self.table}

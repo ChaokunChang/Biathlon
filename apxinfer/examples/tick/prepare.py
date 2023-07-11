@@ -101,7 +101,7 @@ class TickPrepareWorker(XIPPrepareWorker):
             )
             labels.append(avg_bid)
         labels_pds = pd.Series(labels)
-        labels_pds.replace("", np.nan, inplace=True)
+        labels_pds = pd.to_numeric(labels_pds, errors="coerce")
         labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels_pds
 

@@ -220,6 +220,10 @@ class TaxiTripLoader(XIPDataLoader):
         from_dt = to_dt - dt.timedelta(hours=self.window_hours)
 
         conditon_values = [req[f"req_{col}"] for col in self.condition_cols]
+        conditon_values = [
+            val.replace("'", r"\'") if isinstance(val, str) else val
+            for val in conditon_values
+        ]
         condtions = [
             f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)
         ]
@@ -235,7 +239,7 @@ class TaxiTripLoader(XIPDataLoader):
                 AND pickup_datetime >= '{from_dt}' AND pickup_datetime < '{to_dt}'
                 AND {' AND '.join(condtions)}
                 AND {finished_only}
-                SETTINGS max_threads = 1
+            SETTINGS max_threads = 1
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         return df.values

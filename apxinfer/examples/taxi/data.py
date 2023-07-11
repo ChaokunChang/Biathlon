@@ -67,8 +67,7 @@ class TaxiTripIngestor(XIPDataIngestor):
                     pid UInt32 -- partition key, used for sampling
                 ) ENGINE = MergeTree()
                 PARTITION BY pid
-                ORDER BY (pickup_ntaname, dropoff_ntaname,
-                        passenger_count, pickup_datetime)
+                ORDER BY (passenger_count, pickup_datetime)
                 SETTINGS index_granularity = 32
             """
         self.db_client.command(sql)

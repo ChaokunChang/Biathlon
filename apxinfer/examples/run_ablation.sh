@@ -18,6 +18,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads
@@ -45,6 +46,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads
@@ -57,7 +59,6 @@ for ldnthreads in 8 4 2 1; do
         done
     done
 done
-
 
 # run for taxi
 task="taxi"
@@ -73,6 +74,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads
@@ -102,6 +104,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads
@@ -131,6 +134,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads
@@ -160,6 +164,7 @@ $interpreter $task/trainer.py --task $task_home/$task --nparts $nparts --model $
 for ncfgs in 10 50 100; do
     echo running offline with $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
     $interpreter $task/offline.py --task $task_home/$task --nparts $nparts --ncfgs $ncfgs --model $model --nreqs 20 --clear_cache --loading_nthreads 8
+done
 
 for ldnthreads in 8 4 2 1; do
     echo running online with $interpreter $task/online.py --task $task_home/$task --nparts $nparts --model $model --exact --loading_nthreads $ldnthreads

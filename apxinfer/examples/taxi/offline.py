@@ -17,7 +17,10 @@ if __name__ == "__main__":
 
     # create a feature extractor for this task
     fextractor = get_fextractor(
-        args.nparts, args.seed, disable_sample_cache=False, disable_query_cache=False
+        args.nparts, args.seed,
+        disable_sample_cache=False,
+        disable_query_cache=False,
+        loading_nthreads=args.loading_nthreads
     )
 
     executor = OfflineExecutor(

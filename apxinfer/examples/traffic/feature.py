@@ -11,6 +11,7 @@ def get_fextractor(
     seed: int,
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
+    loading_nthreads: int = 1
 ) -> XIPFeatureExtractor:
     # ingestors
     dt_ingestor = TrafficDataIngestor(
@@ -64,5 +65,5 @@ def get_fextractor(
         qname="query_4", data_loader=qp4_loader, enable_cache=not disable_query_cache
     )
     queries = [qp0, qp1, qp2, qp3, qp4]
-    fextractor = XIPFeatureExtractor(queries)
+    fextractor = XIPFeatureExtractor(queries, loading_nthreads=loading_nthreads)
     return fextractor

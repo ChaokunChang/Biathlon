@@ -28,12 +28,12 @@ class MachineryQuery(XIPQuery):
             table="mach_imbalance",
             seed=seed,
             enable_cache=enable_cache,
-            nparts=nparts,
+            nparts=nparts
         )
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
-    def run(self, request: MachineryRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+    def run(self, request: MachineryRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
         if req_data is None or len(req_data) == 0:
             return self.get_default_fvec(request, qcfg)
         else:

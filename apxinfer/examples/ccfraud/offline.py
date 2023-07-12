@@ -21,6 +21,7 @@ if __name__ == "__main__":
         args.seed,
         disable_sample_cache=False,
         disable_query_cache=False,
+        loading_nthreads=args.loading_nthreads
     )
 
     executor = OfflineExecutor(

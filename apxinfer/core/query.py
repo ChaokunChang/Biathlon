@@ -40,7 +40,7 @@ class XIPQuery:
         if self.enable_cache:
             self.run = fcache_manager.cache("query", expire=60)(self.run)
 
-    def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         raise NotImplementedError
 
     def get_default_fvec(

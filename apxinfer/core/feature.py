@@ -306,7 +306,7 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 class XIPFeatureExtractor:
-    def __init__(self, queries: List[XIPQuery], enable_cache: bool = False) -> None:
+    def __init__(self, queries: List[XIPQuery], enable_cache: bool = False, loading_nthreads: int = 1) -> None:
         self.queries = queries
         self.num_queries = len(queries)
         self.qnames = [qry.qname for qry in self.queries]
@@ -321,6 +321,7 @@ class XIPFeatureExtractor:
         self.enable_cache = enable_cache
         if self.enable_cache:
             self.extract = fcache_manager.cache("feature", expire=3600)(self.extract)
+        self.loading_nthreads = loading_nthreads
 
     def extract(
         self, requets: XIPRequest, qcfgs: List[XIPQueryConfig]
@@ -329,7 +330,7 @@ class XIPFeatureExtractor:
         fvecs = []
         for i in range(self.num_queries):
             st = time.time()
-            fvecs.append(self.queries[i].run(requets, qcfgs[i]))
+            fvecs.append(self.queries[i].run(requets, qcfgs[i], loading_nthreads=self.loading_nthreads))
             et = time.time()
             qcard = self.queries[i].estimate_cardinality(requets, qcfgs[i])
             qcosts.append(QueryCostEstimation(time=et - st, memory=None, qcard=qcard))
@@ -340,5 +341,5 @@ class XIPFeatureExtractor:
     ) -> XIPFeatureVec:
         fvecs = []
         for i in range(self.num_queries):
-            fvecs.append(self.queries[i].run(requets, qcfgs[i]))
+            fvecs.append(self.queries[i].run(requets, qcfgs[i], loading_nthreads=self.loading_nthreads))
         return merge_fvecs(fvecs)

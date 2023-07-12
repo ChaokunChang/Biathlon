@@ -42,7 +42,7 @@ class CCFraudQ0(XIPQuery):
             k: get_embedding(database, table, k) for k in self.cat_fnames
         }
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         txn_dt = pd.to_datetime(request["req_txn_datetime"])
         dt_fvals = np.array([txn_dt.hour])
         num_fvals = np.array([request[f"req_{key}"] for key in self.num_fnames])
@@ -82,9 +82,9 @@ class CCFraudQ1(XIPQuery):
             k: get_embedding(database, table, k) for k in self.cat_fnames
         }
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         fcols = self.fnames
-        fvals = self.data_loader.load_data(request, qcfg, fcols)
+        fvals = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
         for i in range(len(self.num_fnames), len(fvals)):
             fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
                 fvals[i], 0
@@ -121,9 +121,9 @@ class CCFraudQ2(XIPQuery):
             k: get_embedding(database, table, k) for k in self.cat_fnames
         }
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         fcols = self.fnames
-        fvals = self.data_loader.load_data(request, qcfg, fcols)
+        fvals = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
         for i in range(len(self.num_fnames), len(fvals)):
             fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
                 fvals[i], 0
@@ -157,10 +157,10 @@ class CCFraudQ3(XIPQuery):
         self.cached_qsample = 0
         self.cached_data = None
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         fcols = ["amount"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols)
+        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -204,10 +204,10 @@ class CCFraudQ4(XIPQuery):
         self.cached_qsample = 0
         self.cached_data = None
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         fcols = ["is_fraud"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols)
+        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -251,10 +251,10 @@ class CCFraudQ5(XIPQuery):
         self.cached_qsample = 0
         self.cached_data = None
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         fcols = ["errors"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols)
+        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))

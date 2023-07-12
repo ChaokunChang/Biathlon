@@ -200,7 +200,7 @@ class TrafficHourDataLoader(XIPDataLoader):
         self.nparts = ingestor.nparts
 
     def load_data(
-        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
@@ -212,7 +212,7 @@ class TrafficHourDataLoader(XIPDataLoader):
             WHERE pid >= {from_pid} AND pid < {to_pid}
                 AND borough = '{request["req_borough"]}'
                 AND data_as_of >= '{req_dt}' AND data_as_of < '{req_dt_plus_1h}'
-                SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         return self.db_client.query_np(sql)
 
@@ -319,7 +319,7 @@ class TrafficFStoreLoader(XIPDataLoader):
         # self.keys = self.all_granularities[:self.all_granularities.index(self.granularity) + 1]
 
     def load_data(
-        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: TrafficRequest, qcfg: XIPQueryConfig, cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         key_values = [request[f"req_{key}"] for key in self.keys]
         conditions = [f"{key} = {value}" for key, value in zip(self.keys, key_values)]
@@ -328,6 +328,7 @@ class TrafficFStoreLoader(XIPDataLoader):
             FROM {self.database}.{self.table}
             WHERE borough = '{request["req_borough"]}'
                 AND {' AND '.join(conditions)}
+            SETTINGS max_threads = {loading_nthreads}
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         if df.empty:

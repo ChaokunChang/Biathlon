@@ -51,6 +51,7 @@ if __name__ == "__main__":
         disable_sample_cache=args.disable_sample_cache,
         disable_query_cache=args.disable_query_cache,
         plus=args.plus,
+        loading_nthreads=args.loading_nthreads
     )
 
     # create a prediction estimator for this task

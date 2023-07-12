@@ -196,7 +196,8 @@ class CCFraudTxnsLoader(XIPDataLoader):
         self.condition_cols = condition_cols
 
     def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
@@ -212,7 +213,7 @@ class CCFraudTxnsLoader(XIPDataLoader):
             WHERE pid >= {int(from_pid)} AND pid < {int(to_pid)}
                 AND txn_datetime >= '{from_dt}' AND txn_datetime < '{req_dt}'
                 AND {' AND '.join(condtions)}
-                SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         return self.db_client.query_np(sql)
 
@@ -287,7 +288,8 @@ class CCFraudCardsLoader(XIPDataLoader):
         self.db_client = ingestor.db_client
 
     def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         uid = request["req_uid"]
         card_index = request["req_card_index"]
@@ -295,6 +297,7 @@ class CCFraudCardsLoader(XIPDataLoader):
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
             WHERE uid = {uid} AND card_index = {card_index}
+            SETTINGS max_threads = {loading_nthreads}
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         if df.empty:
@@ -395,13 +398,15 @@ class CCFraudUsersLoader(XIPDataLoader):
         self.db_client = ingestor.db_client
 
     def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         uid = request["req_uid"]
         sql = f"""
             SELECT {', '.join(cols)}
             FROM {self.database}.{self.table}
             WHERE uid = {uid}
+            SETTINGS max_threads = {loading_nthreads}
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         if df.empty:

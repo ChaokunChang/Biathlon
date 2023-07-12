@@ -200,7 +200,8 @@ class MachineryLoader(XIPDataLoader):
         self.nparts = nparts
 
     def load_data(
-        self, request: MachineryRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: MachineryRequest, qcfg: XIPQueryConfig, cols: List[str],
+        loading_nthreads: int = 1,
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
@@ -210,7 +211,7 @@ class MachineryLoader(XIPDataLoader):
             FROM {self.database}.{self.table}
             WHERE pid >= {from_pid} AND pid < {to_pid}
                 AND bid = {bid}
-                SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         return self.db_client.query_np(sql)
 

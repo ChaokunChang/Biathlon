@@ -13,6 +13,7 @@ def get_fextractor(
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = False,
+    loading_nthreads: int = 1,
 ) -> XIPFeatureExtractor:
     # ingestors
     fpath = "credit-card-transactions/credit_card_transactions-ibm_v2.csv"
@@ -131,5 +132,5 @@ def get_fextractor(
 
         queries = [q0, q1, q2, q3, q4, q5, q6]
 
-    fextractor = XIPFeatureExtractor(queries)
+    fextractor = XIPFeatureExtractor(queries, loading_nthreads=loading_nthreads)
     return fextractor

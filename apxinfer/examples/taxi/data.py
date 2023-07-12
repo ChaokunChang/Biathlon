@@ -210,7 +210,8 @@ class TaxiTripLoader(XIPDataLoader):
         self.finished_only = finished_only
 
     def load_data(
-        self, req: TaxiTripRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, req: TaxiTripRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
@@ -238,7 +239,7 @@ class TaxiTripLoader(XIPDataLoader):
                 AND pickup_datetime >= '{from_dt}' AND pickup_datetime < '{to_dt}'
                 AND {' AND '.join(condtions)}
                 AND {finished_only}
-            SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         df: pd.DataFrame = self.db_client.query_df(sql)
         return df.values

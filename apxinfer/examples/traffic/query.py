@@ -32,7 +32,7 @@ class TrafficQP0(XIPQuery):
         super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
         self.borough_map = get_borough_embedding()
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         borough = self.borough_map.get(request["req_borough"], 0)
         fvals = np.array(
             [
@@ -70,14 +70,14 @@ class TrafficQP1(XIPQuery):
         ]
         super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         fcols = [fname.replace("last_hour_", "") for fname in self.fnames]
         req_dt = req_to_dt(request)
         last_hour = req_dt - pd.Timedelta(hours=1)
         last_hour_req = dt_to_req(
             last_hour, req_id=request["req_id"], borough=request["req_borough"]
         )
-        fvals = self.data_loader.load_data(last_hour_req, qcfg, fcols)
+        fvals = self.data_loader.load_data(last_hour_req, qcfg, fcols, loading_nthreads)
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(
@@ -111,10 +111,10 @@ class TrafficQP2(XIPQuery):
         self.cached_qsample = 0
         self.cached_data = None
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
         fcols = ["speed", "travel_time"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols)
+        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -162,14 +162,14 @@ class TrafficQP3(XIPQuery):
         ]
         super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         fcols = [fname.replace("last_day_", "") for fname in self.fnames]
         req_dt = req_to_dt(request)
         last_day = req_dt - pd.Timedelta(days=1)
         last_day_req = dt_to_req(
             last_day, req_id=request["req_id"], borough=request["req_borough"]
         )
-        fvals = self.data_loader.load_data(last_day_req, qcfg, fcols)
+        fvals = self.data_loader.load_data(last_day_req, qcfg, fcols, loading_nthreads)
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(
@@ -197,14 +197,14 @@ class TrafficQP4(XIPQuery):
         ]
         super().__init__(qname, XIPQType.FSTORE, data_loader, fnames, enable_cache)
 
-    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TrafficRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         fcols = [fname.replace("last_dayhour_", "") for fname in self.fnames]
         req_dt = req_to_dt(request)
         last_dayhour = req_dt - pd.Timedelta(days=1) + pd.Timedelta(hours=1)
         last_dayhour_req = dt_to_req(
             last_dayhour, req_id=request["req_id"], borough=request["req_borough"]
         )
-        fvals = self.data_loader.load_data(last_dayhour_req, qcfg, fcols)
+        fvals = self.data_loader.load_data(last_dayhour_req, qcfg, fcols, loading_nthreads)
         fests = np.zeros_like(fvals)
         fdists = ["normal"] * len(fvals)
         return XIPFeatureVec(

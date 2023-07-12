@@ -10,6 +10,7 @@ def get_fextractor(
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = False,
+    loading_nthreads: int = 1
 ) -> XIPFeatureExtractor:
     # create queries
     q0 = TaxiTripQ0(qname="query_0", enable_cache=not disable_query_cache)
@@ -99,7 +100,8 @@ def get_fextractor(
         queries.extend([q1, q2, q3])
     # create fextractor
     fextractor = XIPFeatureExtractor(
-        queries=queries, enable_cache=not disable_sample_cache
+        queries=queries, enable_cache=not disable_sample_cache,
+        loading_nthreads=loading_nthreads
     )
 
     return fextractor

@@ -174,7 +174,7 @@ class TickThisHourDataLoader(XIPDataLoader):
         self.nparts = self.db_client.command(sql)
 
     def load_data(
-        self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]
@@ -188,7 +188,7 @@ class TickThisHourDataLoader(XIPDataLoader):
             WHERE pid >= {from_pid} AND pid < {to_pid}
                 AND cpair = '{cpair}'
                 AND tick_dt >= '{from_dt}' AND tick_dt < '{to_dt}'
-            SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         return self.db_client.query_np(sql)
 
@@ -291,7 +291,7 @@ class TickHourFStoreIngestor(XIPDataIngestor):
 
 class TickHourFStoreDataLoader(XIPDataLoader):
     def load_data(
-        self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: TickRequest, qcfg: XIPQueryConfig, cols: List[str], loading_nthreads: int
     ) -> np.ndarray:
         cpair = request["req_cpair"]
         tick_dt = pd.to_datetime(request["req_dt"])
@@ -301,6 +301,6 @@ class TickHourFStoreDataLoader(XIPDataLoader):
             WHERE cpair = '{cpair}'
                   AND year = {tick_dt.year} AND month = {tick_dt.month}
                   AND day = {tick_dt.day} AND hour = {tick_dt.hour}
-            SETTINGS max_threads = 1
+            SETTINGS max_threads = {loading_nthreads}
         """
         return self.load_from_fstore(request, qcfg, cols, sql)

@@ -8,6 +8,7 @@ def get_fextractor(
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = True,
+    loading_nthreads: int = 1
 ) -> XIPFeatureExtractor:
     queries = []
     if plus:
@@ -33,7 +34,7 @@ def get_fextractor(
 
     # create fextractor
     fextractor = XIPFeatureExtractor(
-        queries=queries, enable_cache=not disable_sample_cache
+        queries=queries, enable_cache=not disable_sample_cache, loading_nthreads=loading_nthreads
     )
 
     return fextractor

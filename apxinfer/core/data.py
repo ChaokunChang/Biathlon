@@ -228,7 +228,8 @@ class XIPDataLoader:
         return ret
 
     def load_data(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: XIPRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         """Load request related data
         return as numpy array instead of pandas dataframe,
@@ -238,7 +239,8 @@ class XIPDataLoader:
         raise NotImplementedError
 
     def load_data_w_cache(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, cols: List[str]
+        self, request: XIPRequest, qcfg: XIPQueryConfig,
+        cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         req_id = request["req_id"]
         if self.cached_reqid == req_id:
@@ -246,7 +248,7 @@ class XIPDataLoader:
             if self.cached_qsample == qcfg["qsample"]:
                 return self.cached_data
         qsample = qcfg["qsample"]
-        req_data = self._load_data(request, qcfg, cols)
+        req_data = self._load_data(request, qcfg, cols, loading_nthreads)
         if self.cached_reqid == req_id:
             if len(req_data) > 0 and len(self.cached_data) > 0:
                 req_data = np.concatenate([self.cached_data, req_data], axis=0)

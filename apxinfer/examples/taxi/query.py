@@ -18,7 +18,7 @@ class TaxiTripQ0(XIPQuery):
         fnames = ["trip_distance", "day_of_week", "hour_of_day", "passenger_count"]
         super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
 
-    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         req_pickup_datetime = pd.to_datetime(request["req_pickup_datetime"])
         fvals = np.array(
             [
@@ -68,9 +68,9 @@ class TaxiTripQ1(XIPQuery):
         ]
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
-    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -133,9 +133,9 @@ class TaxiTripQ2(XIPQuery):
         ]
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
-    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -196,9 +196,9 @@ class TaxiTripQ3(XIPQuery):
         fnames: List[str] = [f"max_trip_distance_{self.window_hours}h"]
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
-    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))
@@ -283,9 +283,9 @@ class TaxiTripAGGFull(XIPQuery):
 
         super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
 
-    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TaxiTripRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         qsample = qcfg["qsample"]
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
 
         if req_data is None or len(req_data) == 0:
             fvals = np.zeros(len(self.fnames))

@@ -129,6 +129,7 @@ if __name__ == "__main__":
         disable_sample_cache=True,
         disable_query_cache=True,
         plus=args.plus,
+        loading_nthreads=args.loading_nthreads
     )
     pworker = TaxiTripPrepareWorker(
         working_dir,

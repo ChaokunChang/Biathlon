@@ -46,6 +46,7 @@ if __name__ == "__main__":
         args.seed,
         disable_sample_cache=args.disable_sample_cache,
         disable_query_cache=args.disable_query_cache,
+        loading_nthreads=args.loading_nthreads
     )
 
     # create a prediction estimator for this task

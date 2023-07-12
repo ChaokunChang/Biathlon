@@ -150,7 +150,8 @@ if __name__ == "__main__":
     ingest_data(nparts=nparts, seed=seed)
 
     fextractor = get_fextractor(
-        nparts, seed, disable_sample_cache=True, disable_query_cache=True
+        nparts, seed, disable_sample_cache=True, disable_query_cache=True,
+        loading_nthreads=args.loading_nthreads
     )
     pworker = TickPrepareWorker(
         working_dir,

@@ -9,6 +9,7 @@ def get_fextractor(
     disable_sample_cache: bool,
     disable_query_cache: bool = False,
     plus: bool = False,
+    loading_nthreads: int = 1,
 ) -> XIPFeatureExtractor:
     queries = []
     for col in [f"sensor_{i}" for i in range(8)]:  # 8 sensors
@@ -23,6 +24,7 @@ def get_fextractor(
             )
         )
     fextractor = XIPFeatureExtractor(
-        queries=queries, enable_cache=not disable_sample_cache
+        queries=queries, enable_cache=not disable_sample_cache,
+        loading_nthreads = loading_nthreads
     )
     return fextractor

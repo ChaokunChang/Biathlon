@@ -27,6 +27,8 @@ class OfflineExecutor:
         self.working_dir = working_dir
 
         self.logger = logging.getLogger("OfflineExecutor")
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
 
         self.agg_qids = []
         self.agg_fids = []
@@ -125,8 +127,8 @@ class OfflineExecutor:
                     fvar = profile["fvec"]["fests"][fid]
                     qsamples[i][j][k] = qsample
                     fvars[i][j][k] = fvar
-        self.logger.info(f"qsamples={qsamples[0]}")
-        self.logger.info(f"fvars={fvars[0]}")
+        self.logger.debug(f"qsamples={qsamples[0]}")
+        self.logger.debug(f"fvars={fvars[0]}")
         # plot the fvars
         self.plot_fvars(qsamples, fvars)
 

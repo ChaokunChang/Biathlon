@@ -122,7 +122,8 @@ if __name__ == "__main__":
     working_dir = DIRHelper.get_prepare_dir(args)
 
     fextractor = get_fextractor(
-        nparts, seed, disable_sample_cache=True, disable_query_cache=True
+        nparts, seed, disable_sample_cache=True, disable_query_cache=True,
+        loading_nthreads=args.loading_nthreads
     )
     pworker = TrafficPrepareWorker(
         working_dir,

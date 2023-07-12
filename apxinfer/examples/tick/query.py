@@ -33,7 +33,7 @@ class TickQP0(XIPQuery):
         super().__init__(qname, qtype, data_loader, fnames, enable_cache)
         self.cmap = get_embedding()
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         cpair = request["req_cpair"]
         cfrom = self.cmap.get(cpair.split("/")[0], 0)
         cto = self.cmap.get(cpair.split("/")[1], 0)
@@ -57,8 +57,8 @@ class TickQP1(XIPQuery):
         ]
         super().__init__(qname, qtype, data_loader, fnames, enable_cache)
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
+    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
+        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
         if req_data is None or len(req_data) == 0:
             ret = self.get_default_fvec(request, qcfg)
         else:
@@ -96,12 +96,12 @@ class TickQP2(XIPQuery):
             for agg in aggs
         ]
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
         last_hour = pd.to_datetime(request["req_dt"]) - dt.timedelta(hours=self.offset)
         req: TickRequest = TickRequest(
             req_id=request["req_id"],
             req_dt=f"{last_hour}",
             req_cpair=request["req_cpair"],
         )
-        fvals = self.data_loader.load_data(req, qcfg, cols=self.fstore_cols)
+        fvals = self.data_loader.load_data(req, qcfg, self.fstore_cols, loading_nthreads)
         return self.get_fvec_with_default_est(fvals=fvals)

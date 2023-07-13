@@ -147,7 +147,11 @@ class OfflineExecutor:
             X_train, X_test, y_train, y_test = train_test_split(qcfgs, qcosts)
             model.fit(None, X_train, y_train)
             evals = model.evaluate(None, X_test, y_test)
-            print(f"q-{qid} {qname}, mae={evals['mae']}, mape={evals['mape']}")
+            slope = model.get_weight()
+            evals["slope"] = slope
+            print(
+                f"q-{qid} {qname}, slope={slope}, mae={evals['mae']}, mape={evals['mape']}"
+            )
             model_tag = f"q-{qname}"
             joblib.dump(model, os.path.join(self.model_dir, f"{model_tag}.pkl"))
             with open(

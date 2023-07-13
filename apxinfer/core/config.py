@@ -54,7 +54,9 @@ class OnlineArgs(BaseXIPArgs):
 
     qinf: Literal["direct", "by_finf"] = "direct"  # query inference method
 
-    scheduler: Literal["greedy", "random", "greedy_w_qcost"] = "greedy"  # scheduler
+    scheduler: Literal[
+        "greedy", "random", "greedy_plus", "uniform", "blqcost"
+    ] = "greedy"  # scheduler
     scheduler_batch: int = 1
 
     # pipeline settings
@@ -123,7 +125,7 @@ class DIRHelper:
 
     def get_qcost_model_dir(args: OfflineArgs) -> str:
         offline_dir = DIRHelper.get_offline_dir(args)
-        model_dir = os.path.join(offline_dir, 'model')
+        model_dir = os.path.join(offline_dir, "model")
         return model_dir
 
     def get_online_dir(args: OnlineArgs) -> str:

@@ -7,7 +7,9 @@ from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
 from apxinfer.core.qcost import XIPQCostModel, QueryCostModel
-from apxinfer.core.scheduler import XIPScheduler, XIPSchedulerWQCost
+from apxinfer.core.scheduler import XIPScheduler, XIPSchedulerGreedy
+from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
+from apxinfer.core.scheduler import XIPSchedulerUniform, XIPSchedulerBalancedQCost
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
 from apxinfer.core.config import OnlineArgs, DIRHelper, OfflineArgs
 
@@ -94,16 +96,17 @@ if __name__ == "__main__":
 
     # create a scheduler for this task
     if args.scheduler == "greedy":
-        scheduler = XIPScheduler(
+        scheduler = XIPSchedulerGreedy(
             fextractor=fextractor,
             model=model,
             pred_estimator=pred_estimator,
             qinf_estimator=qinf_estimator,
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            batch_size=args.scheduler_batch,
             verbose=verbose,
         )
-    elif args.scheduler == "greedy_w_qcost":
+    elif args.scheduler == "greedy_plus":
         scheduler = XIPSchedulerWQCost(
             fextractor=fextractor,
             model=model,
@@ -111,6 +114,40 @@ if __name__ == "__main__":
             qinf_estimator=qinf_estimator,
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            batch_size=args.scheduler_batch,
+            verbose=verbose,
+        )
+    elif args.scheduler == "random":
+        scheduler = XIPSchedulerRandom(
+            fextractor=fextractor,
+            model=model,
+            pred_estimator=pred_estimator,
+            qinf_estimator=qinf_estimator,
+            qcost_estimator=qcost_model,
+            sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            batch_size=args.scheduler_batch,
+            verbose=verbose,
+        )
+    elif args.scheduler == "uniform":
+        scheduler = XIPSchedulerUniform(
+            fextractor=fextractor,
+            model=model,
+            pred_estimator=pred_estimator,
+            qinf_estimator=qinf_estimator,
+            qcost_estimator=qcost_model,
+            sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            batch_size=args.scheduler_batch,
+            verbose=verbose,
+        )
+    elif args.scheduler == "blqcost":
+        scheduler = XIPSchedulerBalancedQCost(
+            fextractor=fextractor,
+            model=model,
+            pred_estimator=pred_estimator,
+            qinf_estimator=qinf_estimator,
+            qcost_estimator=qcost_model,
+            sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            batch_size=args.scheduler_batch,
             verbose=verbose,
         )
     else:

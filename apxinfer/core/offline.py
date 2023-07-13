@@ -5,10 +5,15 @@ from typing import List
 from tqdm import tqdm
 import logging
 import pickle
+import joblib
+import json
+
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 from apxinfer.core.utils import XIPExecutionProfile, XIPQType
 from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.qcost import QueryCostModel
 
 
 class OfflineExecutor:
@@ -25,6 +30,8 @@ class OfflineExecutor:
         self.ncfgs = ncfgs
         self.verbose = verbose
         self.working_dir = working_dir
+        self.model_dir = os.path.join(self.working_dir, "model")
+        os.makedirs(self.model_dir, exist_ok=True)
 
         self.logger = logging.getLogger("OfflineExecutor")
         if self.verbose:
@@ -69,7 +76,7 @@ class OfflineExecutor:
             disable=self.verbose,
         ):
             self.logger.debug(f"request[{i}] = {request}")
-            profiles = []
+            profiles: List[XIPExecutionProfile] = []
             for cfg_id in tqdm(
                 range(1, self.ncfgs + 1, 1),
                 desc="Serving configurations",
@@ -84,6 +91,9 @@ class OfflineExecutor:
                         sample = 1.0
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
                 fvec, qcosts = self.fextractor.extract(request, qcfgs)
+                if len(profiles) > 0:
+                    for i in range(len(qcosts)):
+                        qcosts[i]["time"] += profiles[-1]["qcosts"][i]["time"]
                 profiles.append(
                     XIPExecutionProfile(
                         request=request, qcfgs=qcfgs, fvec=fvec, qcosts=qcosts
@@ -106,6 +116,43 @@ class OfflineExecutor:
             ax.set_title(fname)
         plt.savefig(f"{self.working_dir}/fvars.pdf", bbox_inches="tight")
 
+    def plot_qcost(self, features: pd.DataFrame):
+        fig, axes = plt.subplots(
+            len(self.agg_qids), 1, figsize=(8, 6 * len(self.agg_fids))
+        )
+        if len(self.agg_qids) == 1:
+            axes = [axes]
+        for k, qid in enumerate(self.agg_qids):
+            ax: plt.Axes = axes[k]
+            qname = self.fextractor.qnames[qid]
+            gf = features[features["qid_idx"] == qid]
+            ax.scatter(gf["qsample"], gf["tcost"], alpha=0.7)
+            ax.set_title(qname)
+            ax.set_xlabel("qsample")
+            ax.set_ylabel("tcost")
+        plt.savefig(f"{self.working_dir}/qtcosts.pdf", bbox_inches="tight")
+
+    def build_cost_model(self, records: List[List[XIPExecutionProfile]]):
+        for _, qid in enumerate(self.agg_qids):
+            qname = self.fextractor.queries[qid].qname
+            qcfgs = []
+            qcosts = []
+            for i, profiles in enumerate(records):
+                for j, profile in enumerate(profiles):
+                    qcfgs.append(profile["qcfgs"][qid])
+                    qcosts.append(profile["qcosts"][qid])
+            model = QueryCostModel()
+            X_train, X_test, y_train, y_test = train_test_split(qcfgs, qcosts)
+            model.fit(None, X_train, y_train)
+            evals = model.evaluate(None, X_test, y_test)
+            print(f"q-{qid} {qname}, mae={evals['mae']}, mape={evals['mape']}")
+            model_tag = f"q-{qid}-{qname}"
+            joblib.dump(model, os.path.join(self.model_dir, f"{model_tag}.pkl"))
+            with open(
+                os.path.join(self.model_dir, f"{model_tag}_evals.json"), "w"
+            ) as f:
+                json.dump(evals, f, indent=4)
+
     def run(self, dataset: pd.DataFrame, clear_cache: bool = False) -> dict:
         self.logger.info("Running offline executor")
         results = self.preprocess(dataset)
@@ -120,6 +167,7 @@ class OfflineExecutor:
 
         qsamples = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
         fvars = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
+        tcosts = np.zeros((len(records), self.ncfgs, len(self.agg_qids)))
         for i, profiles in enumerate(records):
             for j, profile in enumerate(profiles):
                 for k, fid in enumerate(self.agg_fids):
@@ -127,9 +175,33 @@ class OfflineExecutor:
                     fvar = profile["fvec"]["fests"][fid]
                     qsamples[i][j][k] = qsample
                     fvars[i][j][k] = fvar
+                for k, qid in enumerate(self.agg_qids):
+                    tcosts[i][j][k] = profile["qcosts"][qid]["time"]
         self.logger.debug(f"qsamples={qsamples[0]}")
         self.logger.debug(f"fvars={fvars[0]}")
         # plot the fvars
         self.plot_fvars(qsamples, fvars)
+
+        self.build_cost_model(records)
+
+        # Convert the array to a pandas DataFrame
+        df = pd.DataFrame(
+            tcosts.reshape(-1, 1),
+            columns=["tcost"],
+        )
+        # Add two new columns with the cfg and qid indices
+        df["req_idx"] = np.repeat(
+            np.arange(tcosts.shape[0]), tcosts.shape[1] * tcosts.shape[2]
+        )
+        df["cfg_idx"] = np.tile(
+            np.repeat(np.arange(tcosts.shape[1]), tcosts.shape[2]), tcosts.shape[0]
+        )
+        df["qid_idx"] = np.tile(
+            np.arange(tcosts.shape[2]), tcosts.shape[0] * tcosts.shape[1]
+        )
+        df["qsample"] = df["cfg_idx"] * 1.0 / self.ncfgs
+        df.to_csv(os.path.join(self.model_dir, "features.csv"), index=False)
+
+        self.plot_qcost(df)
 
         return None

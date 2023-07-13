@@ -2,13 +2,14 @@ import os
 import pandas as pd
 import joblib
 
-from apxinfer.core.config import OnlineArgs, DIRHelper
+from apxinfer.core.utils import XIPQType
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
-from apxinfer.core.qcost import XIPQCostModel
-from apxinfer.core.scheduler import XIPScheduler
+from apxinfer.core.qcost import XIPQCostModel, QueryCostModel
+from apxinfer.core.scheduler import XIPScheduler, XIPSchedulerWQCost
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
+from apxinfer.core.config import OnlineArgs, DIRHelper, OfflineArgs
 
 from apxinfer.core.online import OnlineExecutor
 
@@ -28,6 +29,14 @@ def load_dataset(args: OnlineArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
     if nreqs > 0:
         dataset = dataset[:nreqs]
     return dataset
+
+
+def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
+    ofl_args = OfflineArgs().from_dict({**args.as_dict(), "nreq": 10})
+    model_dir = DIRHelper.get_qcost_model_dir(ofl_args)
+    model_path = os.path.join(model_dir, "xip_qcm.pkl")
+    model: XIPQCostModel = joblib.load(model_path)
+    return model
 
 
 class TaxiOnlineArgs(OnlineArgs):
@@ -51,7 +60,7 @@ if __name__ == "__main__":
         disable_sample_cache=args.disable_sample_cache,
         disable_query_cache=args.disable_query_cache,
         plus=args.plus,
-        loading_nthreads=args.loading_nthreads
+        loading_nthreads=args.loading_nthreads,
     )
 
     # create a prediction estimator for this task
@@ -81,11 +90,21 @@ if __name__ == "__main__":
         raise ValueError("Invalid qinf estimator")
 
     # create qcost estimator for this task
-    qcost_model = XIPQCostModel()
+    qcost_model = load_xip_qcm(args)
 
     # create a scheduler for this task
     if args.scheduler == "greedy":
         scheduler = XIPScheduler(
+            fextractor=fextractor,
+            model=model,
+            pred_estimator=pred_estimator,
+            qinf_estimator=qinf_estimator,
+            qcost_estimator=qcost_model,
+            sample_grans=[round(1.0 / args.ncfgs, 3)] * fextractor.num_queries,
+            verbose=verbose,
+        )
+    elif args.scheduler == "greedy_w_qcost":
+        scheduler = XIPSchedulerWQCost(
             fextractor=fextractor,
             model=model,
             pred_estimator=pred_estimator,

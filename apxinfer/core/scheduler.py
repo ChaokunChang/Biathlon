@@ -17,7 +17,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 class XIPScheduler:
-    """Base class for XIP Scheduler"""
+    """Base class for XIP Scheduler
+    increase qcfg batch_size X granular.
+    allocate samples to high influence query first until it becomes exact
+    """
 
     def __init__(
         self,
@@ -176,7 +179,11 @@ class XIPScheduler:
         return next_qcfgs
 
 
-class XIPSchedulerV2(XIPScheduler):
+class XIPSchedulerWQCost(XIPScheduler):
+    def __init__(self, fextractor: XIPFeatureExtractor, model: XIPModel, pred_estimator: XIPPredictionEstimator, qinf_estimator: XIPQInfEstimator, qcost_estimator: XIPQCostModel, sample_grans: List[float] = None, min_qsamples: List[float] = None, max_qsamples: List[float] = None, batch_size: int = 1, min_card: int = 30, verbose: bool = False) -> None:
+        super().__init__(fextractor, model, pred_estimator, qinf_estimator, qcost_estimator, sample_grans, min_qsamples, max_qsamples, batch_size, min_card, verbose)
+        self.qweights = self.qcost_estimator.get_weights()
+
     def get_next_qcfgs(
         self,
         request: XIPRequest,
@@ -187,6 +194,7 @@ class XIPSchedulerV2(XIPScheduler):
     ) -> List[XIPQueryConfig]:
         qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
         qinfs = qinf_est["qinfs"]
+        qinfs = qinfs / self.qweights
         sorted_qids = np.argsort(qinfs)[::-1]
 
         next_qcfgs = copy.deepcopy(qcfgs)
@@ -195,7 +203,7 @@ class XIPSchedulerV2(XIPScheduler):
         for qid in range(len(next_qcfgs)):
             if (
                 qcosts[qid]["qcard"] is not None
-                and qcosts[qid]["qcard"] <= 2 * self.min_card
+                and qcosts[qid]["qcard"] <= self.min_card
             ):
                 next_qcfgs[qid] = self.max_qcfg_ids[qid]
                 next_qcfgs[qid] = self.max_qsamples[qid]

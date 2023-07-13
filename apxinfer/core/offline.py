@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from apxinfer.core.utils import XIPExecutionProfile, XIPQType
 from apxinfer.core.feature import XIPFeatureExtractor
-from apxinfer.core.qcost import QueryCostModel
+from apxinfer.core.qcost import QueryCostModel, XIPQCostModel
 
 
 class OfflineExecutor:
@@ -133,6 +133,7 @@ class OfflineExecutor:
         plt.savefig(f"{self.working_dir}/qtcosts.pdf", bbox_inches="tight")
 
     def build_cost_model(self, records: List[List[XIPExecutionProfile]]):
+        models = []
         for _, qid in enumerate(self.agg_qids):
             qname = self.fextractor.queries[qid].qname
             qcfgs = []
@@ -141,17 +142,20 @@ class OfflineExecutor:
                 for j, profile in enumerate(profiles):
                     qcfgs.append(profile["qcfgs"][qid])
                     qcosts.append(profile["qcosts"][qid])
-            model = QueryCostModel()
+            model = QueryCostModel(qname)
             X_train, X_test, y_train, y_test = train_test_split(qcfgs, qcosts)
             model.fit(None, X_train, y_train)
             evals = model.evaluate(None, X_test, y_test)
             print(f"q-{qid} {qname}, mae={evals['mae']}, mape={evals['mape']}")
-            model_tag = f"q-{qid}-{qname}"
+            model_tag = f"q-{qname}"
             joblib.dump(model, os.path.join(self.model_dir, f"{model_tag}.pkl"))
             with open(
                 os.path.join(self.model_dir, f"{model_tag}_evals.json"), "w"
             ) as f:
                 json.dump(evals, f, indent=4)
+            models.append(model)
+        xip_qcm = XIPQCostModel(models)
+        joblib.dump(xip_qcm, os.path.join(self.model_dir, "xip_qcm.pkl"))
 
     def run(self, dataset: pd.DataFrame, clear_cache: bool = False) -> dict:
         self.logger.info("Running offline executor")

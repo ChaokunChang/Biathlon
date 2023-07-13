@@ -121,6 +121,11 @@ class DIRHelper:
         os.makedirs(offline_dir, exist_ok=True)
         return offline_dir
 
+    def get_qcost_model_dir(args: OfflineArgs) -> str:
+        offline_dir = DIRHelper.get_offline_dir()
+        model_dir = os.path.join(offline_dir, 'model')
+        return model_dir
+
     def get_online_dir(args: OnlineArgs) -> str:
         working_dir = DIRHelper.get_working_dir(args)
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)

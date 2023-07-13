@@ -142,6 +142,7 @@ class OfflineExecutor:
                 for j, profile in enumerate(profiles):
                     qcfgs.append(profile["qcfgs"][qid])
                     qcosts.append(profile["qcosts"][qid])
+            np.random.seed(0)
             model = QueryCostModel(qname)
             X_train, X_test, y_train, y_test = train_test_split(qcfgs, qcosts)
             model.fit(None, X_train, y_train)
@@ -201,7 +202,7 @@ class OfflineExecutor:
             np.repeat(np.arange(tcosts.shape[1]), tcosts.shape[2]), tcosts.shape[0]
         )
         df["qid_idx"] = np.tile(
-            np.arange(tcosts.shape[2]), tcosts.shape[0] * tcosts.shape[1]
+            np.array(self.agg_qids), tcosts.shape[0] * tcosts.shape[1]
         )
         df["qsample"] = df["cfg_idx"] * 1.0 / self.ncfgs
         df.to_csv(os.path.join(self.model_dir, "features.csv"), index=False)

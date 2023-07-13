@@ -32,7 +32,7 @@ def load_dataset(args: OnlineArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
 
 
 def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
-    ofl_args = OfflineArgs().from_dict({**args.as_dict(), "nreq": 10})
+    ofl_args = OfflineArgs().from_dict({**args.as_dict(), "nreqs": 10})
     model_dir = DIRHelper.get_qcost_model_dir(ofl_args)
     model_path = os.path.join(model_dir, "xip_qcm.pkl")
     model: XIPQCostModel = joblib.load(model_path)

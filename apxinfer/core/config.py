@@ -122,7 +122,7 @@ class DIRHelper:
         return offline_dir
 
     def get_qcost_model_dir(args: OfflineArgs) -> str:
-        offline_dir = DIRHelper.get_offline_dir()
+        offline_dir = DIRHelper.get_offline_dir(args)
         model_dir = os.path.join(offline_dir, 'model')
         return model_dir
 

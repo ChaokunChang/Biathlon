@@ -138,7 +138,9 @@ class QueryCostModelByExample(QueryCostModel):
 
 
 class XIPQCostModel(BaseEstimator):
-    def __init__(self, qcmodels: List[QueryCostModel], verbose: bool = False) -> None:
+    def __init__(
+        self, qcmodels: List[QueryCostModel] = [], verbose: bool = False
+    ) -> None:
         self.qnames = [model.qname for model in qcmodels]
         self.qcmodels = {model.qname: model for model in qcmodels}
         self.verbose = verbose

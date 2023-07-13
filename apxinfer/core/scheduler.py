@@ -51,19 +51,16 @@ class XIPScheduler:
         self.history: List[XIPExecutionProfile] = []
 
         if self.sample_grans is None:
-            self.sample_grans = [
-                0.1 if qry.qtype == XIPQType.AGG else 1.0
-                for qry in self.fextractor.queries
-            ]
-
+            self.sample_grans = np.ones(self.fextractor.num_queries) * 0.1
         if self.min_qsamples is None:
-            self.min_qsamples = [
-                self.sample_grans[i] if qry.qtype == XIPQType.AGG else 1.0
-                for i, qry in enumerate(self.fextractor.queries)
-            ]
-
+            self.min_qsamples = self.sample_grans.copy()
         if self.max_qsamples is None:
-            self.max_qsamples = [1.0] * self.fextractor.num_queries
+            self.max_qsamples = np.ones(self.fextractor.num_queries)
+
+        for i, qry in enumerate(self.fextractor.queries):
+            if qry.qtype != XIPQType.AGG:
+                self.sample_grans[i] = 1.0
+                self.min_qsamples[i] = 1.0
 
         self.max_qcfg_ids = [
             int((self.max_qsamples[i] - self.min_qsamples[i]) / self.sample_grans[i])
@@ -154,11 +151,11 @@ class XIPScheduler:
         else:
             raise ValueError(f"Invalid batch size {self.batch_size}")
         valid_nsteps = [
-            np.ceil(
+            round(
                 (self.max_qsamples[qid] - next_qcfgs[qid]["qsample"])
                 / self.sample_grans[qid]
             )
-            for qid in sorted_qids
+            for qid in range(len(next_qcfgs))
         ]
         nsteps = min(np.sum(valid_nsteps), nsteps)
         while nsteps > 0:
@@ -182,7 +179,10 @@ class XIPScheduler:
 class XIPSchedulerWQCost(XIPScheduler):
     def __init__(self, fextractor: XIPFeatureExtractor, model: XIPModel, pred_estimator: XIPPredictionEstimator, qinf_estimator: XIPQInfEstimator, qcost_estimator: XIPQCostModel, sample_grans: List[float] = None, min_qsamples: List[float] = None, max_qsamples: List[float] = None, batch_size: int = 1, min_card: int = 30, verbose: bool = False) -> None:
         super().__init__(fextractor, model, pred_estimator, qinf_estimator, qcost_estimator, sample_grans, min_qsamples, max_qsamples, batch_size, min_card, verbose)
-        self.qweights = self.qcost_estimator.get_weights()
+        self.qweights = np.ones(self.fextractor.num_queries)
+        for i, qry in enumerate(self.fextractor.queries):
+            if qry.qtype == XIPQType.AGG:
+                self.qweights[i] = self.qcost_estimator.get_weight(qry.qname)
 
     def get_next_qcfgs(
         self,
@@ -194,8 +194,6 @@ class XIPSchedulerWQCost(XIPScheduler):
     ) -> List[XIPQueryConfig]:
         qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
         qinfs = qinf_est["qinfs"]
-        qinfs = qinfs / self.qweights
-        sorted_qids = np.argsort(qinfs)[::-1]
 
         next_qcfgs = copy.deepcopy(qcfgs)
 
@@ -203,10 +201,10 @@ class XIPSchedulerWQCost(XIPScheduler):
         for qid in range(len(next_qcfgs)):
             if (
                 qcosts[qid]["qcard"] is not None
-                and qcosts[qid]["qcard"] <= self.min_card
+                and qcosts[qid]["qcard"] < self.min_card
             ):
-                next_qcfgs[qid] = self.max_qcfg_ids[qid]
-                next_qcfgs[qid] = self.max_qsamples[qid]
+                next_qcfgs[qid]["qcfg_id"] = self.max_qcfg_ids[qid]
+                next_qcfgs[qid]["qsample"] = self.max_qsamples[qid]
 
         # if there is any queries with small card
         # we return with a cfg that makes sure
@@ -214,7 +212,7 @@ class XIPSchedulerWQCost(XIPScheduler):
         early_ret = False
         for qid in range(len(next_qcfgs)):
             if qcosts[qid]["qcard"] is not None:
-                min_sample = min(self.min_card / qcosts[qid]["qcard"], 1.0)
+                min_sample = min(self.min_card / max(qcosts[qid]["qcard"], 1e-9), 1.0)
                 if next_qcfgs[qid]["qsample"] < min_sample:
                     grans = self.sample_grans[qid]
                     next_sample = np.ceil(min_sample / grans) * grans
@@ -231,16 +229,21 @@ class XIPSchedulerWQCost(XIPScheduler):
             nsteps = np.ceil(1.0 / pred["pred_conf"])
         else:
             raise ValueError(f"Invalid batch size {self.batch_size}")
-        valid_nsteps = [
-            np.round(
+        valid_nsteps = np.array([
+            round(
                 (self.max_qsamples[qid] - next_qcfgs[qid]["qsample"])
                 / self.sample_grans[qid]
             )
-            for qid in sorted_qids
-        ]
+            for qid in range(len(next_qcfgs))
+        ])
+
+        qinfs = qinfs / (self.qweights * np.where(valid_nsteps > 0, valid_nsteps, -1))
+        sorted_qids = np.argsort(qinfs)[::-1]
+        self.logger.debug(f'sorted_qids={sorted_qids}, qinfs={qinfs}')
+
         nsteps = min(np.sum(valid_nsteps), nsteps)
         while nsteps > 0:
-            if len(np.sum(valid_nsteps)) == 0:
+            if np.sum(valid_nsteps) == 0:
                 break
             for qid in sorted_qids:
                 if nsteps == 0:
@@ -250,4 +253,5 @@ class XIPSchedulerWQCost(XIPScheduler):
                 next_qcfgs[qid]["qcfg_id"] += 1
                 next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
                 nsteps -= 1
+                valid_nsteps[qid] -= 1
         return next_qcfgs

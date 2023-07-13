@@ -243,12 +243,14 @@ class XIPDataLoader:
         cols: List[str], loading_nthreads: int = 1
     ) -> np.ndarray:
         req_id = request["req_id"]
+        sub_qcfgs = {**qcfg}
         if self.cached_reqid == req_id:
-            qcfg["qoffset"] = self.cached_qsample
+            sub_qcfgs["qoffset"] = self.cached_qsample
             if self.cached_qsample == qcfg["qsample"]:
                 return self.cached_data
         qsample = qcfg["qsample"]
-        req_data = self._load_data(request, qcfg, cols, loading_nthreads)
+        # req_data = self._load_data(request, qcfg, cols, loading_nthreads)
+        req_data = self._load_data(request, sub_qcfgs, cols, loading_nthreads)
         if self.cached_reqid == req_id:
             if len(req_data) > 0 and len(self.cached_data) > 0:
                 req_data = np.concatenate([self.cached_data, req_data], axis=0)

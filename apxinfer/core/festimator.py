@@ -27,7 +27,7 @@ class DataAggregator:
         return aggregator(data)
 
     def count(data: np.ndarray):
-        return len(data)
+        return np.array([len(data)])
 
     def sum(data: np.ndarray):
         return np.sum(data, axis=0)
@@ -60,7 +60,7 @@ class XIPDataAggregator:
         return features
 
     def count(samples: np.ndarray, p: float):
-        return len(samples) / p
+        return np.array([len(samples) / p])
 
     def sum(samples: np.ndarray, p: float):
         return np.sum(samples, axis=0) / p
@@ -473,7 +473,8 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 if __name__ == "__main__":
-    p = 0.0003
+    FIG_HOME = '/home/ckchang/.cache/apxinf/xip/festimator'
+    p = 0.003
     tsize = 1000000
     agg = "min"
     bs_nresamples = 1000
@@ -535,7 +536,7 @@ if __name__ == "__main__":
           but the parallelism is limited by number of queries."
     )
 
-    agg = "varPop"
+    agg = "sum"
     features = XIPDataAggregator.estimate(samples, p, agg)
     fs, ferr = fest_signle.estimate(samples, p, tsize, features, agg)
 
@@ -557,7 +558,10 @@ if __name__ == "__main__":
     bt_fs_list = []
     bt_fs_wob_list = []
     for i in range(1000):
-        smp = np.random.normal(10, 2, size=(ssize, 1))
+        smp = np.random.normal(10, 2, size=(ssize, 2))
+        smp += np.random.beta(10, 2, size=(ssize, 2))
+        smp = smp[np.where(smp[:, 1] < 11), 0].reshape(-1, 1)
+        # print(f'shape={smp.shape}')
 
         features_ = XIPDataAggregator.estimate(smp, p, agg)
         fs_, _ = fest_signle.estimate(smp, p, tsize, features_, agg)
@@ -578,24 +582,31 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import scipy.stats as stats
 
-    fig, axes = plt.subplots(1, 1, figsize=(20, 8))
+    fig, (axes, axes2) = plt.subplots(2, 1, figsize=(20, 8), sharex=True)
     axes.hist(
         bt_fs_list[:, 0], density=True, bins=20, label="bt_fs", color="g", alpha=1.0
     )
+    # get twin axes sharing xaxis
     axes.hist(
         bt_fs_wob_list[:, 0],
         density=True,
         bins=20,
         label="bt_fs_wob",
         color="tab:blue",
-        alpha=0.7,
+        alpha=0.4,
     )
-    axes.hist(fs_list[:, 0], density=True, bins=20, label="fs", color="r", alpha=0.4)
+    bin_vs, bins, _ = axes2.hist(fs_list[:, 0], density=True, bins=20, label="fs", color="r", alpha=0.4)
     if agg == "stdPop":
         x = sorted(np.random.uniform(1.5, 2.5, size=1000))
     elif agg == "varPop":
         x = sorted(np.random.uniform(3, 5, size=1000))
-    axes.plot(
+    else:
+        # determin x range accoridng to bins
+        x = []
+        for i in range(len(bins) - 1):
+            x.append((bins[i] + bins[i + 1]) / 2)
+        x = np.array(sorted(x))
+    axes2.plot(
         x,
         stats.norm.pdf(x, loc=np.mean(fs_list), scale=ferr),
         label="d-fs",
@@ -618,4 +629,5 @@ if __name__ == "__main__":
     )
 
     axes.legend()
-    plt.savefig("./festimator.pdf")
+    axes2.legend()
+    plt.savefig(f"{FIG_HOME}/festimator_{agg}_{ssize}_{bs_nresamples}.pdf")

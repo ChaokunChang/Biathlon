@@ -54,7 +54,7 @@ class OnlineArgs(BaseXIPArgs):
 
     qinf: Literal["direct", "by_finf"] = "direct"  # query inference method
 
-    scheduler: Literal["greedy", "random"] = "greedy"  # scheduler
+    scheduler: Literal["greedy", "random", "greedy_w_qcost"] = "greedy"  # scheduler
     scheduler_batch: int = 1
 
     # pipeline settings

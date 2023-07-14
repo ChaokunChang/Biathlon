@@ -74,6 +74,12 @@ class XIPDataAggregator:
     def varPop(samples: np.ndarray, p: float):
         return np.var(samples, axis=0, ddof=1)
 
+    def stdPop_biased(samples: np.ndarray, p: float):
+        return np.std(samples, axis=0, ddof=0)
+
+    def varPop_biased(samples: np.ndarray, p: float):
+        return np.var(samples, axis=0, ddof=0)
+
     def min(samples: np.ndarray, p: float):
         return np.min(samples, axis=0)
 
@@ -249,6 +255,8 @@ class XIPFeatureErrorEstimator:
         agg: str,
     ):
         st = time.time()
+        if self.bs_bias_correction and agg in ["stdPop", "varPop"]:
+            agg = f"{agg}_biased"
         if self.use_parallel_bt(samples):
             ret = self.bootstrap_parallel(samples, p, tsize, agg)
         else:
@@ -404,18 +412,17 @@ def get_feature_samples(
     seed: int,
     n_samples: int = 1000,
 ) -> np.ndarray:
+    rng = np.random.RandomState(seed)
     if dist == "fixed":
         return fvals * np.ones(n_samples)
     elif dist == "normal":
         scale = dist_args
-        rng = np.random.RandomState(seed)
         return rng.normal(fvals, scale, size=n_samples)
     elif dist == "unknown":
         # in this case, dist_args is the samples itself
         if dist_args is None or len(dist_args) == 0:
             return np.ones(n_samples) * fvals
         else:
-            rng = np.random.RandomState(seed)
             return dist_args[rng.randint(0, len(dist_args), size=n_samples)]
     return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
@@ -428,7 +435,6 @@ def fvec_random_sample(
     fdists = fvec["fdists"]
 
     p = len(fvals)
-    np.random.seed(seed)
     samples = np.zeros((n_samples, p))
     for i in range(p):
         samples[:, i] = get_feature_samples(
@@ -473,7 +479,7 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 if __name__ == "__main__":
-    FIG_HOME = '/home/ckchang/.cache/apxinf/xip/festimator'
+    FIG_HOME = "/home/ckchang/.cache/apxinf/xip/festimator"
     p = 0.003
     tsize = 1000000
     agg = "min"
@@ -595,7 +601,9 @@ if __name__ == "__main__":
         color="tab:blue",
         alpha=0.4,
     )
-    bin_vs, bins, _ = axes2.hist(fs_list[:, 0], density=True, bins=20, label="fs", color="r", alpha=0.4)
+    bin_vs, bins, _ = axes2.hist(
+        fs_list[:, 0], density=True, bins=20, label="fs", color="r", alpha=0.4
+    )
     if agg == "stdPop":
         x = sorted(np.random.uniform(1.5, 2.5, size=1000))
     elif agg == "varPop":

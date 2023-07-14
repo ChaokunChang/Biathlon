@@ -26,14 +26,11 @@ class PredictionEstimatorHelper:
         return pred_conf
 
     def xip_estimate(
-        pred_type: str, preds: np.ndarray, constraint_type: str, constraint_value: float
+        pred_value: float,
+        preds: np.ndarray,
+        constraint_type: str,
+        constraint_value: float,
     ) -> XIPPredEstimation:
-        if pred_type == "classifier":
-            pred_value = np.argmax(np.bincount(preds))
-        elif pred_type == "regressor":
-            pred_value = np.mean(preds)
-        else:
-            raise ValueError(f"Unsupported model type: {pred_type}")
         if constraint_type == "error":
             pred_error = constraint_value
             pred_conf = PredictionEstimatorHelper.xip_estimate_conf(
@@ -71,14 +68,25 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         constraint_value: float,
         seed: int,
         n_samples: int = 1000,
+        point_pest: bool = False,
     ) -> None:
         super().__init__(constraint_type, constraint_value)
         self.seed = seed
         self.n_samples = n_samples
+        self.point_pest = point_pest
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
         preds = model.predict(fvec_random_sample(fvec, self.n_samples, self.seed))
         pred_type = model.model_type
+        if self.point_pest:
+            pred_value = model.predict([fvec["fvals"]])[0]
+        else:
+            if model.model_type == "classifier":
+                pred_value = np.argmax(np.bincount(preds))
+            elif model.model_type == "regressor":
+                pred_value = np.mean(preds)
+            else:
+                raise ValueError(f"Unsupported pred_type: {pred_type}")
         return PredictionEstimatorHelper.xip_estimate(
-            pred_type, preds, self.constraint_type, self.constraint_value
+            pred_value, preds, self.constraint_type, self.constraint_value
         )

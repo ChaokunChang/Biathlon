@@ -5,6 +5,7 @@ import pickle
 from typing import List
 import logging
 from tqdm import tqdm
+import time
 
 # from apxinfer.core.utils import XIPRequest, XIPPredEstimation
 from apxinfer.core.feature import evaluate_features
@@ -66,7 +67,10 @@ class OnlineExecutor:
         ):
             self.logger.debug(f"request[{i}]      = {request}")
 
+            serving_st = time.time()
             xip_pred = self.ppl.serve(request, ret_fvec=True, exact=exact)
+            serving_time = time.time() - serving_st
+
             nrounds = len(self.ppl.scheduler.history)
             last_qcfgs = self.ppl.scheduler.history[-1]["qcfgs"]
             last_qcosts = self.ppl.scheduler.history[-1]["qcosts"]
@@ -231,4 +235,15 @@ class OnlineExecutor:
         self.logger.info(
             f"Finished running online executor, evals are saved in {eval_path}"
         )
+        if "r2" in evals["evals_to_ext"]:
+            to_exact = evals["evals_to_ext"]
+            self.logger.info(f"toEx(r2, mae): {to_exact['r2']}, {to_exact['mae']}")
+            to_gt = evals["evals_to_gt"]
+            self.logger.info(f"toGt(r2, mae): {to_gt['r2']}, {to_gt['mae']}")
+        self.logger.info(f"avg(err, conf): {evals['avg_error']}, {evals['avg_conf']}")
+        self.logger.info(f"avg(nrounds): {evals['avg_nrounds']}")
+        qsamples_str = [f"{qsample:.2f}" for qsample in evals["avg_sample_query"]]
+        self.logger.info(f"avg(qsamples): {', '. join(qsamples_str)}")
+        qcosts_str = [f"{qcost:.4f}" for qcost in evals["avg_cum_qtimes"]]
+        self.logger.info(f"avg(qcosts): {', '. join(qcosts_str)}")
         return results

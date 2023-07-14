@@ -122,7 +122,8 @@ class TaxiTripIngestor(XIPDataIngestor):
             """
         sql_clean = f"""
             -- clean the data.
-            -- remove records with negative trip_duration, trip_distance, fare_amount, total_amount, and passenger_count, 
+            -- remove records with negative trip_duration, trip_distance, fare_amount,
+            -- total_amount, and passenger_count, 
             ALTER TABLE {dtable} DELETE
             WHERE trip_duration < 0
                 OR trip_distance < 0
@@ -210,8 +211,11 @@ class TaxiTripLoader(XIPDataLoader):
         self.finished_only = finished_only
 
     def load_data(
-        self, req: TaxiTripRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
+        self,
+        req: TaxiTripRequest,
+        qcfg: XIPQueryConfig,
+        cols: List[str],
+        loading_nthreads: int = 1,
     ) -> np.ndarray:
         from_pid = self.nparts * qcfg.get("qoffset", 0)
         to_pid = self.nparts * qcfg["qsample"]

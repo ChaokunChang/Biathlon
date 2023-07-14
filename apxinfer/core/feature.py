@@ -79,13 +79,10 @@ class FEstimatorHelper:
         )
 
     def estimate_stdPop(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
+        # if we enable bias_correction, ddof should be 0
+        ddof = int(not FEstimatorHelper.bias_correction)
         return FEstimatorHelper.estimate_any(
-            data, p, lambda x: np.std(x, axis=0, ddof=0), tsize
-        )
-
-    def estimate_stdSamp(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
-        return FEstimatorHelper.estimate_any(
-            data, p, lambda x: np.std(x, axis=0, ddof=0), tsize
+            data, p, lambda x: np.std(x, axis=0, ddof=ddof), tsize
         )
 
     def estimate_unique(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
@@ -178,7 +175,6 @@ class FEstimatorHelper:
         "median": estimate_median,
         "std": estimate_stdPop,
         "stdPop": estimate_stdPop,
-        "stdSamp": estimate_stdSamp,
         "unique": estimate_unique,
         "avg": estimate_avg,
         "count": estimate_count,
@@ -234,17 +230,18 @@ def get_feature_samples(
     seed: int,
     n_samples: int = 1000,
 ) -> np.ndarray:
+    rng = np.random.RandomState(seed)
     if dist == "fixed":
-        return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](fvals, size=n_samples)
+        return fvals * np.ones(n_samples)
     elif dist == "normal":
         scale = dist_args
-        return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](fvals, scale, size=n_samples)
+        return rng.normal(fvals, scale, size=n_samples)
     elif dist == "unknown":
         # in this case, dist_args is the samples itself
         if dist_args is None or len(dist_args) == 0:
             return np.ones(n_samples) * fvals
         else:
-            return dist_args
+            return dist_args[rng.randint(0, len(dist_args), size=n_samples)]
     return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
 
@@ -257,7 +254,6 @@ def fvec_random_sample(
     fdists = fvec["fdists"]
 
     p = len(fvals)
-    np.random.seed(seed)
     samples = np.zeros((n_samples, p))
     for i in range(p):
         samples[:, i] = get_feature_samples(
@@ -306,7 +302,12 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 class XIPFeatureExtractor:
-    def __init__(self, queries: List[XIPQuery], enable_cache: bool = False, loading_nthreads: int = 1) -> None:
+    def __init__(
+        self,
+        queries: List[XIPQuery],
+        enable_cache: bool = False,
+        loading_nthreads: int = 1,
+    ) -> None:
         self.queries = queries
         self.num_queries = len(queries)
         self.qnames = [qry.qname for qry in self.queries]
@@ -330,7 +331,11 @@ class XIPFeatureExtractor:
         fvecs = []
         for i in range(self.num_queries):
             st = time.time()
-            fvecs.append(self.queries[i].run(requets, qcfgs[i], loading_nthreads=self.loading_nthreads))
+            fvecs.append(
+                self.queries[i].run(
+                    requets, qcfgs[i], loading_nthreads=self.loading_nthreads
+                )
+            )
             et = time.time()
             qcard = self.queries[i].estimate_cardinality(requets, qcfgs[i])
             qcosts.append(QueryCostEstimation(time=et - st, memory=None, qcard=qcard))
@@ -341,5 +346,9 @@ class XIPFeatureExtractor:
     ) -> XIPFeatureVec:
         fvecs = []
         for i in range(self.num_queries):
-            fvecs.append(self.queries[i].run(requets, qcfgs[i], loading_nthreads=self.loading_nthreads))
+            fvecs.append(
+                self.queries[i].run(
+                    requets, qcfgs[i], loading_nthreads=self.loading_nthreads
+                )
+            )
         return merge_fvecs(fvecs)

@@ -51,6 +51,7 @@ class OnlineArgs(BaseXIPArgs):
     pest: Literal["MC"] = "MC"  # prediction estimation method
     pest_nsamples: int = 1000  # number of samples for prediction estimation
     pest_seed: int = 0
+    pest_point: bool = False  # whether using pred(apxf) as response
 
     qinf: Literal["direct", "by_finf"] = "direct"  # query inference method
 

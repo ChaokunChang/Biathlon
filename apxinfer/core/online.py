@@ -7,7 +7,6 @@ import logging
 from tqdm import tqdm
 import time
 
-# from apxinfer.core.utils import XIPRequest, XIPPredEstimation
 from apxinfer.core.feature import evaluate_features
 from apxinfer.core.model import evaluate_model
 from apxinfer.core.pipeline import XIPPipeline
@@ -50,14 +49,13 @@ class OnlineExecutor:
 
     def collect_preds(self, requests: List[dict], exact: bool) -> dict:
         preds = []
-
         qcfgs_list = []
-        qcosts_list = []
+        last_qcost_list = []
         nrounds_list = []
-
-        cum_qtimes = []
-        cum_pred_times = []
-        cum_scheduler_times = []
+        query_time_list = []
+        pred_time_list = []
+        scheduler_time_list = []
+        ppl_time_list = []
 
         for i, request in tqdm(
             enumerate(requests),
@@ -65,21 +63,23 @@ class OnlineExecutor:
             total=len(requests),
             disable=self.verbose,
         ):
-            self.logger.debug(f"request[{i}]      = {request}")
-
-            serving_st = time.time()
             xip_pred = self.ppl.serve(request, ret_fvec=True, exact=exact)
-            serving_time = time.time() - serving_st
-
+            ppl_time = time.time() - self.ppl.start_time
             nrounds = len(self.ppl.scheduler.history)
             last_qcfgs = self.ppl.scheduler.history[-1]["qcfgs"]
             last_qcosts = self.ppl.scheduler.history[-1]["qcosts"]
+
             preds.append(xip_pred)
             qcfgs_list.append(last_qcfgs)
-            qcosts_list.append(last_qcosts)
+            last_qcost_list.append(last_qcosts)
             nrounds_list.append(nrounds)
+            query_time_list.append(self.ppl.cumulative_qtimes)
+            pred_time_list.append(self.ppl.cumulative_pred_time)
+            scheduler_time_list.append(self.ppl.cumulative_scheduler_time)
+            ppl_time_list.append(ppl_time)
 
             # logging for debugging
+            self.logger.debug(f"request[{i}]      = {request}")
             self.logger.debug(f"label[{i}]        = {self.labels[i]}")
             self.logger.debug(f"ext_features[{i}] = {self.ext_features[i]}")
             self.logger.debug(f"ext_pred[{i}]     = {self.ext_preds[i]}")
@@ -90,27 +90,19 @@ class OnlineExecutor:
             self.logger.debug(f"last_qcfgs[{i}]   = {last_qcfgs}")
             self.logger.debug(f"last_qcosts[{i}]  = {last_qcosts}")
             self.logger.debug(f"nrounds[{i}]      = {nrounds}")
-
-            if not exact:
-                cum_qtimes.append(self.ppl.cumulative_qtimes)
-                cum_pred_times.append(self.ppl.cumulative_pred_time)
-                cum_scheduler_times.append(self.ppl.cumulative_scheduler_time)
-                self.logger.debug("Cumulative query time: {}".format(cum_qtimes[-1]))
-                self.logger.debug(
-                    "Cumulative prediction time: {}".format(cum_pred_times[-1])
-                )
-                self.logger.debug(
-                    "Cumulative scheduler time: {}".format(cum_scheduler_times[-1])
-                )
+            self.logger.debug("Cumulative query time: {}".format(query_time_list[-1]))
+            self.logger.debug("prediction time: {}".format(pred_time_list[-1]))
+            self.logger.debug("Scheduler time: {}".format(scheduler_time_list[-1]))
 
         return {
             "xip_preds": preds,
             "qcfgs_list": qcfgs_list,
-            "qcosts_list": qcosts_list,
+            "last_qcost_list": last_qcost_list,
             "nrounds_list": nrounds_list,
-            "cum_qtimes": cum_qtimes,
-            "cum_pred_times": cum_pred_times,
-            "cum_scheduler_times": cum_scheduler_times,
+            "query_time_list": query_time_list,
+            "pred_time_list": pred_time_list,
+            "scheduler_time_list": scheduler_time_list,
+            "ppl_time_list": ppl_time_list,
         }
 
     def evaluate(self, results: dict) -> dict:
@@ -119,70 +111,49 @@ class OnlineExecutor:
         xip_preds = results["xip_preds"]
         ext_features = results["ext_features"]
         xip_features = np.array([pred["fvec"]["fvals"] for pred in xip_preds])
-        # xip_pred_vals = [pred['pred_value'] for pred in xip_preds]
-        xip_pred_errors = [pred["pred_error"] for pred in xip_preds]
-        xip_pred_confs = [pred["pred_conf"] for pred in xip_preds]
 
         # compare xip features against ext features
         fevals = evaluate_features(ext_features, xip_features)
-        self.logger.debug(f"fevals = {fevals}")
 
         # compare xip predictions against ext predictions
         evals_to_ext = evaluate_model(self.ppl.model, xip_features, ext_preds)
-        self.logger.debug(f"evals_to_ext = {evals_to_ext}")
 
         # compare xip predictions against ground truth
         evals_to_gt = evaluate_model(self.ppl.model, xip_features, labels)
-        self.logger.debug(f"evals_to_gt = {evals_to_gt}")
 
         # average error and conf
+        xip_pred_errors = [pred["pred_error"] for pred in xip_preds]
+        xip_pred_confs = [pred["pred_conf"] for pred in xip_preds]
         avg_error = np.mean(xip_pred_errors)
         avg_conf = np.mean(xip_pred_confs)
-        self.logger.debug(f"avg_error = {avg_error}")
-        self.logger.debug(f"avg_conf  = {avg_conf}")
 
         # averge number of rounds
         nrounds_list = results["nrounds_list"]
         avg_nrounds = np.mean(nrounds_list)
-        self.logger.debug(f"avg_nrounds = {avg_nrounds}")
 
-        # average qsamples and qcosts
-        if avg_nrounds == 0:
-            avg_sample_each_qry = np.zeros(self.ppl.fextractor.num_queries)
-            avg_cost_each_qry = np.zeros(self.ppl.fextractor.num_queries)
-            avg_sample = 0
-            avg_cost = 0
-        else:
-            qcfgs_list = results["qcfgs_list"]
-            qcosts_list = results["qcosts_list"]
-            avg_sample_each_qry = np.mean(
-                [[qcfg["qsample"] for qcfg in qcfgs] for qcfgs in qcfgs_list], axis=0
-            )
-            avg_cost_each_qry = np.mean(
-                [[qcost["time"] for qcost in qcosts] for qcosts in qcosts_list], axis=0
-            )
-            self.logger.debug(f"avg_sample_each_qry = {avg_sample_each_qry}")
-            self.logger.debug(f"avg_cost_each_qry   = {avg_cost_each_qry}")
-            avg_sample = np.mean(avg_sample_each_qry)
-            avg_cost = np.mean(avg_cost_each_qry)
-            self.logger.debug(f"avg_sample = {avg_sample}")
-            self.logger.debug(f"avg_cost   = {avg_cost}")
+        # average qsamples
+        qcfgs_list = results["qcfgs_list"]
+        avg_sample_each_qry = np.mean(
+            [[qcfg["qsample"] for qcfg in qcfgs] for qcfgs in qcfgs_list], axis=0
+        )
+        avg_sample = np.sum(avg_sample_each_qry)
 
-        # cumulative times
-        cum_qtimes = results["cum_qtimes"]
-        cum_pred_times = results["cum_pred_times"]
-        cum_scheduler_times = results["cum_scheduler_times"]
-        if len(cum_qtimes) > 0:
-            avg_cum_qtimes = np.mean(cum_qtimes, axis=0)
-            avg_cum_pred_time = np.mean(cum_pred_times)
-            avg_cum_scheduler_time = np.mean(cum_scheduler_times)
-            self.logger.debug(f"avg_cum_qtime = {avg_cum_qtimes}")
-            self.logger.debug(f"avg_cum_pred_time = {avg_cum_pred_time}")
-            self.logger.debug(f"avg_cum_scheduler_time = {avg_cum_scheduler_time}")
-        else:
-            avg_cum_qtimes = np.zeros(self.ppl.fextractor.num_queries)
-            avg_cum_pred_time = 0
-            avg_cum_scheduler_time = 0
+        # average query time
+        query_time_list = results["query_time_list"]
+        avg_qtime_query = np.mean(query_time_list, axis=0)
+        avg_query_time = np.sum(avg_qtime_query)
+
+        # average prediction time
+        pred_time_list = results["pred_time_list"]
+        avg_pred_time = np.mean(pred_time_list)
+
+        # average scheduler time
+        scheduler_time_list = results["scheduler_time_list"]
+        avg_scheduler_time = np.mean(scheduler_time_list)
+
+        # end2end pipeline time
+        ppl_time_list = results["ppl_time_list"]
+        avg_ppl_time = np.mean(ppl_time_list)
 
         evals = {
             "evals_to_ext": evals_to_ext,
@@ -191,14 +162,15 @@ class OnlineExecutor:
             "avg_conf": avg_conf,
             "avg_nrounds": avg_nrounds,
             "avg_sample": avg_sample,
-            "avg_cost": avg_cost,
+            "avg_query_time": avg_query_time,
+            "avg_pred_time": avg_pred_time,
+            "avg_scheduler_time": avg_scheduler_time,
+            "avg_ppl_time": avg_ppl_time,
             "avg_sample_query": avg_sample_each_qry.tolist(),
-            "avg_cost_query": avg_cost_each_qry.tolist(),
-            "avg_cum_qtimes": avg_cum_qtimes.tolist(),
-            "avg_cum_pred_time": avg_cum_pred_time,
-            "avg_cum_scheduler_time": avg_cum_scheduler_time,
+            "avg_qtime_query": avg_qtime_query.tolist(),
             "fevals": fevals,
         }
+        self.logger.debug(f"evals={json.dumps(evals, indent=4)}")
 
         return evals
 
@@ -241,9 +213,16 @@ class OnlineExecutor:
             to_gt = evals["evals_to_gt"]
             self.logger.info(f"toGt(r2, mae): {to_gt['r2']}, {to_gt['mae']}")
         self.logger.info(f"avg(err, conf): {evals['avg_error']}, {evals['avg_conf']}")
-        self.logger.info(f"avg(nrounds): {evals['avg_nrounds']}")
-        qsamples_str = [f"{qsample:.2f}" for qsample in evals["avg_sample_query"]]
-        self.logger.info(f"avg(qsamples): {', '. join(qsamples_str)}")
-        qcosts_str = [f"{qcost:.4f}" for qcost in evals["avg_cum_qtimes"]]
-        self.logger.info(f"avg(qcosts): {', '. join(qcosts_str)}")
+        self.logger.info(
+            f"avg(qtime, ptime, stime): {evals['avg_query_time']:.4f}, "
+            + f"{evals['avg_pred_time']:.4f}, {evals['avg_scheduler_time']:.4f}"
+        )
+        self.logger.info(
+            f"avg(nrounds, ppltime): {evals['avg_nrounds']:.4f}, "
+            + f"{evals['avg_ppl_time']:.4f}"
+        )
+        qsamples_str = [f"{qsample:.4f}" for qsample in evals["avg_sample_query"]]
+        qcosts_str = [f"{qcost:.4f}" for qcost in evals["avg_qtime_query"]]
+        self.logger.info(f"avg(qsamples) : {', '. join(qsamples_str)}")
+        self.logger.info(f"avg(qcosts)   : {', '. join(qcosts_str)}")
         return results

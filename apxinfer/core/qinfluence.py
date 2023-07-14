@@ -19,9 +19,15 @@ class XIPQInfEstimator:
     if the features from a specific query are certain
     """
 
-    def __init__(self, pred_estimator: XIPPredictionEstimator) -> None:
+    def __init__(
+        self, pred_estimator: XIPPredictionEstimator, verbose: bool = False
+    ) -> None:
         self.pred_estimator = pred_estimator
+        self.verbose = verbose
+
         self.logger = logging.getLogger("XIPQInfEstimator")
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
 
     def estimate(
         self,
@@ -69,8 +75,10 @@ class XIPQInfEstimatorByFInfs(XIPQInfEstimator):
     by using the influence of each feature on the prediction
     """
 
-    def __init__(self, pred_estimator: XIPPredictionEstimator) -> None:
-        super().__init__(pred_estimator)
+    def __init__(
+        self, pred_estimator: XIPPredictionEstimator, verbose: bool = False
+    ) -> None:
+        super().__init__(pred_estimator, verbose)
         self.finf_est = XIPFInfEstimator(pred_estimator)
 
     def estimate(

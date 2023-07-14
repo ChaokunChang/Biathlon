@@ -26,6 +26,7 @@ class XIPPipeline:
         pred_estimator: XIPPredictionEstimator,
         scheduler: XIPScheduler,
         settings: XIPPipelineSettings,
+        verbose: bool = False,
     ) -> None:
         self.fextractor = fextractor
         self.model = model
@@ -33,7 +34,11 @@ class XIPPipeline:
         self.scheduler = scheduler
         self.settings = settings
         self.start_time = 0.0
+        self.verbose = verbose
+
         self.logger = logging.getLogger("XIPPipeline")
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
 
     def is_exact_pred(self, pred: XIPPredEstimation) -> bool:
         return is_same_float(pred["pred_error"], 0.0) and is_same_float(
@@ -73,10 +78,20 @@ class XIPPipeline:
     def run_exact(
         self, request: XIPRequest, ret_fvec: bool = False
     ) -> XIPPredEstimation:
+        self.start_time = time.time()
+
         qcfgs = self.scheduler.start(request)
         qcfgs = self.scheduler.get_final_qcfgs(request)
+
         fvec, qcosts = self.fextractor.extract(request, qcfgs)
+        self.cumulative_qtimes = np.array([qcost["time"] for qcost in qcosts])
+
+        st = time.time()
         pred = self.model.predict([fvec["fvals"]])[0]
+        self.cumulative_pred_time = time.time() - st
+
+        self.cumulative_scheduler_time = 0
+
         if ret_fvec:
             xip_pred = XIPPredEstimation(
                 pred_value=pred, pred_error=0.0, pred_conf=1.0, fvec=fvec

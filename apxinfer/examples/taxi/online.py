@@ -80,15 +80,20 @@ if __name__ == "__main__":
             seed=args.pest_seed,
             n_samples=args.pest_nsamples,
             point_pest=args.pest_point,
+            verbose=verbose,
         )
     else:
         raise ValueError("Invalid prediction estimator")
 
     # create qinf estimator for this task
     if args.qinf == "direct":
-        qinf_estimator = XIPQInfEstimator(pred_estimator=pred_estimator)
+        qinf_estimator = XIPQInfEstimator(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
     elif args.qinf == "by_finf":
-        qinf_estimator = XIPQInfEstimatorByFInfs(pred_estimator=pred_estimator)
+        qinf_estimator = XIPQInfEstimatorByFInfs(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
     else:
         raise ValueError("Invalid qinf estimator")
 
@@ -170,10 +175,10 @@ if __name__ == "__main__":
         pred_estimator=pred_estimator,
         scheduler=scheduler,
         settings=ppl_settings,
+        verbose=verbose,
     )
 
     # run pipline to serve online requests
     online_dir = DIRHelper.get_online_dir(args)
-    OnlineExecutor(ppl=ppl, working_dir=online_dir, verbose=verbose).run(
-        test_set, args.exact
-    )
+    executor = OnlineExecutor(ppl=ppl, working_dir=online_dir, verbose=verbose)
+    executor.run(test_set, args.exact)

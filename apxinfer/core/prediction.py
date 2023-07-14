@@ -52,10 +52,16 @@ class PredictionEstimatorHelper:
 
 
 class XIPPredictionEstimator:
-    def __init__(self, constraint_type: str, constraint_value: float) -> None:
+    def __init__(
+        self, constraint_type: str, constraint_value: float, verbose: bool = False
+    ) -> None:
         self.constraint_type = constraint_type
         self.constraint_value = constraint_value
+        self.verbose = verbose
+
         self.logger = logging.getLogger("XIPPredictionEstimator")
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
         raise NotImplementedError
@@ -69,8 +75,9 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         seed: int,
         n_samples: int = 1000,
         point_pest: bool = False,
+        verbose: bool = False,
     ) -> None:
-        super().__init__(constraint_type, constraint_value)
+        super().__init__(constraint_type, constraint_value, verbose)
         self.seed = seed
         self.n_samples = n_samples
         self.point_pest = point_pest

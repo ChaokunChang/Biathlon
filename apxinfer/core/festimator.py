@@ -359,8 +359,11 @@ class XIPFeatureErrorEstimator:
 
 
 class XIPFeatureEstimator:
-    def __init__(self, err_module: XIPFeatureErrorEstimator) -> None:
-        self.err_module = err_module
+    def __init__(self, err_module: XIPFeatureErrorEstimator = None) -> None:
+        if err_module is not None:
+            self.err_module = err_module
+        else:
+            self.err_module = XIPFeatureErrorEstimator()
         self.aggregator = err_module.aggregator
 
     def extract(self, samples: np.ndarray, p: float, tsize: int, agg: str):

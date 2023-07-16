@@ -50,7 +50,7 @@ class DBHelper:
         res = db_client.command(sql)
         try:
             return len(res) > 0
-        except:
+        except TypeError:
             return False
 
     def get_table_size(db_client: Client, database, table) -> int:
@@ -228,8 +228,11 @@ class XIPDataLoader:
         return ret
 
     def load_data(
-        self, request: XIPRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
+        self,
+        request: XIPRequest,
+        qcfg: XIPQueryConfig,
+        cols: List[str],
+        loading_nthreads: int = 1,
     ) -> np.ndarray:
         """Load request related data
         return as numpy array instead of pandas dataframe,
@@ -239,8 +242,11 @@ class XIPDataLoader:
         raise NotImplementedError
 
     def load_data_w_cache(
-        self, request: XIPRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
+        self,
+        request: XIPRequest,
+        qcfg: XIPQueryConfig,
+        cols: List[str],
+        loading_nthreads: int = 1,
     ) -> np.ndarray:
         req_id = request["req_id"]
         sub_qcfgs = {**qcfg}

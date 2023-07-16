@@ -65,7 +65,7 @@ class OnlineArgs(BaseXIPArgs):
         "conf", "error", "relative_error", "min_max"
     ] = "conf"  # termination condition
     max_relative_error: float = 0.05  # maximum relative error
-    max_error: float = 0.1  # maximum error
+    max_error: float = 0.5  # maximum error
     min_conf: float = 0.99  # minimum confidence
     max_time: float = 60.0  # maximum time
     max_memory: float = 2048 * 1.0  # maximum memory

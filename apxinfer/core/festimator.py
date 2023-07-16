@@ -69,10 +69,12 @@ class XIPDataAggregator:
         return np.mean(samples, axis=0)
 
     def stdPop(samples: np.ndarray, p: float):
-        return np.std(samples, axis=0, ddof=1)
+        ddof = int(samples.shape[0] > 1)
+        return np.std(samples, axis=0, ddof=ddof)
 
     def varPop(samples: np.ndarray, p: float):
-        return np.var(samples, axis=0, ddof=1)
+        ddof = int(samples.shape[0] > 1)
+        return np.var(samples, axis=0, ddof=ddof)
 
     def stdPop_biased(samples: np.ndarray, p: float):
         return np.std(samples, axis=0, ddof=0)
@@ -187,6 +189,8 @@ class XIPFeatureErrorEstimator:
             self.stdPop = None
 
         self.bs_tcost = 0.0
+        self.bs_random_tcost = 0.0
+        self.bs_resampling_tcost = 0
 
     def estimate(
         self, samples: np.ndarray, p: float, tsize: int, features: np.ndarray, agg: str
@@ -271,9 +275,12 @@ class XIPFeatureErrorEstimator:
         tsize: int,
         agg: str,
     ):
+        st = time.time()
         rng = np.random.RandomState(self.seed)
         idxs = rng.randint(0, len(samples), (self.bs_nresamples, len(samples)))
+        self.bs_random_tcost += time.time() - st
         resamples = samples[idxs]
+        self.bs_resampling_tcost += time.time() - st
         estimations = np.array(
             [self.aggregator.estimate(resample, p, agg) for resample in resamples]
         )
@@ -482,8 +489,11 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
 
 
 if __name__ == "__main__":
+    import os
+
     FIG_HOME = "/home/ckchang/.cache/apxinf/xip/festimator"
-    p = 0.003
+    os.makedirs(FIG_HOME, exist_ok=True)
+    p = 0.03
     tsize = 1000000
     agg = "min"
     bs_nresamples = 1000
@@ -502,6 +512,11 @@ if __name__ == "__main__":
     st = time.time()
     fest_signle.bootstrap(samples, p, tsize, agg)
     single_tcost = time.time() - st
+
+    print(f"bs_tcost: {fest_signle.bs_tcost}")
+    print(f"bs_random_tcost: {fest_signle.bs_random_tcost}")
+    print(f"bs_resampling: {fest_signle.bs_resampling_tcost}")
+    assert False
 
     st = time.time()
     fest_parallel.bootstrap(samples, p, tsize, agg)

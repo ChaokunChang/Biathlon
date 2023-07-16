@@ -7,6 +7,7 @@ import logging
 from tqdm import tqdm
 import time
 
+from apxinfer.core.feature import FEstimatorHelper
 from apxinfer.core.feature import evaluate_features
 from apxinfer.core.model import evaluate_model
 from apxinfer.core.pipeline import XIPPipeline
@@ -55,6 +56,8 @@ class OnlineExecutor:
         query_time_list = []
         pred_time_list = []
         scheduler_time_list = []
+        qcomp_time_list = []
+        bootstrap_time_list = []
         ppl_time_list = []
 
         for i, request in tqdm(
@@ -63,8 +66,11 @@ class OnlineExecutor:
             total=len(requests),
             disable=self.verbose,
         ):
+            FEstimatorHelper.total_time = 0.0
+            FEstimatorHelper.bs_time = 0.0
             xip_pred = self.ppl.serve(request, ret_fvec=True, exact=exact)
             ppl_time = time.time() - self.ppl.start_time
+
             nrounds = len(self.ppl.scheduler.history)
             last_qcfgs = self.ppl.scheduler.history[-1]["qcfgs"]
             last_qcosts = self.ppl.scheduler.history[-1]["qcosts"]
@@ -76,6 +82,8 @@ class OnlineExecutor:
             query_time_list.append(self.ppl.cumulative_qtimes)
             pred_time_list.append(self.ppl.cumulative_pred_time)
             scheduler_time_list.append(self.ppl.cumulative_scheduler_time)
+            qcomp_time_list.append(FEstimatorHelper.total_time)
+            bootstrap_time_list.append(FEstimatorHelper.bs_time)
             ppl_time_list.append(ppl_time)
 
             # logging for debugging
@@ -103,6 +111,8 @@ class OnlineExecutor:
             "pred_time_list": pred_time_list,
             "scheduler_time_list": scheduler_time_list,
             "ppl_time_list": ppl_time_list,
+            "qcomp_time_list": qcomp_time_list,
+            "bootstrap_time_list": bootstrap_time_list,
         }
 
     def evaluate(self, results: dict) -> dict:
@@ -151,6 +161,13 @@ class OnlineExecutor:
         scheduler_time_list = results["scheduler_time_list"]
         avg_scheduler_time = np.mean(scheduler_time_list)
 
+        # average query computation/loading time
+        qcomp_time_list = results["qcomp_time_list"]
+        bootstrap_time_list = results["bootstrap_time_list"]
+        avg_qcomp_time = np.mean(qcomp_time_list)
+        avg_qload_time = avg_query_time - avg_qcomp_time
+        avg_bs_time = np.mean(bootstrap_time_list)
+
         # end2end pipeline time
         ppl_time_list = results["ppl_time_list"]
         avg_ppl_time = np.mean(ppl_time_list)
@@ -165,6 +182,9 @@ class OnlineExecutor:
             "avg_query_time": avg_query_time,
             "avg_pred_time": avg_pred_time,
             "avg_scheduler_time": avg_scheduler_time,
+            "avg_qload_time": avg_qload_time,
+            "avg_qcomp_time": avg_qcomp_time,
+            "avg_bs_time": avg_bs_time,
             "avg_ppl_time": avg_ppl_time,
             "avg_sample_query": avg_sample_each_qry.tolist(),
             "avg_qtime_query": avg_qtime_query.tolist(),
@@ -214,8 +234,16 @@ class OnlineExecutor:
             self.logger.info(f"toGt(r2, mae): {to_gt['r2']}, {to_gt['mae']}")
         self.logger.info(f"avg(err, conf): {evals['avg_error']}, {evals['avg_conf']}")
         self.logger.info(
-            f"avg(qtime, ptime, stime): {evals['avg_query_time']:.4f}, "
-            + f"{evals['avg_pred_time']:.4f}, {evals['avg_scheduler_time']:.4f}"
+            f"avg(qtime, qloadtim): {evals['avg_query_time']:.4f}, "
+            + f"{evals['avg_qload_time']:.4f}"
+        )
+        self.logger.info(
+            f"avg(qcomptime, bstime): {evals['avg_qcomp_time']:.4f}, "
+            + f"{evals['avg_bs_time']:.4f}"
+        )
+        self.logger.info(
+            f"avg(ptime, stime): {evals['avg_pred_time']:.4f}, "
+            + f"{evals['avg_scheduler_time']:.4f}"
         )
         self.logger.info(
             f"avg(nrounds, ppltime): {evals['avg_nrounds']:.4f}, "

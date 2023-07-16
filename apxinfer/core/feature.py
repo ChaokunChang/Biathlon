@@ -21,20 +21,35 @@ fcache_manager = CacheManager(
 logging.basicConfig(level=logging.INFO)
 
 
+def fest_profile(func):
+    def wrap(*args, **kwargs):
+        started_at = time.time()
+        result = func(*args, **kwargs)
+        FEstimatorHelper.total_time += time.time() - started_at
+        return result
+
+    return wrap
+
+
 class FEstimatorHelper:
     min_cnt = 30
     bs_nsamp: int = 100
     bias_correction: bool = True
+    total_time: float = 0
+    bs_time: float = 0
 
+    @fest_profile
     def estimate_any(
         data: np.ndarray,
         p: float,
         func: Callable,
         tsize: int,
     ) -> XIPFeatureVec:
+        features = func(data)
+        fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
+        if features is None:
+            features = np.zeros(len(fnames))
         if is_same_float(p, 1.0):
-            features = func(data)
-            fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
             return XIPFeatureVec(
                 fnames=fnames,
                 fvals=features,
@@ -42,20 +57,21 @@ class FEstimatorHelper:
                 fdists=["normal"] * features.shape[0],
             )
         cnt = data.shape[0]
-        estimations = []
-        for _ in range(FEstimatorHelper.bs_nsamp):
-            sample = data[np.random.choice(cnt, size=cnt, replace=True)]
-            estimations.append(func(sample))
-        features = np.mean(estimations, axis=0)
         if cnt < FEstimatorHelper.min_cnt:
             scales = 1e9 * np.ones_like(features)
         else:
+            st = time.time()
+            estimations = []
+            for _ in range(FEstimatorHelper.bs_nsamp):
+                sample = data[np.random.choice(cnt, size=cnt, replace=True)]
+                estimations.append(func(sample))
+            features = np.mean(estimations, axis=0)
             scales = np.std(estimations, axis=0, ddof=1)
+            FEstimatorHelper.bs_time += time.time() - st
         if FEstimatorHelper.bias_correction:
             # Bias Correction
             bias = func(data) - features
             features = func(data) + bias
-        fnames = [f"{func.__name__}_f{i}" for i in range(features.shape[0])]
         return XIPFeatureVec(
             fnames=fnames,
             fvals=features,
@@ -63,11 +79,13 @@ class FEstimatorHelper:
             fdists=["normal"] * features.shape[0],
         )
 
+    @fest_profile
     def estimate_min(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         return FEstimatorHelper.estimate_any(
             data, p, lambda x: np.min(x, axis=0), tsize
         )
 
+    @fest_profile
     def estimate_max(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         return FEstimatorHelper.estimate_any(
             data, p, lambda x: np.max(x, axis=0), tsize
@@ -78,19 +96,24 @@ class FEstimatorHelper:
             data, p, lambda x: np.median(x, axis=0), tsize
         )
 
+    @fest_profile
     def estimate_stdPop(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         # if we enable bias_correction, ddof should be 0
         ddof = int(not FEstimatorHelper.bias_correction)
+        if data.shape[0] < 2:
+            ddof = 0
         return FEstimatorHelper.estimate_any(
             data, p, lambda x: np.std(x, axis=0, ddof=ddof), tsize
         )
 
+    @fest_profile
     def estimate_unique(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         unique_func: Callable = lambda x: np.array(
             [len(np.unique(x[:, i])) for i in range(x.shape[1])]
         )
         return FEstimatorHelper.estimate_any(data, p, unique_func, tsize)
 
+    @fest_profile
     def compute_dvars(data: np.ndarray, ddof: int = 1) -> np.ndarray:
         cnt = data.shape[0]
         if cnt < FEstimatorHelper.min_cnt:
@@ -99,6 +122,7 @@ class FEstimatorHelper:
         else:
             return np.var(data, axis=0, ddof=ddof)
 
+    @fest_profile
     def fstds_crop(fstds: np.ndarray, p: float, card: int) -> np.ndarray:
         if is_same_float(p, 1.0):
             return np.zeros_like(fstds)
@@ -107,6 +131,7 @@ class FEstimatorHelper:
         else:
             return fstds
 
+    @fest_profile
     def estimate_avg(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         cnt = data.shape[0]
         features = np.mean(data, axis=0)
@@ -127,6 +152,7 @@ class FEstimatorHelper:
             fdists=["normal"] * features.shape[0],
         )
 
+    @fest_profile
     def estimate_count(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         ssize = int(tsize * p)
         scnt = data.shape[0]
@@ -148,6 +174,7 @@ class FEstimatorHelper:
             fdists=["normal"] * features.shape[0],
         )
 
+    @fest_profile
     def estimate_sum(data: np.ndarray, p: float, tsize: int) -> XIPFeatureVec:
         ssize = int(tsize * p)
         scnt = data.shape[0]

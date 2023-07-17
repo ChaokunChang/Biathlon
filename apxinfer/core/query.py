@@ -100,6 +100,7 @@ class XIPQProfile(TypedDict, total=False):
     qcfgs: XIPQueryConfig
     loading_time: float
     computing_time: float
+    total_time: float
     rrd_nrows: int
     rrd_ncols: int
     card_est: int
@@ -204,13 +205,14 @@ class XIPQueryProcessor:
                 qcfg=qcfg,
                 loading_time=loading_time,
                 computing_time=computing_time,
+                total_time=loading_time + computing_time,
                 rrd_nrows=rrdata.shape[0] if rrdata is not None else 0,
                 rrd_ncols=rrdata.shape[1] if rrdata is not None else 0,
                 card_est=card_est,
             )
         )
         self.logger.debug(
-            f"profile: {json.dumps(self.profiles[-1].update({'qcfg': {}}), indent=4)}"
+            f"profile: {json.dumps({**self.profiles[-1], 'qcfg': {}}, indent=4)}"
         )
         return fvec
 
@@ -275,6 +277,9 @@ class XIPQueryProcessor:
                     SETTINGS max_threads = {loading_nthreads}
                 """
             new_rrd = self.execute_sql(sql)
+        else:
+            self.logger.debug(f"all required data were cached for {self.qname}, {qcfg}")
+            new_rrd = None
 
         if self._dcache["cached_rrd"] is None:
             self._dcache["cached_rrd"] = new_rrd
@@ -418,13 +423,14 @@ class XIPQueryProcessor:
                 qcfg=qcfg,
                 loading_time=loading_time,
                 computing_time=computing_time,
+                total_time=loading_time + computing_time,
                 rrd_nrows=rrdata.shape[0],
                 rrd_ncols=rrdata.shape[1],
                 card_est=card_est,
             )
         )
         self.logger.debug(
-            f"profile: {json.dumps(self.profiles[-1].update({'qcfg': {}}), indent=4)}"
+            f"profile: {json.dumps({**self.profiles[-1], 'qcfg': {}}, indent=4)}"
         )
         await self.async_db_client.close()
         return fvec
@@ -474,6 +480,9 @@ class XIPQueryProcessor:
                     SETTINGS max_threads = {loading_nthreads}
                 """
             new_rrd = await self.execute_sql_async(sql)
+        else:
+            self.logger.debug(f"all required data were cached for {self.qname}, {qcfg}")
+            new_rrd = None
 
         if self._dcache["cached_rrd"] is None:
             self._dcache["cached_rrd"] = new_rrd

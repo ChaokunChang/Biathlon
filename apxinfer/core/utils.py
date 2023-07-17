@@ -72,6 +72,8 @@ class QueryCostEstimation(TypedDict, total=False):
     time: float
     memory: float
     qcard: int
+    ld_time: float
+    cp_time: float
 
 
 class XIPExecutionProfile(TypedDict, total=False):

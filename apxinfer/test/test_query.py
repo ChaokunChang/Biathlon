@@ -171,6 +171,7 @@ class ExampleQP4(XIPQueryProcessor):
 
 
 def get_qps(
+    data_loader: XIPDataLoader,
     bs_nresamples: int = 100,
     cp_nthreads: int = 1,
     include_qp4: bool = False,
@@ -225,19 +226,40 @@ def get_qps(
 
 
 def get_qcfgs(
-    qps: List[XIPQueryProcessor], qsample: float, qoffset: float = 0.0
+    qps: List[XIPQueryProcessor],
+    qsample: float,
+    qoffset: float = 0.0,
+    ld_nthreads: int = 0,
+    cp_nthreads: int = 0,
 ) -> List[XIPQueryConfig]:
     qcfgs = [
         qp.get_qcfg(
             0,
             qsample if qp.qtype == XIPQType.AGG else 1.0,
             qoffset,
-            loading_nthreads=args.ld_nthreads,
-            computing_nthreads=args.cp_nthreads,
+            loading_nthreads=ld_nthreads,
+            computing_nthreads=cp_nthreads,
         )
         for qp in qps
     ]
     return qcfgs
+
+
+def get_request(req_id: int = 800) -> XIPRequest:
+    request = {
+        "req_id": req_id,
+        "req_trip_id": 1204066502,
+        "req_pickup_datetime": "2015-08-02 11:00:04",
+        "req_pickup_ntaname": "Turtle Bay-East Midtown",
+        "req_dropoff_ntaname": "Lenox Hill-Roosevelt Island",
+        "req_pickup_longitude": -73.96684265136719,
+        "req_pickup_latitude": 40.76113128662109,
+        "req_dropoff_longitude": -73.956787109375,
+        "req_dropoff_latitude": 40.766700744628906,
+        "req_passenger_count": 1,
+        "req_trip_distance": 0.73,
+    }
+    return request
 
 
 def run_sequential(
@@ -282,9 +304,7 @@ async def run_async(
     return fvec, tcost
 
 
-if __name__ == "__main__":
-    args = QueryTestArgs().parse_args()
-
+def get_dloader(verbose: bool = False) -> XIPDataLoader:
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database="xip",
@@ -292,45 +312,37 @@ if __name__ == "__main__":
         seed=0,
         enable_cache=False,
     )
-    if args.verbose:
+    if verbose:
         print(f"tsize ={data_loader.statistics['tsize']}")
         print(f"nparts={data_loader.statistics['nparts']}")
+    return data_loader
 
-    request = {
-        "req_id": 800,
-        "req_trip_id": 1204066502,
-        "req_pickup_datetime": "2015-08-02 11:00:04",
-        "req_pickup_ntaname": "Turtle Bay-East Midtown",
-        "req_dropoff_ntaname": "Lenox Hill-Roosevelt Island",
-        "req_pickup_longitude": -73.96684265136719,
-        "req_pickup_latitude": 40.76113128662109,
-        "req_dropoff_longitude": -73.956787109375,
-        "req_dropoff_latitude": 40.766700744628906,
-        "req_passenger_count": 1,
-        "req_trip_distance": 0.73,
-    }
 
+if __name__ == "__main__":
+    args = QueryTestArgs().parse_args()
     print(f"run with args: {args}")
-    qsample = args.qsample
 
-    qps = get_qps(verbose=args.verbose)
-    qcfgs = get_qcfgs(qps, qsample)
+    request = get_request()
+    data_loader: XIPDataLoader = get_dloader(args.verbose)
+
+    qps = get_qps(data_loader, verbose=args.verbose)
+    qcfgs = get_qcfgs(qps, args.qsample, 0, args.ld_nthreads, args.cp_nthreads)
     fvec, tcost = run_sequential(qps, qcfgs)
 
-    qps = get_qps(verbose=args.verbose)
-    qcfgs = get_qcfgs(qps, qsample)
+    qps = get_qps(data_loader, verbose=args.verbose)
+    qcfgs = get_qcfgs(qps, args.qsample, 0, args.ld_nthreads, args.cp_nthreads)
     fvec_async, tcost_async = asyncio.run(run_async(qps, qcfgs))
     print(f"sync v.s. async = {tcost} : {tcost_async} = {tcost / tcost_async}")
 
     # iterative async run, 10 parts per iter
-    # only better than sequential OIP when qsample < 0.3
-    # only better than asynio OIP when qsample < 0.2
-    qps = get_qps(verbose=args.verbose)
+    # only better than sequential OIP when args.qsample < 0.3
+    # only better than asynio OIP when args.qsample < 0.2
+    qps = get_qps(data_loader, verbose=args.verbose)
     tcost_async_iter = 0.0
-    for i in range(0, int(100 * qsample), 10):
+    for i in range(0, int(100 * args.qsample), 10):
         qoffset = 0
         qsample = (i + 10.0) / 100
-        qcfgs = get_qcfgs(qps, qsample, qoffset)
+        qcfgs = get_qcfgs(qps, qsample, qoffset, args.ld_nthreads, args.cp_nthreads)
         fvec_async_iter, itercost = asyncio.run(run_async(qps, qcfgs, False))
         tcost_async_iter += itercost
     print(

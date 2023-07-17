@@ -4,8 +4,6 @@ import numpy as np
 import pandas as pd
 import time
 import json
-from tap import Tap
-import asyncio
 from aiohttp import ClientSession
 from aiochclient import ChClient
 
@@ -99,7 +97,7 @@ class XIPQuery:
 
 
 class XIPQProfile(TypedDict, total=False):
-    loading_nthreads: int
+    qcfgs: XIPQueryConfig
     loading_time: float
     computing_time: float
     rrd_nrows: int
@@ -186,16 +184,10 @@ class XIPQueryProcessor:
     def get_query_ops(self) -> List[XIPQOperatorDescription]:
         pass
 
-    def run(
-        self,
-        request: XIPRequest,
-        qcfg: XIPQueryConfig,
-        loading_nthreads: int = 1,
-        computing_nthreads: int = 1,
-    ) -> XIPFeatureVec:
+    def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         self.logger.debug(f"{self.qname} running with {qcfg}")
         st = time.time()
-        rrdata = self.load_rrdata(request, qcfg, loading_nthreads)
+        rrdata = self.load_rrdata(request, qcfg)
         loading_time = time.time() - st
 
         card_est = self.estimate_cardinality(rrdata, qcfg)
@@ -204,12 +196,12 @@ class XIPQueryProcessor:
         if rrdata is None:
             fvec = self.get_default_fvec(request, qcfg)
         else:
-            fvec = self.compute_features(rrdata, qcfg, computing_nthreads)
+            fvec = self.compute_features(rrdata, qcfg)
         computing_time = time.time() - st
 
         self.profiles.append(
             XIPQProfile(
-                loading_nthreads=loading_nthreads,
+                qcfg=qcfg,
                 loading_time=loading_time,
                 computing_time=computing_time,
                 rrd_nrows=rrdata.shape[0] if rrdata is not None else 0,
@@ -217,33 +209,32 @@ class XIPQueryProcessor:
                 card_est=card_est,
             )
         )
-        self.logger.debug(f"profile: {json.dumps(self.profiles[-1], indent=4)}")
+        self.logger.debug(
+            f"profile: {json.dumps(self.profiles[-1].update({'qcfg': {}}), indent=4)}"
+        )
         return fvec
 
-    def load_rrdata(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
-    ) -> np.ndarray:
+    def load_rrdata(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         if self.qtype == XIPQType.AGG:
-            rrdata = self.load_rrdata_agg(request, qcfg, loading_nthreads)
+            rrdata = self.load_rrdata_agg(request, qcfg)
         elif self.qtype in [XIPQType.FSTORE, XIPQType.KeySearch]:
-            rrdata = self.load_rrdata_ks(request, qcfg, loading_nthreads)
+            rrdata = self.load_rrdata_ks(request, qcfg)
         elif self.qtype in [XIPQType.NORMAL, XIPQType.TRANSFORM]:
-            rrdata = self.load_rrdata_tr(request, qcfg, loading_nthreads)
+            rrdata = self.load_rrdata_tr(request, qcfg)
         else:
             raise NotImplementedError(f"{self.qtype} not supported yet.")
         if rrdata is None and is_same_float(qcfg["qsample"], 1.0):
             self.logger.warning(f"no rrdata for {request} in {self.qname}")
         return rrdata
 
-    def load_rrdata_agg(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
-    ) -> np.ndarray:
+    def load_rrdata_agg(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         pass
 
     def load_rrdata_agg_directly(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
+        self, request: XIPRequest, qcfg: XIPQueryConfig
     ) -> np.ndarray:
         qcond = self.get_query_condition(request)
+        loading_nthreads = qcfg.get("loading_nthreads", 0)
         from_pid = round(self.nparts * qcfg.get("qoffset", 0))
         to_pid = round(self.nparts * qcfg.get("qsample", 1))
         sql = f"""
@@ -255,13 +246,16 @@ class XIPQueryProcessor:
         return self.execute_sql(sql)
 
     def load_rrdata_agg_with_dcache(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
+        self, request: XIPRequest, qcfg: XIPQueryConfig
     ) -> np.ndarray:
         qcond = self.get_query_condition(request)
+        loading_nthreads = qcfg.get("loading_nthreads", 0)
 
         from_pid = round(self.nparts * qcfg.get("qoffset", 0))
         to_pid = round(self.nparts * qcfg.get("qsample", 1))
-        assert from_pid == 0, "currently we do not support qoffset > 0"
+        if from_pid > 0:
+            self.logger.warn("qoffset > 0, no incremental loading now")
+            self._dcache["cached_req"] = None
 
         req_id = request["req_id"]
         if self._dcache.get("cached_req", None) == req_id:
@@ -289,12 +283,12 @@ class XIPQueryProcessor:
                 self._dcache["cached_rrd"] = np.concatenate(
                     [self._dcache["cached_rrd"], new_rrd], axis=0
                 )
+        self._dcache["cached_nparts"] = to_pid
         return self._dcache["cached_rrd"]
 
-    def load_rrdata_ks(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
-    ) -> np.ndarray:
+    def load_rrdata_ks(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         qcond = self.get_query_condition(request)
+        loading_nthreads = qcfg.get("loading_nthreads", 0)
         sql = f"""
                 SELECT {', '.join([qop['dcol'] for qop in self.qops])}
                 FROM {self.dbtable}
@@ -303,9 +297,7 @@ class XIPQueryProcessor:
             """
         return self.execute_sql(sql)
 
-    def load_rrdata_tr(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
-    ) -> np.ndarray:
+    def load_rrdata_tr(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         return np.array([[request[qop["dcol"]] for qop in self.qops]])
 
     def execute_sql(self, sql: str) -> np.ndarray:
@@ -319,7 +311,7 @@ class XIPQueryProcessor:
             return rrdata
 
     def compute_features(
-        self, rrdata: np.ndarray, qcfg: XIPQueryConfig, computing_nthreads: int = 1
+        self, rrdata: np.ndarray, qcfg: XIPQueryConfig
     ) -> XIPFeatureVec:
         qsample: float = qcfg["qsample"]
         tsize = self.tsize
@@ -373,13 +365,22 @@ class XIPQueryProcessor:
         )
         return fvec
 
-    def get_qcfg(self, cfg_id: int, sample: float, offset: float = 0.0):
+    def get_qcfg(
+        self,
+        cfg_id: int,
+        sample: float,
+        offset: float = 0.0,
+        loading_nthreads: int = 1,
+        computing_nthreads: int = 1,
+    ):
         return XIPQueryConfig(
             qname=self.qname,
             qtype=self.qtype,
             qcfg_id=cfg_id,
             qoffset=max(offset, 0.0),
             qsample=min(sample, 1.0),
+            loading_nthreads=loading_nthreads,
+            computing_nthreads=computing_nthreads,
         )
 
     def get_dcol_embeddings(self, dcol: str) -> dict:
@@ -396,13 +397,11 @@ class XIPQueryProcessor:
         self,
         request: XIPRequest,
         qcfg: XIPQueryConfig,
-        loading_nthreads: int = 1,
-        computing_nthreads: int = 1,
     ) -> XIPFeatureVec:
         self.logger.debug(f"{self.qname} running async with {qcfg}")
         self.async_db_client = ChClient(ClientSession(), compress_response=True)
         st = time.time()
-        rrdata = await self.load_rrdata_async(request, qcfg, loading_nthreads)
+        rrdata = await self.load_rrdata_async(request, qcfg)
         loading_time = time.time() - st
 
         card_est = self.estimate_cardinality(rrdata, qcfg)
@@ -411,12 +410,12 @@ class XIPQueryProcessor:
         if rrdata is None:
             fvec = self.get_default_fvec(request, qcfg)
         else:
-            fvec = self.compute_features(rrdata, qcfg, computing_nthreads)
+            fvec = self.compute_features(rrdata, qcfg)
         computing_time = time.time() - st
 
         self.profiles.append(
             XIPQProfile(
-                loading_nthreads=loading_nthreads,
+                qcfg=qcfg,
                 loading_time=loading_time,
                 computing_time=computing_time,
                 rrd_nrows=rrdata.shape[0],
@@ -424,19 +423,21 @@ class XIPQueryProcessor:
                 card_est=card_est,
             )
         )
-        self.logger.debug(f"profile: {json.dumps(self.profiles[-1], indent=4)}")
+        self.logger.debug(
+            f"profile: {json.dumps(self.profiles[-1].update({'qcfg': {}}), indent=4)}"
+        )
         await self.async_db_client.close()
         return fvec
 
     async def load_rrdata_async(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
+        self, request: XIPRequest, qcfg: XIPQueryConfig
     ) -> np.ndarray:
         if self.qtype == XIPQType.AGG:
-            rrdata = await self.load_rrdata_agg_async(request, qcfg, loading_nthreads)
+            rrdata = await self.load_rrdata_agg_async(request, qcfg)
         elif self.qtype in [XIPQType.FSTORE, XIPQType.KeySearch]:
-            rrdata = self.load_rrdata_ks(request, qcfg, loading_nthreads)
+            rrdata = self.load_rrdata_ks(request, qcfg)
         elif self.qtype in [XIPQType.NORMAL, XIPQType.TRANSFORM]:
-            rrdata = self.load_rrdata_tr(request, qcfg, loading_nthreads)
+            rrdata = self.load_rrdata_tr(request, qcfg)
         else:
             raise NotImplementedError(f"{self.qtype} not supported yet.")
         if rrdata is None and is_same_float(qcfg["qsample"], 1.0):
@@ -444,13 +445,16 @@ class XIPQueryProcessor:
         return rrdata
 
     async def load_rrdata_agg_async(
-        self, request: XIPRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1
+        self, request: XIPRequest, qcfg: XIPQueryConfig
     ) -> np.ndarray:
         qcond = self.get_query_condition(request)
+        loading_nthreads = qcfg.get("loading_nthreads", 0)
 
         from_pid = round(self.nparts * qcfg.get("qoffset", 0))
         to_pid = round(self.nparts * qcfg.get("qsample", 1))
-        assert from_pid == 0, "currently we do not support qoffset > 0"
+        if from_pid > 0:
+            self.logger.warn("qoffset > 0, no incremental loading now")
+            self._dcache["cached_req"] = None
 
         req_id = request["req_id"]
         if self._dcache.get("cached_req", None) == req_id:
@@ -478,6 +482,7 @@ class XIPQueryProcessor:
                 self._dcache["cached_rrd"] = np.concatenate(
                     [self._dcache["cached_rrd"], new_rrd], axis=0
                 )
+        self._dcache["cached_nparts"] = to_pid
         return self._dcache["cached_rrd"]
 
     async def execute_sql_async(self, sql: str) -> np.ndarray:
@@ -490,346 +495,3 @@ class XIPQueryProcessor:
             rrdata = np.array(rrdata, ndmin=2).reshape((nrows, -1))
             self.logger.debug(f"{self.qname} sql return {rrdata.dtype} {rrdata.shape}")
             return rrdata
-
-
-class QueryTestArgs(Tap):
-    verbose: bool = False
-    qsample: float = 0.1
-    ld_nthreads: int = 0
-    cp_nthreads: int = 0
-
-
-if __name__ == "__main__":
-    import datetime as dt
-    from apxinfer.examples.taxi.data import TaxiTripRequest
-
-    args = QueryTestArgs().parse_args()
-
-    class ExampleQP0(XIPQueryProcessor):
-        def __init__(
-            self,
-            qname: str,
-            qtype: XIPQType,
-            data_loader: XIPDataLoader,
-            fnames: List[str] = None,
-            verbose: bool = False,
-        ) -> None:
-            super().__init__(qname, qtype, data_loader, fnames, verbose)
-            self.embeddings = {}
-            for dcol in ["pickup_ntaname", "dropoff_ntaname"]:
-                self.get_dcol_embeddings(dcol)
-
-        def get_query_ops(self) -> List[XIPQOperatorDescription]:
-            dcols = [
-                "req_trip_distance",
-                "req_pickup_datetime",
-                "req_passenger_count",
-                "req_pickup_ntaname",
-                "req_dropoff_ntaname",
-            ]
-            dcol_aggs = [
-                [lambda x: float(x[0][0])],
-                [
-                    lambda x: pd.to_datetime(x[0][1]).weekday(),
-                    lambda x: pd.to_datetime(x[0][1]).hour,
-                ],
-                [lambda x: int(x[0][2])],
-                [lambda x: self.get_dcol_embeddings("pickup_ntaname")[x[0][3]]],
-                [lambda x: self.get_dcol_embeddings("dropoff_ntaname")[x[0][4]]],
-            ]
-            qops = [
-                XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
-                for i, dcol in enumerate(dcols)
-            ]
-            return qops
-
-    class ExampleQP1(XIPQueryProcessor):
-        def get_query_condition(self, request: TaxiTripRequest) -> str:
-            to_dt = pd.to_datetime(request["req_pickup_datetime"])
-            from_dt = to_dt - dt.timedelta(hours=1)
-            pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
-            and_list = [
-                f"pickup_datetime >= '{from_dt}'",
-                f"pickup_datetime < '{to_dt}'",
-                f"pickup_ntaname = '{pickup_ntaname}'",
-                "dropoff_datetime IS NOT NULL",
-                f"dropoff_datetime <= '{to_dt}'",
-            ]
-            qcond = " AND ".join(and_list)
-            return qcond
-
-        def get_query_ops(self) -> List[XIPQOperatorDescription]:
-            dcols = ["trip_duration", "total_amount", "fare_amount"]
-            dcol_aggs = [["sum"], ["sum"], ["stdPop"]]
-            qops = [
-                XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
-                for i, dcol in enumerate(dcols)
-            ]
-            return qops
-
-    class ExampleQP2(XIPQueryProcessor):
-        def get_query_condition(self, request: TaxiTripRequest) -> str:
-            to_dt = pd.to_datetime(request["req_pickup_datetime"])
-            from_dt = to_dt - dt.timedelta(hours=24)
-            pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
-            dropoff_ntaname = request["req_dropoff_ntaname"].replace("'", r"\'")
-            and_list = [
-                f"pickup_datetime >= '{from_dt}'",
-                f"pickup_datetime < '{to_dt}'",
-                f"pickup_ntaname = '{pickup_ntaname}'",
-                f"dropoff_ntaname = '{dropoff_ntaname}'",
-                "dropoff_datetime IS NOT NULL",
-                f"dropoff_datetime <= '{to_dt}'",
-            ]
-            qcond = " AND ".join(and_list)
-            return qcond
-
-        def get_query_ops(self) -> List[XIPQOperatorDescription]:
-            dcols = ["trip_distance", "trip_duration", "tip_amount"]
-            dcol_aggs = [["sum"], ["max"], ["max", "median"]]
-            qops = [
-                XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
-                for i, dcol in enumerate(dcols)
-            ]
-            return qops
-
-    class ExampleQP3(XIPQueryProcessor):
-        def get_query_condition(self, request: TaxiTripRequest) -> str:
-            to_dt = pd.to_datetime(request["req_pickup_datetime"])
-            from_dt = to_dt - dt.timedelta(hours=24 * 7)
-            pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
-            dropoff_ntaname = request["req_dropoff_ntaname"].replace("'", r"\'")
-            passenger_count = request["req_passenger_count"]
-            and_list = [
-                f"pickup_datetime >= '{from_dt}'",
-                f"pickup_datetime < '{to_dt}'",
-                f"pickup_ntaname = '{pickup_ntaname}'",
-                f"dropoff_ntaname = '{dropoff_ntaname}'",
-                f"passenger_count = '{passenger_count}'",
-            ]
-            qcond = " AND ".join(and_list)
-            return qcond
-
-        def get_query_ops(self) -> List[XIPQOperatorDescription]:
-            dcols = ["trip_distance"]
-            dcol_aggs = [["max"]]
-            qops = [
-                XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
-                for i, dcol in enumerate(dcols)
-            ]
-            return qops
-
-    class ExampleQP4(XIPQueryProcessor):
-        def get_query_condition(self, request: TaxiTripRequest) -> str:
-            to_dt = pd.to_datetime(request["req_pickup_datetime"])
-            from_dt = to_dt - dt.timedelta(hours=8)
-            # pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
-            passenger_count = request["req_passenger_count"]
-            and_list = [
-                f"pickup_datetime >= '{from_dt}'",
-                f"pickup_datetime < '{to_dt}'",
-                # f"pickup_ntaname = '{pickup_ntaname}'",
-                f"passenger_count = '{passenger_count}'",
-            ]
-            qcond = " AND ".join(and_list)
-            return qcond
-
-        def get_query_ops(self) -> List[XIPQOperatorDescription]:
-            # dcols = ["dropoff_ntaname"]
-            dcols = ["pickup_ntaname", "dropoff_ntaname"]
-            dcol_aggs = [["unique"], ["unique"]]
-            qops = [
-                XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
-                for i, dcol in enumerate(dcols)
-            ]
-            return qops
-
-    data_loader: XIPDataLoader = XIPDataLoader(
-        backend="clickhouse",
-        database="xip",
-        table="trips",
-        seed=0,
-        enable_cache=False,
-    )
-    if args.verbose:
-        print(f"tsize ={data_loader.statistics['tsize']}")
-        print(f"nparts={data_loader.statistics['nparts']}")
-
-    def get_qps() -> List[XIPQueryProcessor]:
-        qp0 = ExampleQP0(
-            qname="q0",
-            qtype=XIPQType.NORMAL,
-            data_loader=data_loader,
-            fnames=None,
-            verbose=args.verbose,
-        )
-        qp1 = ExampleQP1(
-            qname="q1",
-            qtype=XIPQType.AGG,
-            data_loader=data_loader,
-            fnames=None,
-            verbose=args.verbose,
-        )
-        qp2 = ExampleQP2(
-            qname="q2",
-            qtype=XIPQType.AGG,
-            data_loader=data_loader,
-            fnames=None,
-            verbose=args.verbose,
-        )
-        qp3 = ExampleQP3(
-            qname="q3",
-            qtype=XIPQType.AGG,
-            data_loader=data_loader,
-            fnames=None,
-            verbose=args.verbose,
-        )
-        qp4 = ExampleQP4(
-            qname="q4",
-            qtype=XIPQType.AGG,
-            data_loader=data_loader,
-            fnames=None,
-            verbose=args.verbose,
-        )
-        qps: List[XIPQueryProcessor] = [qp0, qp1, qp2, qp3]
-        # qps.append(qp4)
-        ferr_est = XIPFeatureErrorEstimator(bs_nresamples=100)
-        festimator = XIPFeatureEstimator(ferr_est)
-        for qp in qps:
-            qp.set_estimator(festimator)
-        return qps
-
-    request = {
-        "req_id": 800,
-        "req_trip_id": 1204066502,
-        "req_pickup_datetime": "2015-08-02 11:00:04",
-        "req_pickup_ntaname": "Turtle Bay-East Midtown",
-        "req_dropoff_ntaname": "Lenox Hill-Roosevelt Island",
-        "req_pickup_longitude": -73.96684265136719,
-        "req_pickup_latitude": 40.76113128662109,
-        "req_dropoff_longitude": -73.956787109375,
-        "req_dropoff_latitude": 40.766700744628906,
-        "req_passenger_count": 1,
-        "req_trip_distance": 0.73,
-    }
-
-    qsample = args.qsample
-    qcfgs = [qp.get_qcfg(0, qsample) for qp in get_qps()]
-    qcfgs[0]["qsample"] = 1.0
-
-    def run_sequential(
-        ld_nthreads: int = 1, cp_nthrads: int = 1
-    ) -> Union[XIPFeatureVec, float]:
-        # run qps sequentially one-by-one
-        st = time.time()
-        qps = get_qps()
-        prepare_time = time.time() - st
-        st = time.time()
-        fvecs = []
-        for qp, qcfg in zip(qps, qcfgs):
-            fvec = qp.run(
-                request,
-                qcfg,
-                loading_nthreads=ld_nthreads,
-                computing_nthreads=cp_nthrads,
-            )
-            fvecs.append(fvec)
-        fvec = merge_fvecs(fvecs)
-        tcost = time.time() - st
-
-        print(f"prepare time: {prepare_time}")
-        for qp in qps:
-            print(f"qprofile-{qp.qname}: {qp.profiles[-1]}")
-        print(f"run sequential with threads {ld_nthreads} + {cp_nthrads}: {tcost}")
-        return fvec, tcost
-
-    async def run_async(
-        ld_nthreads: int = 1, cp_nthrads: int = 1
-    ) -> Union[XIPFeatureVec, float]:
-        # run qps asynchrously with asyncio
-        st = time.time()
-        qps = get_qps()
-        prepare_time = time.time() - st
-        st = time.time()
-        fvecs = await asyncio.gather(
-            *[
-                qp.run_async(
-                    request,
-                    qcfg,
-                    loading_nthreads=ld_nthreads,
-                    computing_nthreads=cp_nthrads,
-                )
-                for qp, qcfg in zip(qps, qcfgs)
-            ]
-        )
-        fvec = merge_fvecs(fvecs)
-        tcost = time.time() - st
-
-        print(f"prepare time: {prepare_time}")
-        for qp in qps:
-            print(f"qprofile-{qp.qname}: {qp.profiles[-1]}")
-
-        print(f"run asynchronously with threads {ld_nthreads} + {cp_nthrads}: {tcost}")
-        return fvec, tcost
-
-    fvec, tcost = run_sequential(args.ld_nthreads, args.cp_nthreads)
-    st = time.time()
-    fvec_async, tcost_async = asyncio.run(run_async(args.ld_nthreads, args.cp_nthreads))
-    print(f"end2end time: {time.time() - st}")
-    print(f"sync v.s. async = {tcost} : {tcost_async} = {tcost / tcost_async}")
-
-    # # iterative async run, 10 parts per iter
-    # # only better than sequential OIP when qsample < 0.3
-    # # only better than asynio OIP when qsample < 0.2
-    # tcost_async_iter = 0.0
-    # for i in range(0, int(100 * qsample), 10):
-    #     for qid in range(len(qcfgs)):
-    #         if qid > 0:
-    #             qcfgs[qid]["qoffset"] = (i + 0.0) / 100
-    #             qcfgs[qid]["qsample"] = (i + 10.0) / 100
-    #     fvec_async_iter, itercost = asyncio.run(
-    #         run_async(args.ld_nthreads, args.cp_nthreads)
-    #     )
-    #     tcost_async_iter += itercost
-    # print(
-    #     f"sync v.s. async-iter = {tcost} : {tcost_async_iter} = {tcost / tcost_async_iter}"
-    # )
-
-    fval_comp = np.abs(fvec_async["fvals"] - fvec["fvals"])
-    fest_comp = np.abs(fvec_async["fests"] - fvec["fests"])
-    fval_diff = np.where(
-        fval_comp > 0,
-        fval_comp
-        / np.maximum(
-            np.maximum(np.abs(fvec["fvals"]), np.abs(fvec_async["fvals"])), 1e-6
-        ),
-        0,
-    )
-    fest_diff = np.where(
-        fest_comp > 0,
-        fest_comp
-        / np.maximum(
-            np.maximum(np.abs(fvec["fests"]), np.abs(fvec_async["fests"])), 1e-3
-        ),
-        0,
-    )
-    assert np.all(fval_diff < 1e-6), f"fval_diff={fval_diff}, fval={fvec['fvals']}"
-    # assert np.all(
-    #     np.minimum(fest_diff, fest_comp) < 1e-3
-    # ), f"fest_diff={fest_diff}, fest_comp={fest_comp}"
-
-    # print(
-    #     json.dumps(
-    #         {
-    #             "fnames": fvec_async["fnames"],
-    #             "fvals": fvec_async["fvals"].tolist(),
-    #             "fests": fvec_async["fests"].tolist(),
-    #             "fdists": fvec_async["fdists"],
-    #             # "fnames": ", ".join(fvec["fnames"]),
-    #             # "fvals": ", ".join([str(val) for val in fvec["fvals"].tolist()]),
-    #             # "fests": ", ".join([str(val) for val in fvec["fests"].tolist()]),
-    #             # "fdists": ", ".join(fvec["fdists"]),
-    #         },
-    #         indent=4,
-    #     )
-    # )

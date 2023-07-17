@@ -26,6 +26,8 @@ class XIPQueryConfig(TypedDict, total=False):
     qcfg_id: int  # identifier of different cfgs inside the same query
     qoffset: float  # sample offset (percentage)
     qsample: float  # sample percentage
+    loading_nthreads: int  # number of threads for rrdata loading
+    computing_nthreads: int  # number of threads for festimation
 
 
 class XIPFeatureEstimation(TypedDict):

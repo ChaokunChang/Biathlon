@@ -150,8 +150,8 @@ class XIPQueryProcessor:
         if self.verbose:
             self.logger.setLevel(logging.DEBUG)
 
-        self.set_enable_dcache()
-        self.set_enable_qcache()
+        self.set_enable_dcache()  # cache data to skip some loading
+        self.set_enable_qcache()  # cache results to skip bootstrapping
         self.set_enable_asyncio()
         self.set_estimator()
 
@@ -165,8 +165,12 @@ class XIPQueryProcessor:
         else:
             self._dcache = None
 
-    def set_enable_qcache(self, enable_qcache: bool = False) -> None:
+    def set_enable_qcache(self, enable_qcache: bool = True) -> None:
         self.enable_qcache = enable_qcache
+        if self.enable_qcache:
+            self._qcache = {"cached_req": None, "cached_qcfg": {}, "cached_fvec": None}
+        else:
+            self._qcache = None
 
     def set_enable_asyncio(self, enable_ayncio: bool = False) -> None:
         self.enable_async_io = enable_ayncio
@@ -185,8 +189,34 @@ class XIPQueryProcessor:
     def get_query_ops(self) -> List[XIPQOperatorDescription]:
         pass
 
+    def check_qcache(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
+        if self.enable_qcache:
+            if self._qcache.get("cached_req", None) == request["req_id"]:
+                ch_qsample = self._qcache.get("cached_qcfg", {}).get("qsample", None)
+                ch_qoffset = self._qcache.get("cached_qcfg", {}).get("qoffset", None)
+                if is_same_float(ch_qsample, qcfg["qsample"]) and is_same_float(
+                    ch_qoffset, qcfg["qoffset"]
+                ):
+                    self.logger.debug(f"qcache hit, return cached fvec with {qcfg}")
+                    return self._qcache.get("cached_fvec")
+        return None
+
+    def set_qcache(
+        self, request: XIPRequest, qcfg: XIPQueryConfig, fvec: XIPFeatureVec
+    ) -> None:
+        if self.enable_qcache:
+            self._qcache = {
+                "cached_req": request["req_id"],
+                "cached_qcfg": qcfg,
+                "cached_fvec": fvec,
+            }
+
     def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
         self.logger.debug(f"{self.qname} running with {qcfg}")
+        fvec = self.check_qcache(request, qcfg)
+        if fvec is not None:
+            return fvec
+
         st = time.time()
         rrdata = self.load_rrdata(request, qcfg)
         loading_time = time.time() - st
@@ -214,6 +244,7 @@ class XIPQueryProcessor:
         self.logger.debug(
             f"profile: {json.dumps({**self.profiles[-1], 'qcfg': {}}, indent=4)}"
         )
+        self.set_qcache(request, qcfg, fvec)
         return fvec
 
     def load_rrdata(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
@@ -404,6 +435,9 @@ class XIPQueryProcessor:
         qcfg: XIPQueryConfig,
     ) -> XIPFeatureVec:
         self.logger.debug(f"{self.qname} running async with {qcfg}")
+        fvec = self.check_qcache(request, qcfg)
+        if fvec is not None:
+            return fvec
         self.async_db_client = ChClient(ClientSession(), compress_response=True)
         st = time.time()
         rrdata = await self.load_rrdata_async(request, qcfg)
@@ -433,6 +467,7 @@ class XIPQueryProcessor:
             f"profile: {json.dumps({**self.profiles[-1], 'qcfg': {}}, indent=4)}"
         )
         await self.async_db_client.close()
+        self.set_qcache(request, qcfg, fvec)
         return fvec
 
     async def load_rrdata_async(

@@ -60,7 +60,7 @@ class XIPDataAggregator:
         return features
 
     def count(samples: np.ndarray, p: float):
-        return np.array([len(samples) / p])
+        return np.array([round(len(samples) / p)])
 
     def sum(samples: np.ndarray, p: float):
         return np.sum(samples, axis=0) / p
@@ -371,11 +371,11 @@ class XIPFeatureEstimator:
             self.err_module = err_module
         else:
             self.err_module = XIPFeatureErrorEstimator()
-        self.aggregator = err_module.aggregator
+        self.aggregator = self.err_module.aggregator
 
     def extract(self, samples: np.ndarray, p: float, tsize: int, agg: str):
-        features = self.aggregator.estimate(samples, p, tsize, agg)
-        fstds = self.err_module.estimate(samples, p, tsize, features, agg)
+        features = self.aggregator.estimate(samples, p, agg)
+        features, fstds = self.err_module.estimate(samples, p, tsize, features, agg)
         fnames = [f"{agg}_f{i}" for i in range(features.shape[0])]
         return XIPFeatureVec(
             fnames=fnames,
@@ -516,7 +516,6 @@ if __name__ == "__main__":
     print(f"bs_tcost: {fest_signle.bs_tcost}")
     print(f"bs_random_tcost: {fest_signle.bs_random_tcost}")
     print(f"bs_resampling: {fest_signle.bs_resampling_tcost}")
-    assert False
 
     st = time.time()
     fest_parallel.bootstrap(samples, p, tsize, agg)

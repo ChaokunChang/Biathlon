@@ -349,18 +349,18 @@ if __name__ == "__main__":
         parallel_apx_loading += time.time() - st
 
     async def asyn_run(ncors: int, sql_nthreads: int):
-        async with ClientSession() as s:
-            client = ChClient(s, compress_response=False)
-            # making queries in parallel
-            results = await asyncio.gather(
-                *[
-                    client.fetch(
-                        get_sql(sql_nthreads, i, i + nparts_per_cor),
-                        decode=True,
-                    )
-                    for i in range(0, nparts_per_thr * ncors, nparts_per_thr)
-                ]
-            )
+        client = ChClient(ClientSession(), compress_response=False)
+        # making queries in parallel
+        results = await asyncio.gather(
+            *[
+                client.fetch(
+                    get_sql(sql_nthreads, i, i + nparts_per_cor),
+                    decode=True,
+                )
+                for i in range(0, nparts_per_thr * ncors, nparts_per_thr)
+            ]
+        )
+        await client.close()
         return np.array([list(row.values()) for result in results for row in result])
 
     assert nthreads % ncors == 0

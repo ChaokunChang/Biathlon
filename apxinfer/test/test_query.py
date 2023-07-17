@@ -1,9 +1,7 @@
-from typing import List, TypedDict, Union, Callable
-import logging
+from typing import List, Union
 import numpy as np
 import pandas as pd
 import time
-import json
 from tap import Tap
 import asyncio
 import datetime as dt
@@ -12,11 +10,10 @@ import datetime as dt
 from apxinfer.examples.taxi.data import TaxiTripRequest
 from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec
-from apxinfer.core.utils import merge_fvecs, is_same_float
+from apxinfer.core.utils import merge_fvecs
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.festimator import XIPFeatureErrorEstimator, XIPFeatureEstimator
 from apxinfer.core.query import XIPQOperatorDescription, XIPQueryProcessor
-from tap import Tap
 
 
 class QueryTestArgs(Tap):
@@ -338,16 +335,14 @@ if __name__ == "__main__":
     # only better than sequential OIP when args.qsample < 0.3
     # only better than asynio OIP when args.qsample < 0.2
     qps = get_qps(data_loader, verbose=args.verbose)
-    tcost_async_iter = 0.0
+    tcost_iter = 0.0
     for i in range(0, int(100 * args.qsample), 10):
         qoffset = 0
         qsample = (i + 10.0) / 100
         qcfgs = get_qcfgs(qps, qsample, qoffset, args.ld_nthreads, args.cp_nthreads)
         fvec_async_iter, itercost = asyncio.run(run_async(qps, qcfgs, False))
-        tcost_async_iter += itercost
-    print(
-        f"sync v.s. async-iter = {tcost} : {tcost_async_iter} = {tcost / tcost_async_iter}"
-    )
+        tcost_iter += itercost
+    print(f"sync v.s. async-iter = {tcost} : {tcost_iter} = {tcost / tcost_iter}")
 
     fval_comp = np.abs(fvec_async["fvals"] - fvec["fvals"])
     fest_comp = np.abs(fvec_async["fests"] - fvec["fests"])

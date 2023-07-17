@@ -1,22 +1,6 @@
-from typing import List, TypedDict, Union, Callable
-import logging
-import numpy as np
-import pandas as pd
-import time
-import json
-from tap import Tap
-import asyncio
-import datetime as dt
 from tap import Tap
 
-
-from apxinfer.examples.taxi.data import TaxiTripRequest
-from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
-from apxinfer.core.utils import XIPFeatureVec
-from apxinfer.core.utils import merge_fvecs, is_same_float
 from apxinfer.core.data import XIPDataLoader
-from apxinfer.core.festimator import XIPFeatureErrorEstimator, XIPFeatureEstimator
-from apxinfer.core.query import XIPQOperatorDescription, XIPQueryProcessor
 from apxinfer.core.fengine import XIPFEngine
 
 from apxinfer.test.test_query import get_request, get_dloader

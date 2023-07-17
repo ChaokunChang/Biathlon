@@ -8,7 +8,7 @@ from functools import partial
 import asyncio
 
 from apxinfer.core.utils import XIPRequest, XIPQueryConfig
-from apxinfer.core.utils import XIPFeatureVec
+from apxinfer.core.utils import XIPFeatureVec, QueryCostEstimation
 from apxinfer.core.utils import merge_fvecs
 
 from apxinfer.core.query import XIPQueryProcessor, XIPQProfile
@@ -45,6 +45,16 @@ class XIPFEngine:
         if verbose:
             self.logger.setLevel(logging.DEBUG)
 
+    def extract(
+        self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "sequential"
+    ) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
+        fvec, qprofiles = self.run(request, qcfgs, mode)
+        qcosts = [
+            QueryCostEstimation(time=profile["total_time"], qcard=profile["card_est"])
+            for profile in qprofiles
+        ]
+        return fvec, qcosts
+
     def run(
         self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "sequential"
     ) -> Tuple[XIPFeatureVec, List[XIPQProfile]]:
@@ -59,7 +69,7 @@ class XIPFEngine:
         else:
             raise ValueError(f"invalid mode {mode}")
         running_time = time.time() - st
-        self.logger.info(f"run {mode} finished within {running_time}")
+        self.logger.debug(f"run {mode} finished within {running_time}")
         return ret
 
     def run_sequential(

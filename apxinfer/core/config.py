@@ -15,6 +15,8 @@ class BaseXIPArgs(Tap):
     nparts: int = 100  # maximum number of partitions of dataset
     loading_nthreads: int = 1  # nthreads for loading data
     bs_nthreads: int = 1  # nthreads for bootstrapping
+    ncores: int = 0  # ncores for experiment
+    verbose: bool = False
 
 
 class PrepareArgs(BaseXIPArgs):
@@ -34,11 +36,11 @@ class TrainerArgs(BaseXIPArgs):
 class OfflineArgs(BaseXIPArgs):
     nreqs: int = 0  # number of test requests
     ncfgs: int = 10  # number of query configurations
-    verbose: bool = False
     clear_cache: bool = False
 
 
 class OnlineArgs(BaseXIPArgs):
+    offline_nreqs: int = 10  # number of offline requests
     nreqs: int = 0  # number of test requests
     ncfgs: int = 10  # number of query configurations
 
@@ -72,7 +74,6 @@ class OnlineArgs(BaseXIPArgs):
     max_rounds: int = 1000  # maximum rounds
 
     exact: bool = False  # run exact version
-    verbose: bool = False  # whether to print execution details
 
     def process_args(self):
         assert self.termination_condition != self.pest_constraint
@@ -117,6 +118,7 @@ class DIRHelper:
         working_dir = DIRHelper.get_working_dir(args)
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
         offline_dir = os.path.join(working_dir, "offline", model_tag)
+        offline_dir = os.path.join(offline_dir, f"ncores-{args.ncores}")
         offline_dir = os.path.join(offline_dir, f"ldnthreads-{args.loading_nthreads}")
         offline_dir = os.path.join(offline_dir, f"nparts-{args.nparts}")
         offline_dir = os.path.join(offline_dir, f"ncfgs-{args.ncfgs}")
@@ -133,6 +135,7 @@ class DIRHelper:
         working_dir = DIRHelper.get_working_dir(args)
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
         online_dir = os.path.join(working_dir, "online", model_tag)
+        online_dir = os.path.join(online_dir, f"ncores-{args.ncores}")
         online_dir = os.path.join(online_dir, f"ldnthreads-{args.loading_nthreads}")
         if args.exact:
             online_dir = os.path.join(online_dir, "exact")

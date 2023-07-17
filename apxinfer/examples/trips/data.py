@@ -1,13 +1,8 @@
-from typing import List
-import numpy as np
-import pandas as pd
-import datetime as dt
-
-from apxinfer.core.utils import XIPRequest, XIPQueryConfig
+from apxinfer.core.utils import XIPRequest
 from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 
 
-class TaxiTripRequest(XIPRequest):
+class TripsRequest(XIPRequest):
     req_trip_id: int
     req_pickup_datetime: str
     req_pickup_ntaname: str
@@ -20,7 +15,7 @@ class TaxiTripRequest(XIPRequest):
     req_trip_distance: float
 
 
-class TaxiTripIngestor(XIPDataIngestor):
+class TripsIngestor(XIPDataIngestor):
     def __init__(
         self,
         dsrc_type: str,
@@ -129,7 +124,7 @@ class TaxiTripIngestor(XIPDataIngestor):
         sql_clean = f"""
             -- clean the data.
             -- remove records with negative trip_duration, trip_distance, fare_amount,
-            -- total_amount, and passenger_count, 
+            -- total_amount, and passenger_count
             ALTER TABLE {dtable} DELETE
             WHERE trip_duration < 0
                 OR trip_distance < 0
@@ -197,59 +192,27 @@ class TaxiTripIngestor(XIPDataIngestor):
         self.db_client.command(sql)
 
 
-class TaxiTripLoader(XIPDataLoader):
-    def __init__(
-        self,
-        backend: str,
-        database: str,
-        table: str,
-        seed: int,
-        enable_cache: bool,
-        nparts: int,
-        window_hours: int = 1,
-        condition_cols: List[str] = ["pickup_ntaname"],
-        finished_only: bool = False,
-    ) -> None:
-        super().__init__(backend, database, table, seed, enable_cache)
-        self.nparts = nparts
-        self.window_hours = window_hours  # window_size in hours
-        self.condition_cols = condition_cols
-        self.finished_only = finished_only
+def get_ingestor(nparts: int = 100, seed: int = 0):
+    ingestor = TripsIngestor(
+        dsrc_type="clickhouse",
+        dsrc="default.trips",
+        database="xip",
+        table="trips",
+        nparts=nparts,
+        seed=seed,
+    )
+    return ingestor
 
-    def load_data(
-        self,
-        req: TaxiTripRequest,
-        qcfg: XIPQueryConfig,
-        cols: List[str],
-        loading_nthreads: int = 1,
-    ) -> np.ndarray:
-        from_pid = self.nparts * qcfg.get("qoffset", 0)
-        to_pid = self.nparts * qcfg["qsample"]
 
-        to_dt = pd.to_datetime(req["req_pickup_datetime"])
-        from_dt = to_dt - dt.timedelta(hours=self.window_hours)
-
-        conditon_values = [req[f"req_{col}"] for col in self.condition_cols]
-        conditon_values = [
-            val.replace("'", r"\'") if isinstance(val, str) else val
-            for val in conditon_values
-        ]
-        condtions = [
-            f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)
-        ]
-        finished_only = (
-            f"dropoff_datetime IS NOT NULL AND dropoff_datetime <= '{to_dt}'"
-            if self.finished_only
-            else "1 = 1"
-        )
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE pid >= {from_pid} AND pid < {to_pid}
-                AND pickup_datetime >= '{from_dt}' AND pickup_datetime < '{to_dt}'
-                AND {' AND '.join(condtions)}
-                AND {finished_only}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        df: pd.DataFrame = self.db_client.query_df(sql)
-        return df.values
+def get_dloader(verbose: bool = False) -> XIPDataLoader:
+    data_loader: XIPDataLoader = XIPDataLoader(
+        backend="clickhouse",
+        database="xip",
+        table="trips",
+        seed=0,
+        enable_cache=False,
+    )
+    if verbose:
+        print(f"tsize ={data_loader.statistics['tsize']}")
+        print(f"nparts={data_loader.statistics['nparts']}")
+    return data_loader

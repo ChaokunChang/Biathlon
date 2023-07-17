@@ -13,7 +13,7 @@ from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.utils import merge_fvecs, is_same_float
 from apxinfer.core.data import XIPDataLoader
-from apxinfer.core.festimator import XIPFeatureErrorEstimator, XIPFeatureEstimator
+from apxinfer.core.festimator import XIPFeatureEstimator
 
 fcache_manager = CacheManager(
     cache_regions={"feature": {"type": "memory", "expire": 3600}}

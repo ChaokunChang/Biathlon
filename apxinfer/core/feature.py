@@ -228,7 +228,7 @@ def get_fvec_auto(
 
 SUPPORTED_DISTRIBUTIONS = {
     "normal": {"sampler": np.random.normal, "final_args": 0.0},
-    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": []},
+    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": 0.0},
     "uniform": {"sampler": np.random.uniform, "final_args": []},
     "beta": {"sampler": np.random.beta, "final_args": []},
     "gamma": {"sampler": np.random.gamma, "final_args": []},

@@ -458,8 +458,8 @@ class XIPQueryProcessor:
                 loading_time=loading_time,
                 computing_time=computing_time,
                 total_time=loading_time + computing_time,
-                rrd_nrows=rrdata.shape[0],
-                rrd_ncols=rrdata.shape[1],
+                rrd_nrows=rrdata.shape[0] if rrdata is not None else 0,
+                rrd_ncols=rrdata.shape[1] if rrdata is not None else 0,
                 card_est=card_est,
             )
         )

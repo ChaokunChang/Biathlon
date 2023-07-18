@@ -125,6 +125,13 @@ class XIPQueryProcessor:
         self.fnames = fnames
 
         self.data_loader = data_loader
+
+        self.verbose = verbose
+        self.logger = logging.getLogger(f"XIPQuery-{qname}")
+
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
+
         if self.data_loader is not None:
             self.database = self.data_loader.database
             self.table = self.data_loader.table
@@ -143,12 +150,8 @@ class XIPQueryProcessor:
                     else:
                         fname = f"{self.qtype._name_}_{qop['dcol']}_{opid}_{self.qname}"
                     self.fnames.append(fname)
+            self.logger.debug(f"auto gen fnames={self.fnames}")
         self.n_features = len(self.fnames)
-
-        self.verbose = verbose
-        self.logger = logging.getLogger(f"XIPQuery-{qname}")
-        if self.verbose:
-            self.logger.setLevel(logging.DEBUG)
 
         self.set_enable_dcache()  # cache data to skip some loading
         self.set_enable_qcache()  # cache results to skip bootstrapping
@@ -197,7 +200,7 @@ class XIPQueryProcessor:
                 if is_same_float(ch_qsample, qcfg["qsample"]) and is_same_float(
                     ch_qoffset, qcfg["qoffset"]
                 ):
-                    self.logger.debug(f"qcache hit, return cached fvec with {qcfg}")
+                    self.logger.debug(f"qcache hit, return fvec with {qcfg['qsample']}")
                     return self._qcache.get("cached_fvec")
         return None
 
@@ -212,9 +215,20 @@ class XIPQueryProcessor:
             }
 
     def run(self, request: XIPRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        self.logger.debug(f"{self.qname} running with {qcfg}")
+        self.logger.debug(f"{self.qname} running with {qcfg['qsample']:.4f}")
         fvec = self.check_qcache(request, qcfg)
         if fvec is not None:
+            self.profiles.append(
+                XIPQProfile(
+                    qcfg=qcfg,
+                    loading_time=0,
+                    computing_time=0,
+                    total_time=0,
+                    rrd_nrows=self.profiles[-1]["rrd_nrows"],
+                    rrd_ncols=self.profiles[-1]["rrd_ncols"],
+                    card_est=self.profiles[-1]["card_est"],
+                )
+            )
             return fvec
 
         st = time.time()
@@ -437,6 +451,17 @@ class XIPQueryProcessor:
         self.logger.debug(f"{self.qname} running async with {qcfg}")
         fvec = self.check_qcache(request, qcfg)
         if fvec is not None:
+            self.profiles.append(
+                XIPQProfile(
+                    qcfg=qcfg,
+                    loading_time=0,
+                    computing_time=0,
+                    total_time=0,
+                    rrd_nrows=self.profiles[-1]["rrd_nrows"],
+                    rrd_ncols=self.profiles[-1]["rrd_ncols"],
+                    card_est=self.profiles[-1]["card_est"],
+                )
+            )
             return fvec
         self.async_db_client = ChClient(ClientSession(), compress_response=True)
         st = time.time()

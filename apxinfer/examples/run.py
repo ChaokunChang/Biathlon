@@ -117,7 +117,9 @@ def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
 
 def run_online(name: str, args: OnlineArgs):
     # load test data
-    test_set = LoadingHelper.load_dataset(args, "test", args.nreqs)
+    test_set = LoadingHelper.load_dataset(
+        args, "test", args.nreqs, offset=args.nreqs_offset
+    )
     verbose = args.verbose and len(test_set) <= 10
 
     # load xip model
@@ -255,19 +257,19 @@ if __name__ == "__main__":
     print(f"args= {args}")
     if args.stage == "prepare":
         staget_args = PrepareArgs().parse_args(known_only=True)
-        print(f"run {args.stage} with {staget_args}")
+        # print(f"run {args.stage} with {staget_args}")
         run_prepare(args.example, staget_args)
     elif args.stage == "train":
         staget_args = TrainerArgs().parse_args(known_only=True)
-        print(f"run {args.stage} with {staget_args}")
+        # print(f"run {args.stage} with {staget_args}")
         run_trainer(args.example, staget_args)
     elif args.stage == "offline":
         staget_args = OfflineArgs().parse_args(known_only=True)
-        print(f"run {args.stage} with {staget_args}")
+        # print(f"run {args.stage} with {staget_args}")
         run_offline(args.example, staget_args)
     elif args.stage == "online":
         staget_args = OnlineArgs().parse_args(known_only=True)
-        print(f"run {args.stage} with {staget_args}")
+        # print(f"run {args.stage} with {staget_args}")
         run_online(args.example, staget_args)
     else:
         raise ValueError(f"unsupported stage {args.stage}")

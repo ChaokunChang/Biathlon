@@ -42,6 +42,7 @@ class OfflineArgs(BaseXIPArgs):
 class OnlineArgs(BaseXIPArgs):
     offline_nreqs: int = 10  # number of offline requests
     nreqs: int = 0  # number of test requests
+    nreqs_offset: int = 0 
     ncfgs: int = 10  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
@@ -162,10 +163,12 @@ class LoadingHelper:
         model = joblib.load(model_path)
         return model
 
-    def load_dataset(args: BaseXIPArgs, name: str, nreqs: int = 0) -> pd.DataFrame:
+    def load_dataset(
+        args: BaseXIPArgs, name: str, nreqs: int = 0, offset: int = 0
+    ) -> pd.DataFrame:
         dataset_dir = DIRHelper.get_dataset_dir(args)
         ds_path = os.path.join(dataset_dir, f"{name}_set.csv")
         dataset = pd.read_csv(ds_path)
         if nreqs > 0:
-            dataset = dataset[:nreqs]
+            dataset = dataset[offset:nreqs]
         return dataset

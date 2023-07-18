@@ -168,6 +168,7 @@ class XIPFeatureErrorEstimator:
         bs_type: str = "fvar",
         bs_nresamples: int = 100,
         bs_max_nthreads: int = 1,
+        bs_feature_correction: bool = True,
         bs_bias_correction: bool = False,
         bs_for_var_std: bool = True,
     ) -> None:
@@ -177,6 +178,7 @@ class XIPFeatureErrorEstimator:
         self.bs_type = bs_type  # descrete not used yet
         self.bs_nresamples = bs_nresamples  # 100 is enough
         self.bs_max_nthreads = bs_max_nthreads  # seldom necessary
+        self.bs_feature_correction = bs_feature_correction
         self.bs_bias_correction = bs_bias_correction  # False is better
         self.bs_for_var_std = bs_for_var_std  # True is better
 
@@ -212,9 +214,12 @@ class XIPFeatureErrorEstimator:
                 fests = np.std(bs_estimations, axis=0, ddof=1)
                 if self.bs_type == "descrete":
                     fests = bs_estimations
-                if self.bs_bias_correction:
-                    bias = features - np.mean(bs_estimations, axis=0)
-                    ret_features = features + bias
+                if self.bs_feature_correction:
+                    if self.bs_bias_correction:
+                        bias = features - np.mean(bs_estimations, axis=0)
+                        ret_features = features + bias
+                    else:
+                        ret_features = np.mean(bs_estimations, axis=0)
         return ret_features, fests
 
     def count(self, samples: np.ndarray, p: float, tsize: int):

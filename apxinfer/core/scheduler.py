@@ -116,7 +116,7 @@ class XIPScheduler:
         self.logger.debug(
             f'round-{len(self.history)}: pred={pred["pred_value"]},'
             f'error={pred["pred_error"]}, conf={pred["pred_conf"]},'
-            f'{[qcost["time"] for qcost in qcosts]}'
+            f'qcost={[qcost["time"] for qcost in qcosts]}'
         )
         self.history.append(
             XIPExecutionProfile(
@@ -217,7 +217,10 @@ class XIPSchedulerGreedy(XIPScheduler):
                 min_sample = min(self.min_card / max(qcosts[qid]["qcard"], 1e-9), 1.0)
                 if qcfgs[qid]["qsample"] < min_sample:
                     grans = self.sample_grans[qid]
-                    next_sample = np.ceil(min_sample / grans) * grans
+                    if qcfgs[qid]["qsample"] <= 0.1 and min_sample >= 0.5:
+                        next_sample = np.ceil(0.5 / grans) * grans
+                    else:
+                        next_sample = np.ceil(min_sample / grans) * grans
                     qcfgs[qid]["qsample"] = next_sample
                     qcfgs[qid]["qcfg_id"] = np.round(next_sample / grans) - 1
                     updated = True
@@ -263,6 +266,7 @@ class XIPSchedulerGreedy(XIPScheduler):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
+            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)
@@ -272,6 +276,8 @@ class XIPSchedulerGreedy(XIPScheduler):
         nsteps = min(np.sum(valid_nsteps), nsteps)
 
         priorities = self.get_query_priority(fvec, pred, delta_qsamples)
+        if np.any(priorities < 0.0):
+            self.logger.debug(f"negative priority exists: {priorities}")
         sorted_qids = np.argsort(priorities)[::-1]
 
         self.logger.debug(f"nsteps={nsteps}, valid_nsteps={valid_nsteps}")
@@ -289,6 +295,7 @@ class XIPSchedulerGreedy(XIPScheduler):
                 next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
                 nsteps -= 1
                 valid_nsteps[qid] -= 1
+        self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs
 
 
@@ -296,7 +303,7 @@ class XIPSchedulerRandom(XIPSchedulerGreedy):
     def get_query_priority(
         self, fvec: XIPFeatureVec, pred: XIPPredEstimation, delta_qsamples: np.ndarray
     ) -> np.ndarray:
-        priorities = np.random.rand(self.fextractor.num_queries)
+        priorities = np.random.random(self.fextractor.num_queries)
         return priorities
 
 
@@ -331,12 +338,6 @@ class XIPSchedulerUniform(XIPSchedulerGreedy):
     def get_step_size(self) -> int:
         nsteps = super().get_step_size()
         return self.num_aggs * nsteps
-
-    # def apply_heuristics(
-    #     self, qcfgs: List[XIPQueryConfig], qcosts: List[QueryCostEstimation]
-    # ) -> Tuple[List[XIPQueryConfig], bool]:
-    #     # overload this function doesn't help improve
-    #     return qcfgs, False
 
 
 class XIPSchedulerBalancedQCost(XIPSchedulerWQCost):

@@ -46,7 +46,7 @@ class XIPFEngine:
             self.logger.setLevel(logging.DEBUG)
 
     def extract(
-        self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "sequential"
+        self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "async"
     ) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
         fvec, qprofiles = self.run(request, qcfgs, mode)
         qcosts = [

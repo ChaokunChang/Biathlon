@@ -38,7 +38,10 @@ class DBHelper:
             database=database
         )
         res = db_client.command(sql)
-        return len(res) > 0
+        try:
+            return len(res) > 0
+        except TypeError:
+            return False
 
     def table_exists(db_client: Client, database, table) -> bool:
         """Check if table exists"""

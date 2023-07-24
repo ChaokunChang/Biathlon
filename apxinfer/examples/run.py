@@ -9,6 +9,7 @@ from apxinfer.core.config import BaseXIPArgs
 from apxinfer.core.config import PrepareArgs, TrainerArgs
 from apxinfer.core.config import OfflineArgs, OnlineArgs
 
+from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimator
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
@@ -48,6 +49,16 @@ def get_fengine(name: str, args: BaseXIPArgs):
     dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
     qps = get_qps(dloader, args.verbose, version=1)
     fengine = get_qengine(qps, args.ncores, args.verbose)
+    for qry in fengine.queries:
+        fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
+                                                                       seed=args.seed,
+                                                                       bs_type=args.bs_type,
+                                                                       bs_nresamples=args.bs_nresamples,
+                                                                       bs_max_nthreads=args.bs_nthreads,
+                                                                       bs_feature_correction=args.bs_feature_correction,
+                                                                       bs_bias_correction=args.bs_bias_correction,
+                                                                       bs_for_var_std=args.bs_for_var_std))
+        qry.set_estimator(fest)
     return fengine
 
 
@@ -174,6 +185,7 @@ def run_online(name: str, args: OnlineArgs):
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
             batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
             verbose=verbose,
         )
     elif args.scheduler == "greedy_plus":
@@ -185,6 +197,7 @@ def run_online(name: str, args: OnlineArgs):
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
             batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
             verbose=verbose,
         )
     elif args.scheduler == "random":
@@ -196,6 +209,7 @@ def run_online(name: str, args: OnlineArgs):
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
             batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
             verbose=verbose,
         )
     elif args.scheduler == "uniform":
@@ -207,6 +221,7 @@ def run_online(name: str, args: OnlineArgs):
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
             batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
             verbose=verbose,
         )
     elif args.scheduler == "blqcost":
@@ -218,6 +233,7 @@ def run_online(name: str, args: OnlineArgs):
             qcost_estimator=qcost_model,
             sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
             batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
             verbose=verbose,
         )
     else:

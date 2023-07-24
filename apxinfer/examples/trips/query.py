@@ -65,7 +65,7 @@ class TripsQP1(XIPQueryProcessor):
 
     def get_query_ops(self) -> List[XIPQOperatorDescription]:
         dcols = ["trip_duration", "total_amount", "fare_amount"]
-        dcol_aggs = [["sum"], ["sum"], ["stdPop"]]
+        dcol_aggs = [["avg"], ["avg"], ["stdPop"]]
         qops = [
             XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
             for i, dcol in enumerate(dcols)
@@ -92,7 +92,7 @@ class TripsQP2(XIPQueryProcessor):
 
     def get_query_ops(self) -> List[XIPQOperatorDescription]:
         dcols = ["trip_distance", "trip_duration", "tip_amount"]
-        dcol_aggs = [["sum"], ["max"], ["max", "median"]]
+        dcol_aggs = [["avg"], ["max"], ["max", "median"]]
         qops = [
             XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
             for i, dcol in enumerate(dcols)

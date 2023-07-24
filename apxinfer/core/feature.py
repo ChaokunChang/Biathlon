@@ -226,71 +226,71 @@ def get_fvec_auto(
     return merge_fvecs(fvecs, new_names=fnames)
 
 
-SUPPORTED_DISTRIBUTIONS = {
-    "normal": {"sampler": np.random.normal, "final_args": 0.0},
-    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": 0.0},
-    "uniform": {"sampler": np.random.uniform, "final_args": []},
-    "beta": {"sampler": np.random.beta, "final_args": []},
-    "gamma": {"sampler": np.random.gamma, "final_args": []},
-    "exponential": {"sampler": np.random.exponential, "final_args": []},
-    "lognormal": {"sampler": np.random.lognormal, "final_args": []},
-    "power": {"sampler": np.random.power, "final_args": []},
-    "chisquare": {"sampler": np.random.chisquare, "final_args": []},
-    "logistic": {"sampler": np.random.logistic, "final_args": []},
-    "poisson": {"sampler": np.random.poisson, "final_args": []},
-    "binomial": {"sampler": np.random.binomial, "final_args": []},
-    "negative_binomial": {"sampler": np.random.negative_binomial, "final_args": []},
-    "geometric": {"sampler": np.random.geometric, "final_args": []},
-    "zipf": {"sampler": np.random.zipf, "final_args": []},
-    "dirichlet": {"sampler": np.random.dirichlet, "final_args": []},
-    "multinomial": {"sampler": np.random.multinomial, "final_args": []},
-    "multivariate_normal": {"sampler": np.random.multivariate_normal, "final_args": []},
-    "unknown": {"sampler": None, "final_args": []},
-}
+# SUPPORTED_DISTRIBUTIONS = {
+#     "normal": {"sampler": np.random.normal, "final_args": 0.0},
+#     "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": 0.0},
+#     "uniform": {"sampler": np.random.uniform, "final_args": []},
+#     "beta": {"sampler": np.random.beta, "final_args": []},
+#     "gamma": {"sampler": np.random.gamma, "final_args": []},
+#     "exponential": {"sampler": np.random.exponential, "final_args": []},
+#     "lognormal": {"sampler": np.random.lognormal, "final_args": []},
+#     "power": {"sampler": np.random.power, "final_args": []},
+#     "chisquare": {"sampler": np.random.chisquare, "final_args": []},
+#     "logistic": {"sampler": np.random.logistic, "final_args": []},
+#     "poisson": {"sampler": np.random.poisson, "final_args": []},
+#     "binomial": {"sampler": np.random.binomial, "final_args": []},
+#     "negative_binomial": {"sampler": np.random.negative_binomial, "final_args": []},
+#     "geometric": {"sampler": np.random.geometric, "final_args": []},
+#     "zipf": {"sampler": np.random.zipf, "final_args": []},
+#     "dirichlet": {"sampler": np.random.dirichlet, "final_args": []},
+#     "multinomial": {"sampler": np.random.multinomial, "final_args": []},
+#     "multivariate_normal": {"sampler": np.random.multivariate_normal, "final_args": []},
+#     "unknown": {"sampler": None, "final_args": []},
+# }
 
 
-@fcache_manager.cache("feature", expire=3600)
-def get_feature_samples(
-    fvals: float,
-    dist: str,
-    dist_args: Union[list, float],
-    seed: int,
-    n_samples: int = 1000,
-) -> np.ndarray:
-    rng = np.random.RandomState(seed)
-    if dist == "fixed":
-        return fvals * np.ones(n_samples)
-    elif dist == "normal":
-        scale = dist_args
-        return rng.normal(fvals, scale, size=n_samples)
-    elif dist == "unknown":
-        # in this case, dist_args is the samples itself
-        if dist_args is None or len(dist_args) == 0:
-            return np.ones(n_samples) * fvals
-        else:
-            return dist_args[rng.randint(0, len(dist_args), size=n_samples)]
-    return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
+# @fcache_manager.cache("feature", expire=3600)
+# def get_feature_samples(
+#     fvals: float,
+#     dist: str,
+#     dist_args: Union[list, float],
+#     seed: int,
+#     n_samples: int = 1000,
+# ) -> np.ndarray:
+#     rng = np.random.RandomState(seed)
+#     if dist == "fixed":
+#         return fvals * np.ones(n_samples)
+#     elif dist == "normal":
+#         scale = dist_args
+#         return rng.normal(fvals, scale, size=n_samples)
+#     elif dist == "unknown":
+#         # in this case, dist_args is the samples itself
+#         if dist_args is None or len(dist_args) == 0:
+#             return np.ones(n_samples) * fvals
+#         else:
+#             return dist_args[rng.randint(0, len(dist_args), size=n_samples)]
+#     return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
 
-# @fcache_manager.cache('feature', expire=3600)
-def fvec_random_sample(
-    fvec: List[XIPFeatureVec], n_samples: int, seed: int
-) -> np.ndarray:
-    fvals = fvec["fvals"]
-    fests = fvec["fests"]
-    fdists = fvec["fdists"]
+# # @fcache_manager.cache('feature', expire=3600)
+# def fvec_random_sample(
+#     fvec: List[XIPFeatureVec], n_samples: int, seed: int
+# ) -> np.ndarray:
+#     fvals = fvec["fvals"]
+#     fests = fvec["fests"]
+#     fdists = fvec["fdists"]
 
-    p = len(fvals)
-    samples = np.zeros((n_samples, p))
-    for i in range(p):
-        samples[:, i] = get_feature_samples(
-            fvals[i], fdists[i], fests[i], seed, n_samples
-        )
-    return samples
+#     p = len(fvals)
+#     samples = np.zeros((n_samples, p))
+#     for i in range(p):
+#         samples[:, i] = get_feature_samples(
+#             fvals[i], fdists[i], fests[i], seed, n_samples
+#         )
+#     return samples
 
 
-def get_final_dist_args(dist: str) -> Union[list, float]:
-    return SUPPORTED_DISTRIBUTIONS[dist]["final_args"]
+# def get_final_dist_args(dist: str) -> Union[list, float]:
+#     return SUPPORTED_DISTRIBUTIONS[dist]["final_args"]
 
 
 def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:

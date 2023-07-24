@@ -4,7 +4,7 @@ import logging
 
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.utils import XIPFInfEstimation
-from apxinfer.core.feature import get_final_dist_args
+from apxinfer.core.festimator import get_final_dist_args
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator
 

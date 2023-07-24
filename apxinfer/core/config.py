@@ -15,6 +15,12 @@ class BaseXIPArgs(Tap):
     nparts: int = 100  # maximum number of partitions of dataset
     loading_nthreads: int = 1  # nthreads for loading data
     bs_nthreads: int = 1  # nthreads for bootstrapping
+    bs_type: Literal['descrete', 'fstd'] = "fstd"
+    bs_nresamples: int = 100
+    bs_feature_correction: bool = True
+    bs_bias_correction: bool = False
+    bs_for_var_std: bool = True
+    err_min_support: int = 30
     ncores: int = 0  # ncores for experiment
     verbose: bool = False
 

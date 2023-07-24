@@ -2,7 +2,7 @@ import numpy as np
 import logging
 
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
-from apxinfer.core.feature import fvec_random_sample
+from apxinfer.core.festimator import fvec_random_sample
 from apxinfer.core.model import XIPModel
 
 logging.basicConfig(level=logging.INFO)
@@ -88,7 +88,13 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         self.point_pest = point_pest
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
-        preds = model.predict(fvec_random_sample(fvec, self.n_samples, self.seed))
+        fsamples = fvec_random_sample(fvec, self.n_samples, self.seed)
+        preds = model.predict(fsamples)
+        # print(f'fnames= {fvec["fnames"]}')
+        # print(f'fvals=  {fvec["fvals"]}')
+        # print(f'fests=  {fvec["fests"]}')
+        # print(f'fsamples={fsamples}')
+        # print(f'preds={preds}')
         pred_type = model.model_type
         if self.point_pest:
             pred_value = model.predict([fvec["fvals"]])[0]

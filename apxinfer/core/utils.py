@@ -146,7 +146,13 @@ def merge_fvecs(
         fnames = list(itertools.chain.from_iterable([fvec["fnames"] for fvec in fvecs]))
     assert len(set(fnames)) == len(fnames), "Feature names must be unique"
     fvals = np.concatenate([fvec["fvals"] for fvec in fvecs])
-    fests = np.concatenate([fvec["fests"] for fvec in fvecs])
+    try:
+        fests = np.concatenate([fvec["fests"] for fvec in fvecs])
+    except ValueError:
+        fests = []
+        for fvec in fvecs:
+            for fest in fvec["fests"]:
+                fests.append(fest)
     fdists = list(itertools.chain.from_iterable([fvec["fdists"] for fvec in fvecs]))
     return XIPFeatureVec(fnames=fnames, fvals=fvals, fests=fests, fdists=fdists)
 

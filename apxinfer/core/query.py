@@ -469,6 +469,7 @@ class XIPQueryProcessor:
         loading_time = time.time() - st
 
         card_est = self.estimate_cardinality(rrdata, qcfg)
+        # print(f'{self.qname} card_est: {card_est}, {rrdata.shape}')
 
         st = time.time()
         if rrdata is None:

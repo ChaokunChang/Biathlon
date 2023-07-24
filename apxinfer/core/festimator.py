@@ -177,7 +177,7 @@ class XIPFeatureErrorEstimator:
         self,
         min_support: int = 30,
         seed: int = 0,
-        bs_type: str = "fvar",
+        bs_type: str = "fstd",
         bs_nresamples: int = 100,
         bs_max_nthreads: int = 1,
         bs_feature_correction: bool = True,
@@ -225,7 +225,9 @@ class XIPFeatureErrorEstimator:
                 bs_estimations = self.bootstrap(samples, p, tsize, agg)
                 fests = np.std(bs_estimations, axis=0, ddof=1)
                 if self.bs_type == "descrete":
-                    fests = bs_estimations
+                    fests = []
+                    for i in range(bs_estimations.shape[1]):
+                        fests.append(bs_estimations[:, i].tolist())
                 if self.bs_feature_correction:
                     if self.bs_bias_correction:
                         bias = features - np.mean(bs_estimations, axis=0)
@@ -393,13 +395,21 @@ class XIPFeatureEstimator:
         features = self.aggregator.estimate(samples, p, agg)
         features, fstds = self.err_module.estimate(samples, p, tsize, features, agg)
         fnames = [f"{agg}_f{i}" for i in range(features.shape[0])]
+        fdists = []
+        for fstd in fstds:
+            if (not isinstance(fstd, (list, np.ndarray))) and is_same_float(fstd, 0.0):
+                fdists.append("fixed")
+            elif isinstance(fstd, (list, np.ndarray)) and len(fstd) > 2:
+                fdists.append("unknown")
+            elif agg == 'max':
+                fdists.append("r-normal")
+            else:
+                fdists.append("normal")
         return XIPFeatureVec(
             fnames=fnames,
             fvals=features,
             fests=fstds,
-            fdists=[
-                "fixed" if is_same_float(fstd, 0.0) else "normal" for fstd in fstds
-            ],
+            fdists=fdists
         )
 
 
@@ -421,7 +431,8 @@ def auto_extract(
 
 SUPPORTED_DISTRIBUTIONS = {
     "normal": {"sampler": np.random.normal, "final_args": 0.0},
-    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": []},
+    "r-normal": {"sampler": np.random.normal, "final_args": 0.0},
+    "fixed": {"sampler": lambda x, size: np.ones(size) * x, "final_args": 0.0},
     "unknown": {"sampler": None, "final_args": []},
 }
 
@@ -444,12 +455,16 @@ def get_feature_samples(
     elif dist == "normal":
         scale = dist_args
         return rng.normal(fvals, scale, size=n_samples)
+    elif dist == "r-normal":
+        scale = dist_args
+        all_samples = rng.normal(fvals, scale, size=n_samples * 3)
+        return all_samples[all_samples >= fvals][:n_samples]
     elif dist == "unknown":
         # in this case, dist_args is the samples itself
         if dist_args is None or len(dist_args) == 0:
             return np.ones(n_samples) * fvals
         else:
-            return dist_args[rng.randint(0, len(dist_args), size=n_samples)]
+            return np.array(dist_args)[rng.randint(0, len(dist_args), size=n_samples)]
     return SUPPORTED_DISTRIBUTIONS[dist]["sampler"](*dist_args, size=n_samples)
 
 

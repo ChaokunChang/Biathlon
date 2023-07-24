@@ -45,8 +45,8 @@ def get_fengine(name: str, args: BaseXIPArgs):
         from apxinfer.examples.trips.data import get_dloader
         from apxinfer.examples.trips.query import get_qps
         from apxinfer.examples.trips.engine import get_qengine
-    dloader = get_dloader()
-    qps = get_qps(dloader, args.verbose)
+    dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+    qps = get_qps(dloader, args.verbose, version=1)
     fengine = get_qengine(qps, args.ncores, args.verbose)
     return fengine
 

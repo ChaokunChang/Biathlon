@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List
 import time
+from scipy import stats as st
 import logging
 
 from apxinfer.core.utils import XIPRequest, XIPQueryConfig
@@ -57,10 +58,10 @@ class XIPPipeline:
         elif np.all([is_same_float(qcfg["qsample"], 1.0) for qcfg in qcfgs]):
             return True
         if self.settings.termination_condition == "min_max":
-            return (
-                pred["pred_error"] <= self.settings["max_error"]
-                and pred["pred_conf"] >= self.settings["min_conf"]
-            )
+            z_loc = st.norm.ppf(0.5 + self.settings.min_conf / 2,
+                                loc=pred["pred_value"],
+                                scale=np.sqrt(pred["pred_var"]))
+            return np.abs(z_loc - pred["pred_value"]) <= self.settings.max_error
         elif self.settings.termination_condition == "error":
             return pred["pred_error"] <= self.settings.max_error
         elif self.settings.termination_condition == "relative_error":

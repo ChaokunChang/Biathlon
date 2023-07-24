@@ -90,7 +90,10 @@ class OfflineExecutor:
                     else:
                         sample = 1.0
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
-                fvec, qcosts = self.fextractor.extract(request, qcfgs)
+                try:
+                    fvec, qcosts = self.fextractor.extract(request, qcfgs, mode="sequential")
+                except:
+                    fvec, qcosts = self.fextractor.extract(request, qcfgs)
                 if len(profiles) > 0:
                     for i in range(len(qcosts)):
                         qcosts[i]["time"] += profiles[-1]["qcosts"][i]["time"]

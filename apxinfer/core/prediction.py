@@ -46,8 +46,13 @@ class PredictionEstimatorHelper:
             pred_conf = PredictionEstimatorHelper.xip_estimate_conf_relative(
                 pred_value, preds, constraint_value
             )
+        else:
+            raise ValueError(f"Unsupported constraint_type: {constraint_type}")
+        pred_var = np.var(preds)
         return XIPPredEstimation(
-            pred_value=pred_value, pred_error=pred_error, pred_conf=pred_conf, fvec=None
+            pred_value=pred_value, pred_error=pred_error,
+            pred_conf=pred_conf, pred_var=pred_var,
+            fvec=None
         )
 
 

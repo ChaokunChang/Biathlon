@@ -197,18 +197,18 @@ def get_ingestor(nparts: int = 100, seed: int = 0):
         dsrc_type="clickhouse",
         dsrc="default.trips",
         database="xip",
-        table="trips",
+        table=f"trips_{nparts}",
         nparts=nparts,
         seed=seed,
     )
     return ingestor
 
 
-def get_dloader(verbose: bool = False) -> XIPDataLoader:
+def get_dloader(nparts: int = 100, verbose: bool = False) -> XIPDataLoader:
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database="xip",
-        table="trips",
+        table=f"trips_{nparts}",
         seed=0,
         enable_cache=False,
     )

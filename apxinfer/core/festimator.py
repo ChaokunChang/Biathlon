@@ -46,6 +46,12 @@ class DataAggregator:
     def max(data: np.ndarray):
         return np.max(data, axis=0)
 
+    def percentile90(data: np.ndarray):
+        return np.percentile(data, 90, axis=0)
+
+    def percentile99(data: np.ndarray):
+        return np.percentile(data, 99, axis=0)
+
     def median(data: np.ndarray):
         return np.median(data, axis=0)
 
@@ -86,6 +92,12 @@ class XIPDataAggregator:
 
     def max(samples: np.ndarray, p: float):
         return np.max(samples, axis=0)
+
+    def percentile90(samples: np.ndarray, p: float):
+        return np.percentile(samples, 90, axis=0)
+
+    def percentile99(samples: np.ndarray, p: float):
+        return np.percentile(samples, 99, axis=0)
 
     def median(samples: np.ndarray, p: float):
         return np.median(samples, axis=0)
@@ -452,7 +464,7 @@ def fvec_random_sample(
     samples = np.zeros((n_samples, p))
     for i in range(p):
         samples[:, i] = get_feature_samples(
-            fvals[i], fdists[i], fests[i], seed, n_samples
+            fvals[i], fdists[i], fests[i], seed + i, n_samples
         )
     return samples
 

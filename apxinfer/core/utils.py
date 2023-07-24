@@ -44,9 +44,10 @@ class XIPFeatureVec(TypedDict):
 
 
 class XIPPredEstimation(TypedDict, total=False):
-    pred_val: Union[float, int]
+    pred_value: Union[float, int]
     pred_error: float
     pred_conf: float
+    pred_var: float
     fvec: XIPFeatureVec
 
 

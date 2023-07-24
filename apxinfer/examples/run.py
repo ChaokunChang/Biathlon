@@ -70,6 +70,7 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type,
         args.model,
         args.seed,
+        args.nparts
     )
     worker.run(args.skip_dataset)
 

@@ -16,6 +16,7 @@ class TripsPrepareWorker(XIPPrepareWorker):
         model_type: str,
         model_name: str,
         seed: int,
+        nparts: int
     ) -> None:
         super().__init__(
             working_dir,
@@ -28,7 +29,7 @@ class TripsPrepareWorker(XIPPrepareWorker):
             seed,
         )
         self.database = "xip"
-        self.table = "trips"
+        self.table = f"trips_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:
         trips_from = "2015-08-01 00:00:00"

@@ -18,7 +18,7 @@ class BaseXIPArgs(Tap):
     bs_type: Literal['descrete', 'fstd'] = "fstd"
     bs_nresamples: int = 100
     bs_feature_correction: bool = True
-    bs_bias_correction: bool = False
+    bs_bias_correction: bool = True
     bs_for_var_std: bool = True
     err_min_support: int = 30
     ncores: int = 0  # ncores for experiment

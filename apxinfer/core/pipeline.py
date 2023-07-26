@@ -93,14 +93,12 @@ class XIPPipeline:
 
         self.cumulative_scheduler_time = 0
 
+        xip_pred = XIPPredEstimation(
+            pred_value=pred, pred_error=0.0, pred_conf=1.0, fvec=None, pred_var=0
+        )
         if ret_fvec:
-            xip_pred = XIPPredEstimation(
-                pred_value=pred, pred_error=0.0, pred_conf=1.0, fvec=fvec
-            )
-        else:
-            xip_pred = XIPPredEstimation(
-                pred_value=pred, pred_error=0.0, pred_conf=1.0, fvec=None
-            )
+            xip_pred['fvec'] = fvec
+
         self.scheduler.record(request, qcfgs, fvec, xip_pred, qcosts)
         return xip_pred
 

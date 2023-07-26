@@ -329,15 +329,39 @@ class XIPSchedulerWQCost(XIPSchedulerGreedy):
 
 
 class XIPSchedulerUniform(XIPSchedulerGreedy):
-    def get_query_priority(
-        self, fvec: XIPFeatureVec, pred: XIPPredEstimation, delta_qsamples: np.ndarray
-    ) -> np.ndarray:
-        priorities = np.ones(self.fextractor.num_queries)
-        return priorities
+    def get_next_qcfgs(
+        self,
+        request: XIPRequest,
+        qcfgs: List[XIPQueryConfig],
+        fvec: XIPFeatureVec,
+        pred: XIPPredEstimation,
+        qcosts: List[QueryCostEstimation],
+    ) -> List[XIPQueryConfig]:
+        next_qcfgs = copy.deepcopy(qcfgs)  # qcfgs to return
 
-    def get_step_size(self) -> int:
-        nsteps = super().get_step_size()
-        return self.num_aggs * nsteps
+        next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
+        if early_ret:
+            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
+            return next_qcfgs
+
+        delta_qsamples = self.get_delta_qsamples(next_qcfgs)
+        valid_nsteps = np.round(delta_qsamples / self.sample_grans).astype(int)
+
+        nsteps = self.get_step_size()
+        while nsteps > 0:
+            if np.sum(valid_nsteps) == 0:
+                break
+            for qid in range(len(next_qcfgs)):
+                if nsteps == 0:
+                    break
+                if valid_nsteps[qid] == 0:
+                    continue
+                next_qcfgs[qid]["qcfg_id"] += 1
+                next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
+                valid_nsteps[qid] -= 1
+            nsteps -= 1
+        self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
+        return next_qcfgs
 
 
 class XIPSchedulerBalancedQCost(XIPSchedulerWQCost):

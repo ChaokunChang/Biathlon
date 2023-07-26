@@ -79,7 +79,7 @@ if __name__ == "__main__":
             constraint_value=constraint_value,
             seed=args.pest_seed,
             n_samples=args.pest_nsamples,
-            point_pest=args.pest_point,
+            pest_point=args.pest_point,
             verbose=verbose,
         )
     else:

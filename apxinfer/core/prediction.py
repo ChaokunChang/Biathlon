@@ -79,13 +79,13 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         constraint_value: float,
         seed: int,
         n_samples: int = 1000,
-        point_pest: bool = False,
+        pest_point: bool = False,
         verbose: bool = False,
     ) -> None:
         super().__init__(constraint_type, constraint_value, verbose)
         self.seed = seed
         self.n_samples = n_samples
-        self.point_pest = point_pest
+        self.pest_point = pest_point
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
         fsamples = fvec_random_sample(fvec, self.n_samples, self.seed)
@@ -96,7 +96,7 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         # print(f'fsamples={fsamples}')
         # print(f'preds={preds}')
         pred_type = model.model_type
-        if self.point_pest:
+        if self.pest_point:
             pred_value = model.predict([fvec["fvals"]])[0]
         else:
             if model.model_type == "classifier":

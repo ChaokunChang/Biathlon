@@ -134,8 +134,19 @@ class OnlineExecutor:
         # average error and conf
         xip_pred_errors = [pred["pred_error"] for pred in xip_preds]
         xip_pred_confs = [pred["pred_conf"] for pred in xip_preds]
+        xip_pred_vars = [pred["pred_var"] for pred in xip_preds]
+        real_errors = np.abs([pred["pred_value"] for pred in xip_preds] - ext_preds)
         avg_error = np.mean(xip_pred_errors)
         avg_conf = np.mean(xip_pred_confs)
+        avg_pvar = np.mean(xip_pred_vars)
+        avg_real_error = np.mean(real_errors)
+
+        if self.ppl.settings.termination_condition == "relative_error":
+            meet_rate = np.mean(real_errors / ext_preds <= self.ppl.settings.max_relative_error)
+        else:
+            meet_rate = np.mean(real_errors <= self.ppl.settings.max_error)
+        err_meet_rate = np.mean(np.array(xip_pred_errors) <= self.ppl.settings.max_error)
+        conf_meet_rate = np.mean(np.array(xip_pred_confs) >= self.ppl.settings.min_conf)
 
         # averge number of rounds
         nrounds_list = results["nrounds_list"]
@@ -177,6 +188,11 @@ class OnlineExecutor:
             "evals_to_gt": evals_to_gt,
             "avg_error": avg_error,
             "avg_conf": avg_conf,
+            "avg_pvar": avg_pvar,
+            "avg_real_error": avg_real_error,
+            "meet_rate": meet_rate,
+            "err_meet_rate": err_meet_rate,
+            "conf_meet_rate": conf_meet_rate,
             "avg_nrounds": avg_nrounds,
             "avg_sample": avg_sample,
             "avg_query_time": avg_query_time,
@@ -224,6 +240,14 @@ class OnlineExecutor:
         with open(eval_path, "w") as f:
             json.dump(evals, f, indent=4)
 
+        # save final xip_preds, ext_preds, labels, latency as dataframe
+        xip_preds_df = pd.DataFrame(results["xip_preds"])
+        ext_preds_df = pd.DataFrame(results["ext_preds"], columns=["ext_pred"])
+        labels_df = pd.DataFrame(results["labels"], columns=["label"])
+        latency_df = pd.DataFrame(results["ppl_time_list"], columns=["latency"])
+        final_df = pd.concat([latency_df, labels_df, ext_preds_df, xip_preds_df], axis=1)
+        final_df.to_csv(f"{self.working_dir}/final_df_{tag}.csv", index=False)
+
         self.logger.info(
             f"Finished running online executor, evals are saved in {eval_path}"
         )
@@ -232,7 +256,10 @@ class OnlineExecutor:
             self.logger.info(f"toEx(r2, mae): {to_exact['r2']}, {to_exact['mae']}")
             to_gt = evals["evals_to_gt"]
             self.logger.info(f"toGt(r2, mae): {to_gt['r2']}, {to_gt['mae']}")
-        self.logger.info(f"avg(err, conf): {evals['avg_error']}, {evals['avg_conf']}")
+        self.logger.info(f"avg(err, conf, pvar): {evals['avg_error']}, {evals['avg_conf']}, {evals['avg_pvar']}")
+        self.logger.info(f"avg_real_error: {evals['avg_real_error']}")
+        self.logger.info(f"meet_rate: {evals['meet_rate']}")
+        self.logger.info(f"met(err, conf): {evals['err_meet_rate']}, {evals['conf_meet_rate']}")
         self.logger.info(
             f"avg(qtime, qloadtim): {evals['avg_query_time']:.4f}, "
             + f"{evals['avg_qload_time']:.4f}"

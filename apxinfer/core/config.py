@@ -48,7 +48,7 @@ class OfflineArgs(BaseXIPArgs):
 class OnlineArgs(BaseXIPArgs):
     offline_nreqs: int = 10  # number of offline requests
     nreqs: int = 0  # number of test requests
-    nreqs_offset: int = 0 
+    nreqs_offset: int = 0
     ncfgs: int = 10  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader

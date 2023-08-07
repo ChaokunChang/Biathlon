@@ -92,7 +92,7 @@ class OfflineExecutor:
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
                 try:
                     fvec, qcosts = self.fextractor.extract(request, qcfgs, mode="sequential")
-                except:
+                except TypeError:
                     fvec, qcosts = self.fextractor.extract(request, qcfgs)
                 if len(profiles) > 0:
                     for i in range(len(qcosts)):
@@ -194,6 +194,7 @@ class OfflineExecutor:
         self.plot_fvars(qsamples, fvars)
 
         self.build_cost_model(records)
+        self.logger.info(f'model saved to {self.model_dir}')
 
         # Convert the array to a pandas DataFrame
         df = pd.DataFrame(

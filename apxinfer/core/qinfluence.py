@@ -2,6 +2,9 @@ import numpy as np
 import copy
 import logging
 
+from SALib.sample import sobol as sobol_sample
+from SALib.analyze import sobol as sobol_analyze
+
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.utils import XIPQInfEstimation
 from apxinfer.core.feature import XIPFeatureExtractor
@@ -96,4 +99,56 @@ class XIPQInfEstimatorByFInfs(XIPQInfEstimator):
             n_features = fextractor.queries[qid].n_features
             qinfs[qid] = np.sum(finfs[fid : fid + n_features])
             fid += n_features
+        return XIPQInfEstimation(qinfs=qinfs)
+
+
+class XIPQInfEstimatorSobol(XIPQInfEstimator):
+    """Estimate the influence of a query on a prediction
+    by using the influence of each feature on the prediction
+    """
+
+    def __init__(
+        self, pred_estimator: XIPPredictionEstimator, verbose: bool = False
+    ) -> None:
+        super().__init__(pred_estimator, verbose)
+
+    def estimate(
+        self,
+        model: XIPModel,
+        fextractor: XIPFeatureExtractor,
+        fvec: XIPFeatureVec,
+        xip_pred: XIPPredEstimation,
+    ) -> XIPQInfEstimation:
+        fdists = fvec["fdists"]
+        fvals = fvec["fvals"]
+        fests = fvec["fests"]
+        n_features = len(fdists)
+        # print(fvec)
+        bounds = []
+        dists = []
+        for i in range(n_features):
+            if fdists[i] == 'fixed':
+                bounds.append([fvals[i], 1e-9])
+                dists.append('norm')
+            elif fdists[i] in ['normal', 'r-normal', 'l-normal']:
+                bounds.append([fvals[i], fests[i]])
+                dists.append('norm')
+            else:
+                raise ValueError(f"Unknown distribution {dists[i]}")
+        groups = []
+        for i in range(fextractor.num_queries):
+            for j in range(fextractor.queries[i].n_features):
+                groups.append(f'g{i}')
+        problem = {
+            "num_vars": n_features,
+            "groups": groups,
+            "names": fvec["fnames"],
+            "bounds": bounds,
+            "dists": dists
+        }
+        calc_second_order = False
+        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order)
+        preds = model.predict(param_values)
+        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order)
+        qinfs = Si["S1"]
         return XIPQInfEstimation(qinfs=qinfs)

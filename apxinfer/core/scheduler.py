@@ -251,7 +251,7 @@ class XIPSchedulerGreedy(XIPScheduler):
     ) -> np.ndarray:
         qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
         priorities = qinf_est["qinfs"]
-        priorities = priorities / np.where(delta_qsamples > 1e9, delta_qsamples, 1)
+        priorities = priorities / np.where(delta_qsamples > 1e-9, delta_qsamples, 1)
         return priorities
 
     def get_next_qcfgs(
@@ -323,7 +323,7 @@ class XIPSchedulerWQCost(XIPSchedulerGreedy):
         qweights = self.get_qweights()
         priorities = qinf_est["qinfs"]
         priorities = priorities / np.where(
-            delta_qsamples > 1e9, qweights * delta_qsamples, 1
+            delta_qsamples > 1e-9, qweights * delta_qsamples, 1
         )
         return priorities
 
@@ -369,5 +369,5 @@ class XIPSchedulerBalancedQCost(XIPSchedulerWQCost):
         self, fvec: XIPFeatureVec, pred: XIPPredEstimation, delta_qsamples: np.ndarray
     ) -> np.ndarray:
         qweights = self.get_qweights()
-        priorities = 1.0 / np.where(delta_qsamples > 1e9, qweights * delta_qsamples, 1)
+        priorities = 1.0 / np.where(delta_qsamples > 1e-9, qweights * delta_qsamples, 1)
         return priorities

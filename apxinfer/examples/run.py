@@ -13,6 +13,7 @@ from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimat
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
+from apxinfer.core.qinfluence import XIPQInfEstimatorSobol
 from apxinfer.core.qcost import XIPQCostModel, QueryCostModel
 from apxinfer.core.scheduler import XIPScheduler, XIPSchedulerGreedy
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
@@ -167,6 +168,10 @@ def run_online(name: str, args: OnlineArgs):
         )
     elif args.qinf == "by_finf":
         qinf_estimator = XIPQInfEstimatorByFInfs(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
+    elif args.qinf == "sobol":
+        qinf_estimator = XIPQInfEstimatorSobol(
             pred_estimator=pred_estimator, verbose=verbose
         )
     else:

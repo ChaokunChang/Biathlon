@@ -62,7 +62,7 @@ class OnlineArgs(BaseXIPArgs):
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf"] = "direct"  # query inference method
+    qinf: Literal["direct", "by_finf", "sobol"] = "direct"  # query inference method
 
     scheduler: Literal[
         "greedy", "random", "greedy_plus", "uniform", "blqcost"

@@ -10,7 +10,7 @@ from typing import Tuple
 
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.data import DBHelper
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 
 logging.basicConfig(level=logging.INFO)
 

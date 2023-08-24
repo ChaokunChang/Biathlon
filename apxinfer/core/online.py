@@ -7,8 +7,7 @@ import logging
 from tqdm import tqdm
 import time
 
-from apxinfer.core.feature import FEstimatorHelper
-from apxinfer.core.feature import evaluate_features
+from apxinfer.core.festimator import evaluate_features
 from apxinfer.core.model import evaluate_model
 from apxinfer.core.pipeline import XIPPipeline
 
@@ -66,8 +65,6 @@ class OnlineExecutor:
             total=len(requests),
             disable=self.verbose,
         ):
-            FEstimatorHelper.total_time = 0.0
-            FEstimatorHelper.bs_time = 0.0
             xip_pred = self.ppl.serve(request, ret_fvec=True, exact=exact)
             ppl_time = time.time() - self.ppl.start_time
 
@@ -82,8 +79,8 @@ class OnlineExecutor:
             query_time_list.append(self.ppl.cumulative_qtimes)
             pred_time_list.append(self.ppl.cumulative_pred_time)
             scheduler_time_list.append(self.ppl.cumulative_scheduler_time)
-            qcomp_time_list.append(FEstimatorHelper.total_time)
-            bootstrap_time_list.append(FEstimatorHelper.bs_time)
+            qcomp_time_list.append(np.sum([qcost['cp_time'] for qcost in last_qcosts]))
+            bootstrap_time_list.append(0.0)
             ppl_time_list.append(ppl_time)
 
             # logging for debugging

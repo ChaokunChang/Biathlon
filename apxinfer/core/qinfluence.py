@@ -7,7 +7,7 @@ from SALib.analyze import sobol as sobol_analyze
 
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.utils import XIPQInfEstimation
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.festimator import get_final_dist_args
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator

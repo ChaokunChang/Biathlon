@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
 
 

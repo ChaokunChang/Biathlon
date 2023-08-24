@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 from apxinfer.core.utils import XIPExecutionProfile, XIPQType
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.qcost import QueryCostModel, XIPQCostModel
 
 

@@ -9,7 +9,7 @@ from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 
 # from apxinfer.core.utils import QueryCostEstimation
 from apxinfer.core.utils import XIPPipelineSettings, is_same_float
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator
 from apxinfer.core.scheduler import XIPScheduler

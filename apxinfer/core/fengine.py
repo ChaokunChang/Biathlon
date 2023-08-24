@@ -46,11 +46,12 @@ class XIPFEngine:
             self.logger.setLevel(logging.DEBUG)
 
     def extract(
-        self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "async"
+        self, request: XIPRequest, qcfgs: List[XIPQueryConfig], mode: str = "sequential"
     ) -> Tuple[XIPFeatureVec, List[QueryCostEstimation]]:
         fvec, qprofiles = self.run(request, qcfgs, mode)
         qcosts = [
-            QueryCostEstimation(time=profile["total_time"], qcard=profile["card_est"])
+            QueryCostEstimation(time=profile["total_time"], qcard=profile["card_est"],
+                                ld_time=profile["loading_time"], cp_time=profile["computing_time"])
             for profile in qprofiles
         ]
         return fvec, qcosts

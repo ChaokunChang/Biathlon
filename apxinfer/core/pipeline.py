@@ -57,7 +57,10 @@ class XIPPipeline:
             return True
         elif np.all([is_same_float(qcfg["qsample"], 1.0) for qcfg in qcfgs]):
             return True
-        if self.settings.termination_condition == "min_max":
+
+        if self.settings.termination_condition == "pvar":
+            return pred["pred_var"] <= self.settings.max_error
+        elif self.settings.termination_condition == "min_max":
             z_loc = st.norm.ppf(0.5 + self.settings.min_conf / 2,
                                 loc=pred["pred_value"],
                                 scale=np.sqrt(pred["pred_var"]))

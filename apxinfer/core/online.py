@@ -33,7 +33,7 @@ class OnlineExecutor:
         requests = dataset[req_cols].to_dict(orient="records")
         labels = dataset[label_col].to_numpy()
         ext_features = dataset[fcols].to_numpy()
-        ext_preds = self.ppl.model.predict(ext_features)
+        ext_preds = self.ppl.model.predict(ext_features).astype(np.float64)
 
         self.requests = requests
         self.labels = labels
@@ -203,6 +203,9 @@ class OnlineExecutor:
             "avg_qtime_query": avg_qtime_query.tolist(),
             "fevals": fevals,
         }
+        for key, value in evals.items():
+            if isinstance(value, np.float32):
+                evals[key] = float(value)
         self.logger.debug(f"evals={json.dumps(evals, indent=4)}")
 
         return evals

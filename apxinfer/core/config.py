@@ -62,16 +62,18 @@ class OnlineArgs(BaseXIPArgs):
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol"] = "direct"  # query inference method
+    qinf: Literal["direct", "by_finf", "sobol"] = "sobol"  # query inference method
 
     scheduler: Literal[
-        "greedy", "random", "greedy_plus", "uniform", "blqcost"
-    ] = "greedy"  # scheduler
+        "greedy", "random", "greedy_plus",
+        "uniform", "blqcost", "optimizer",
+    ] = "optimizer"  # scheduler
     scheduler_batch: int = 1
 
     # pipeline settings
     termination_condition: Literal[
-        "conf", "error", "relative_error", "min_max"
+        "conf", "error", "relative_error",
+        "min_max", "pvar"
     ] = "conf"  # termination condition
     max_relative_error: float = 0.05  # maximum relative error
     max_error: float = 0.5  # maximum error

@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from apxinfer.core.utils import XIPExecutionProfile, XIPQType
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.qcost import QueryCostModel, XIPQCostModel
+from apxinfer.core.model import XIPModel
 
 
 class OfflineExecutor:
@@ -21,11 +22,13 @@ class OfflineExecutor:
         self,
         working_dir: str,
         fextractor: XIPFeatureExtractor,
+        model: XIPModel,
         nparts: int,
         ncfgs: int,
         verbose: bool = False,
     ) -> None:
         self.fextractor: XIPFeatureExtractor = fextractor
+        self.model = model
         self.nparts = nparts
         self.ncfgs = ncfgs
         self.verbose = verbose
@@ -164,6 +167,155 @@ class OfflineExecutor:
         xip_qcm = XIPQCostModel(models)
         joblib.dump(xip_qcm, os.path.join(self.model_dir, "xip_qcm.pkl"))
 
+    def get_initial_plan(self, results: dict, records: List[List[XIPExecutionProfile]]):
+        labels = results["labels"]
+        exact_fvals = results["ext_features"]
+
+        # each query have #ncfgs versions, we need to enumerate all plans
+        # a plan indicate the version of each query
+        # for each plan, we need to evaluate the cost and the prediction error
+        # we need to find the best plan
+        all_plans = np.array(
+            np.meshgrid(
+                *[np.arange(self.ncfgs) for _ in range(len(self.agg_qids))]
+            )
+        ).T.reshape(-1, len(self.agg_qids))
+
+        all_preds = []
+        all_costs = []
+        all_pvars = []
+        for plan in all_plans:
+            # get the features and costs for this plan
+            plan_fvals = np.zeros((len(records), len(self.fextractor.fnames)))
+            plan_fests = np.zeros((len(records), len(self.fextractor.fnames)))
+            plan_tcosts = np.zeros((len(records), len(self.agg_qids)))
+            for i, profiles in enumerate(records):
+                for fid in range(len(self.fextractor.fnames)):
+                    if fid in self.agg_fids:
+                        qid = self.agg_fid2qid[fid]
+                        # print(f'fid={fid}, qid={qid}, {self.agg_fids}, {self.agg_fid2qid}')
+                        j = self.agg_qids.index(qid)
+                        plan_fvals[i][fid] = profiles[plan[j]]["fvec"]["fvals"][fid]
+                        plan_fests[i][fid] = profiles[plan[j]]["fvec"]["fests"][fid]
+                    else:
+                        plan_fvals[i][fid] = exact_fvals[i][fid]
+                        plan_fests[i][fid] = 0.0
+                for j in range(len(self.agg_qids)):
+                    plan_tcosts[i][j] = profiles[plan[j]]["qcosts"][qid]["time"]
+            # get costs for this plan
+            costs = np.sum(plan_tcosts, axis=1)
+            all_costs.append(np.mean(costs))
+            # get predictions for this plan
+            preds = self.model.predict(plan_fvals)
+            all_preds.append(preds)
+            # get prediction variance for this plan
+            from apxinfer.core.festimator import get_feature_samples
+            n_samples = 100
+            seed = 0
+            pvars = np.zeros(len(records))
+            for i in range(len(records)):
+                fvals = plan_fvals[i]
+                fests = plan_fests[i]
+                p = len(fvals)
+                samples = np.zeros((n_samples, p))
+                for j in range(p):
+                    samples[:, j] = get_feature_samples(
+                        fvals[j], "normal", fests[j], seed + j, n_samples
+                    )
+                pvars[i] = np.var(self.model.predict(samples))
+            all_pvars.append(pvars)
+
+        all_preds = np.array(all_preds)
+        all_costs = np.array(all_costs)
+
+        all_mses = np.array([
+            np.mean((labels - preds) ** 2)
+            for preds in all_preds
+        ])
+
+        exact_preds = self.model.predict(exact_fvals)
+        all_mses_sim = np.array([
+            np.mean((exact_preds - preds) ** 2)
+            for preds in all_preds
+        ])
+        # print(f'all_plans: {all_plans}')
+        print(f'all_costs: {all_costs}')
+        print(f'all_mses: {all_mses}')
+        print(f'all_mses_sim: {all_mses_sim}')
+
+        # plot scatter (cost, mse)
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(all_costs, all_mses, alpha=0.7)
+        ax.set_xlabel("cost")
+        ax.set_ylabel("mse")
+        plt.savefig(f"{self.working_dir}/cost_mse.pdf", bbox_inches="tight")
+
+        # plot scatter (cost, mse_sim)
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(all_costs, all_mses_sim, alpha=0.7)
+        ax.set_xlabel("cost")
+        ax.set_ylabel("mse_sim")
+        if len(all_plans) < 100:
+            # plot the plans
+            for i, plan in enumerate(all_plans):
+                ax.annotate(
+                    str(plan),
+                    (all_costs[i], all_mses_sim[i]),
+                    textcoords="offset points",
+                    xytext=(0, 10),
+                    ha="center",
+                )
+        plt.savefig(f"{self.working_dir}/cost_mse_sim.pdf", bbox_inches="tight")
+
+        # find the plans whos mses is less or equal than mses[-1]
+        plan_ids = np.where(all_mses <= all_mses[-1])[0]
+        print(f'plan_ids: {plan_ids}')
+        # find the plan with minimal cost in plan_ids
+        best_plan_id = plan_ids[np.argmin(all_costs[plan_ids])]
+        best_plan = all_plans[best_plan_id]
+        print(f'best_plan_id: {best_plan_id}, best_plan={best_plan}')
+        print(f'best_cost: {all_costs[best_plan_id]}')
+        print(f'best_mse: {all_mses[best_plan_id]}')
+        print(f'best_mse_sim: {all_mses_sim[best_plan_id]}')
+
+        # plot the cdf of pvars, and mark the best_plan
+        fig, ax = plt.subplots(figsize=(8, 6))
+        for i in range(len(all_pvars)):
+            pvars = all_pvars[i]
+            if i == best_plan_id:
+                ax.plot(np.sort(pvars), np.linspace(0, 1, len(pvars)), label='best_plan')
+            else:
+                ax.plot(np.sort(pvars), np.linspace(0, 1, len(pvars)), alpha=0.1)
+        ax.set_xlabel("pvar")
+        ax.set_ylabel("cdf")
+        ax.legend()
+        plt.savefig(f"{self.working_dir}/pvar_cdf_all.pdf", bbox_inches="tight")
+
+        best_pvars = all_pvars[best_plan_id]
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.hist(best_pvars, bins=100, density=True, cumulative=True, histtype='step', label='cdf')
+        ax.set_xlabel("pvar")
+        ax.set_ylabel("cdf")
+        plt.savefig(f"{self.working_dir}/pvar_cdf.pdf", bbox_inches="tight")
+        # save best_pvars, best_preds, exact_preds, labels to csv
+        df = pd.DataFrame(
+            np.vstack((best_pvars, all_preds[best_plan_id], exact_preds, labels)).T,
+            columns=["pvar", "pred", "exact", "label"],
+        )
+        df['pdiff'] = df['pred'] - df['exact']
+        df['is_label'] = df['pred'] == df['label']
+        df['is_exact'] = df['pred'] == df['exact']
+        df.to_csv(os.path.join(self.working_dir, "pvar_preds.csv"), index=False)
+        # plot pdiff v.s. pvar and pdiff^2 v.s. pvar
+        fig, axes = plt.subplots(2, 1, figsize=(8, 12))
+        axes[0].scatter(df['pvar'], df['pdiff'], alpha=0.7)
+        axes[0].set_xlabel("pvar")
+        axes[0].set_ylabel("pdiff")
+        axes[1].scatter(df['pvar'], np.power(df['pdiff'], 2), alpha=0.7)
+        axes[1].set_xlabel("pvar")
+        axes[1].set_ylabel("abs(pdiff)")
+        plt.savefig(f"{self.working_dir}/pvar_pdiff.pdf", bbox_inches="tight")
+
     def run(self, dataset: pd.DataFrame, clear_cache: bool = False) -> dict:
         self.logger.info("Running offline executor")
         results = self.preprocess(dataset)
@@ -175,6 +327,8 @@ class OfflineExecutor:
             records = self.collect(requests=results["requests"])
             with open(records_path, "wb") as f:
                 pickle.dump(records, f)
+
+        self.get_initial_plan(results, records)
 
         qsamples = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
         fvars = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))

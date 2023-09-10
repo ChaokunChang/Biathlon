@@ -11,7 +11,7 @@ from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import XIPPredictionEstimator
 from apxinfer.core.qcost import XIPQCostModel
-from apxinfer.core.qinfluence import XIPQInfEstimator
+from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorSobol
 
 logging.basicConfig(level=logging.INFO)
 
@@ -371,3 +371,65 @@ class XIPSchedulerBalancedQCost(XIPSchedulerWQCost):
         qweights = self.get_qweights()
         priorities = 1.0 / np.where(delta_qsamples > 1e-9, qweights * delta_qsamples, 1)
         return priorities
+
+
+class XIPSchedulerOptimizer(XIPSchedulerWQCost):
+    def get_query_priority(
+        self, fvec: XIPFeatureVec, pred: XIPPredEstimation, delta_qsamples: np.ndarray
+    ) -> np.ndarray:
+        qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        # qweights = self.get_qweights()
+        priorities = qinf_est["qinfs"]
+        # priorities = priorities / np.where(
+        #     delta_qsamples > 1e-9, qweights * delta_qsamples, 1
+        # )
+        return priorities
+
+    def get_next_qcfgs(
+        self,
+        request: XIPRequest,
+        qcfgs: List[XIPQueryConfig],
+        fvec: XIPFeatureVec,
+        pred: XIPPredEstimation,
+        qcosts: List[QueryCostEstimation],
+    ) -> List[XIPQueryConfig]:
+        next_qcfgs = copy.deepcopy(qcfgs)  # qcfgs to return
+
+        next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
+        if early_ret:
+            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
+            return next_qcfgs
+
+        delta_qsamples = self.get_delta_qsamples(next_qcfgs)
+        valid_nsteps = np.round(delta_qsamples / self.sample_grans).astype(int)
+
+        nsteps = self.get_step_size()
+        nsteps = min(np.sum(valid_nsteps), nsteps)
+
+        # priorities = self.get_query_priority(fvec, pred, delta_qsamples)
+        assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
+        qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        priorities = qinf_est["qinfs"]
+
+        if np.any(priorities < 0.0):
+            self.logger.debug(f"negative priority exists: {priorities}")
+        assert np.all(priorities >= 0)
+        sorted_qids = np.argsort(priorities)[::-1]
+
+        self.logger.debug(f"nsteps={nsteps}, valid_nsteps={valid_nsteps}")
+        self.logger.debug(f"sorted_qids={sorted_qids}, priorities={priorities}")
+
+        while nsteps > 0:
+            if np.sum(valid_nsteps) == 0:
+                break
+            for qid in sorted_qids:
+                if nsteps == 0:
+                    break
+                if valid_nsteps[qid] == 0:
+                    continue
+                next_qcfgs[qid]["qcfg_id"] += 1
+                next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
+                nsteps -= 1
+                valid_nsteps[qid] -= 1
+        self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
+        return next_qcfgs

@@ -14,8 +14,8 @@ from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
 from apxinfer.core.qinfluence import XIPQInfEstimatorSobol
-from apxinfer.core.qcost import XIPQCostModel, QueryCostModel
-from apxinfer.core.scheduler import XIPScheduler, XIPSchedulerGreedy
+from apxinfer.core.qcost import XIPQCostModel
+from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
 from apxinfer.core.scheduler import XIPSchedulerUniform, XIPSchedulerBalancedQCost
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
@@ -107,12 +107,16 @@ def run_offline(name: str, args: OfflineArgs):
     test_set = LoadingHelper.load_dataset(args, "valid", args.nreqs)
     verbose = args.verbose and len(test_set) <= 10
 
+    # load xip model
+    model: XIPModel = LoadingHelper.load_model(args)
+
     # create a feature engine for this task
     fengine = get_fengine(name, args)
 
     executor = OfflineExecutor(
         working_dir=DIRHelper.get_offline_dir(args),
         fextractor=fengine,
+        model=model,
         nparts=args.nparts,
         ncfgs=args.ncfgs,
         verbose=verbose,
@@ -231,6 +235,18 @@ def run_online(name: str, args: OnlineArgs):
         )
     elif args.scheduler == "blqcost":
         scheduler = XIPSchedulerBalancedQCost(
+            fextractor=fengine,
+            model=model,
+            pred_estimator=pred_estimator,
+            qinf_estimator=qinf_estimator,
+            qcost_estimator=qcost_model,
+            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
+            batch_size=args.scheduler_batch,
+            min_card=args.err_min_support,
+            verbose=verbose,
+        )
+    elif args.scheduler == "optimizer":
+        scheduler = XIPSchedulerOptimizer(
             fextractor=fengine,
             model=model,
             pred_estimator=pred_estimator,

@@ -131,7 +131,7 @@ class XIPQInfEstimatorSobol(XIPQInfEstimator):
                 bounds.append([fvals[i], 1e-9])
                 dists.append('norm')
             elif fdists[i] in ['normal', 'r-normal', 'l-normal']:
-                bounds.append([fvals[i], fests[i]])
+                bounds.append([fvals[i], max(fests[i], 1e-9)])
                 dists.append('norm')
             else:
                 raise ValueError(f"Unknown distribution {dists[i]}")

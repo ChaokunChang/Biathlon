@@ -268,3 +268,34 @@ class MSensorsIngestor(XIPDataIngestor):
                 SELECT rid, bid, sensor_{self.sid} as signal, label, tag, pid
                 FROM {self.dsrc}"""
         )
+
+
+def get_ingestor(nparts: int = 100, seed: int = 0):
+    dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
+    if not os.path.exists(dsrc):
+        dsrc = "/public/ckchang/db/clickhouse/user_files/machinery"
+    if not os.path.exists(dsrc):
+        dsrc = "/mnt/sdb/dataset/machinery"
+    ingestor = MachineryIngestor(
+        dsrc_type="csv_dir",
+        dsrc=dsrc,
+        database="xip",
+        table=f"mach_imbalance_{nparts}",
+        nparts=nparts,
+        seed=seed,
+    )
+    return ingestor
+
+
+def get_dloader(nparts: int = 100, verbose: bool = False) -> XIPDataLoader:
+    data_loader: XIPDataLoader = XIPDataLoader(
+        backend="clickhouse",
+        database="xip",
+        table=f"mach_imbalance_{nparts}",
+        seed=0,
+        enable_cache=False,
+    )
+    if verbose:
+        print(f"tsize ={data_loader.statistics['tsize']}")
+        print(f"nparts={data_loader.statistics['nparts']}")
+    return data_loader

@@ -4,12 +4,8 @@ import datetime as dt
 import os
 from tqdm import tqdm
 
-from apxinfer.core.feature import XIPFeatureExtractor
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
-from apxinfer.core.config import PrepareArgs, DIRHelper
-
-from apxinfer.examples.tick.data import TickDataIngestor, TickHourFStoreIngestor
-from apxinfer.examples.tick.feature import get_fextractor
 
 
 class TickPrepareWorker(XIPPrepareWorker):
@@ -23,6 +19,7 @@ class TickPrepareWorker(XIPPrepareWorker):
         model_type: str,
         model_name: str,
         seed: int,
+        nparts: int
     ) -> None:
         super().__init__(
             working_dir,
@@ -34,16 +31,18 @@ class TickPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
+        self.database = "xip"
+        self.table = f"tick_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:
         self.logger.info("Getting requests")
-        sql = """SELECT toString(min(tick_dt)) from xip.tick"""
+        sql = f"""SELECT toString(min(tick_dt)) from {self.database}.{self.table}"""
         min_dt: str = self.db_client.command(sql)
         min_dt = dt.datetime.strptime(min_dt, "%Y-%m-%d %H:%M:%S.%f")
         start_dt = min_dt + dt.timedelta(hours=7)
 
         max_dt: str = self.db_client.command(
-            """SELECT toString(max(tick_dt)) from xip.tick"""
+            f"""SELECT toString(max(tick_dt)) from {self.database}.{self.table}"""
         )
         max_dt = dt.datetime.strptime(max_dt, "%Y-%m-%d %H:%M:%S.%f")
         end_dt = max_dt - dt.timedelta(hours=1)
@@ -104,61 +103,3 @@ class TickPrepareWorker(XIPPrepareWorker):
         labels_pds = pd.to_numeric(labels_pds, errors="coerce")
         labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels_pds
-
-
-def ingest_data(nparts: int = 100, seed: int = 0):
-    dsrc_type = "user_files_dir"
-    dsrc = "/public/ckchang/db/clickhouse/user_files/tick-data"
-    if not os.path.exists(dsrc):
-        dsrc = "/mnt/sdb/dataset/tick-data"
-    ingestor = TickDataIngestor(
-        dsrc_type=dsrc_type,
-        dsrc=dsrc,
-        database="xip",
-        table="tick",
-        nparts=nparts,
-        seed=seed,
-    )
-    ingestor.run()
-
-    ingestor = TickHourFStoreIngestor(
-        dsrc_type="clickhouse",
-        dsrc="xip.tick",
-        database="xip",
-        table="tick_fstore_hour",
-        nparts=nparts,
-        seed=seed,
-    )
-    ingestor.run()
-
-
-if __name__ == "__main__":
-    # Configurations
-    args = PrepareArgs().parse_args()
-    nparts = args.nparts
-    skip_dataset = args.skip_dataset
-    max_requests = args.max_requests
-    train_ratio = args.train_ratio
-    valid_ratio = args.valid_ratio
-    model_name = args.model
-    model_type = "regressor"
-    seed = args.seed
-    working_dir = DIRHelper.get_prepare_dir(args)
-
-    ingest_data(nparts=nparts, seed=seed)
-
-    fextractor = get_fextractor(
-        nparts, seed, disable_sample_cache=True, disable_query_cache=True,
-        loading_nthreads=args.loading_nthreads
-    )
-    pworker = TickPrepareWorker(
-        working_dir,
-        fextractor,
-        max_requests,
-        train_ratio,
-        valid_ratio,
-        model_type,
-        model_name,
-        seed,
-    )
-    pworker.run(skip_dataset=skip_dataset)

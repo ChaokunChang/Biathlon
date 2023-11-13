@@ -62,7 +62,7 @@ class OnlineArgs(BaseXIPArgs):
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol"] = "sobol"  # query inference method
+    qinf: Literal["direct", "by_finf", "sobol", "sobolT"] = "sobol"  # query inference method
 
     scheduler: Literal[
         "greedy", "random", "greedy_plus",
@@ -146,6 +146,7 @@ class DIRHelper:
         online_dir = os.path.join(working_dir, "online", model_tag)
         online_dir = os.path.join(online_dir, f"ncores-{args.ncores}")
         online_dir = os.path.join(online_dir, f"ldnthreads-{args.loading_nthreads}")
+        online_dir = os.path.join(online_dir, f"nparts-{args.nparts}")
         if args.exact:
             online_dir = os.path.join(online_dir, "exact")
         else:

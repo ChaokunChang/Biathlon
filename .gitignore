@@ -3,6 +3,7 @@ data/
 results/
 results2/
 logs/
+apxinfer/examples/evals
 .vscode/
 
 # Byte-compiled / optimized / DLL files

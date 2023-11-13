@@ -239,7 +239,7 @@ class XIPFeatureErrorEstimator:
     def count(self, samples: np.ndarray, p: float, tsize: int):
         fc = len(samples) / (tsize * p)
         fstds = tsize * np.sqrt((1 - p) * fc * (1 - fc) / (p * (tsize - 1)))
-        return fstds
+        return np.array([fstds])
 
     def sum(self, samples: np.ndarray, p: float, tsize: int):
         smpl_stds = np.std(samples, axis=0, ddof=1)

@@ -1,20 +1,20 @@
-import numpy as np
+from typing import List
 import pandas as pd
 import datetime as dt
 
-from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
 from apxinfer.core.data import DBHelper
-from apxinfer.core.query import XIPQuery
-from apxinfer.core.feature import get_fvec_auto
+
+from apxinfer.core.utils import XIPQType
+from apxinfer.core.data import XIPDataLoader
+from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
 from apxinfer.examples.tick.data import TickRequest
-from apxinfer.examples.tick.data import TickThisHourDataLoader, TickHourFStoreDataLoader
 
 
 def get_embedding() -> dict:
     db_client = DBHelper.get_db_client()
     cpairs: pd.DataFrame = db_client.query_df(
-        "select distinct cpair from xip.tick order by cpair"
+        "select distinct cpair from xip.tick_fstore_hour order by cpair"
     )
     currencies = []
     for cpair in cpairs["cpair"].values:
@@ -25,83 +25,128 @@ def get_embedding() -> dict:
     return currency_map
 
 
-class TickQP0(XIPQuery):
-    def __init__(self, qname: str, enable_cache: bool = False) -> None:
-        qtype = XIPQType.NORMAL
-        data_loader = None
-        fnames = ["cfrom", "cto"]
-        super().__init__(qname, qtype, data_loader, fnames, enable_cache)
-        self.cmap = get_embedding()
+class TickQP0(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        self.embeddings = get_embedding()
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["req_cpair"]
+        dcol_aggs = [[lambda x: self.embeddings.get(x[0][0].split("/")[0], 0),
+                      lambda x: self.embeddings.get(x[0][0].split("/")[1], 0)]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class TickQP1(XIPQueryProcessor):
+    def get_query_condition(self, request: TickRequest) -> str:
         cpair = request["req_cpair"]
-        cfrom = self.cmap.get(cpair.split("/")[0], 0)
-        cto = self.cmap.get(cpair.split("/")[1], 0)
-        fvals = np.array([cfrom, cto])
-        return self.get_fvec_with_default_est(fvals=fvals)
-
-
-class TickQP1(XIPQuery):
-    def __init__(self, qname: str, enable_cache: bool = False, seed: int = 0) -> None:
-        qtype = XIPQType.AGG
-        data_loader = TickThisHourDataLoader(
-            "clickhouse", "xip", "tick", seed, enable_cache
-        )
-        self.dcols = ["bid"]
-        # self.dcol_aggs = [["avg", "stddevSamp"]]
-        self.dcol_aggs = [["avg"]]
-        fnames = [
-            f"{agg}_{col}_hour"
-            for col, aggs in zip(self.dcols, self.dcol_aggs)
-            for agg in aggs
+        tick_dt = pd.to_datetime(request["req_dt"])
+        from_dt = tick_dt
+        to_dt = from_dt + dt.timedelta(hours=1)
+        and_list = [
+            f"cpair = '{cpair}'",
+            f"tick_dt >= '{from_dt}'",
+            f"tick_dt < '{to_dt}'"
         ]
-        super().__init__(qname, qtype, data_loader, fnames, enable_cache)
+        qcond = " AND ".join(and_list)
+        return qcond
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols, loading_nthreads)
-        if req_data is None or len(req_data) == 0:
-            ret = self.get_default_fvec(request, qcfg)
-        else:
-            ret = get_fvec_auto(
-                fnames=self.fnames,
-                req_data=req_data,
-                dcol_aggs=self.dcol_aggs,
-                qsample=qcfg["qsample"],
-                tsize=self.data_loader.statistics["tsize"],
-            )
-        return ret
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["bid"]
+        dcol_aggs = [["avg"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
 
 
-class TickQP2(XIPQuery):
-    def __init__(
-        self, qname: str, enable_cache: bool = False, seed: int = 0, offset: int = 1
-    ) -> None:
-        qtype = XIPQType.FSTORE
-        data_loader = TickHourFStoreDataLoader(
-            "clickhouse", "xip", "tick_fstore_hour", seed, enable_cache
-        )
+class TickQP2(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 offset: int = 1,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
         self.offset = offset
-        self.dcols = ["bid"]
-        # self.dcol_aggs = [["avg", "stddevSamp"]]
-        self.dcol_aggs = [["avg"]]
-        fnames = [
-            f"fstore_{agg}_{col}_hour_{offset}"
-            for col, aggs in zip(self.dcols, self.dcol_aggs)
-            for agg in aggs
-        ]
-        super().__init__(qname, qtype, data_loader, fnames, enable_cache)
-        self.fstore_cols = [
-            f"{agg}_{col}"
-            for col, aggs in zip(self.dcols, self.dcol_aggs)
-            for agg in aggs
-        ]
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
 
-    def run(self, request: TickRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        last_hour = pd.to_datetime(request["req_dt"]) - dt.timedelta(hours=self.offset)
-        req: TickRequest = TickRequest(
-            req_id=request["req_id"],
-            req_dt=f"{last_hour}",
-            req_cpair=request["req_cpair"],
-        )
-        fvals = self.data_loader.load_data(req, qcfg, self.fstore_cols, loading_nthreads)
-        return self.get_fvec_with_default_est(fvals=fvals)
+    def get_query_condition(self, request: TickRequest) -> str:
+        cpair = request["req_cpair"]
+        tick_dt = pd.to_datetime(request["req_dt"])
+        target_dt = pd.to_datetime(tick_dt) - dt.timedelta(hours=self.offset)
+        and_list = [
+            f"cpair = '{cpair}'",
+            f"year = {target_dt.year}",
+            f"month = {target_dt.month}",
+            f"day = {target_dt.day}",
+            f"hour = {target_dt.hour}"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["avg_bid"]
+        dcol_aggs = [[lambda x: x[0][0]]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class TickQP3(XIPQueryProcessor):
+    def get_query_condition(self, request: TickRequest) -> str:
+        cpair = request["req_cpair"]
+        tick_dt = pd.to_datetime(request["req_dt"])
+        from_dt = tick_dt
+        to_dt = from_dt + dt.timedelta(hours=1)
+        and_list = [
+            f"cpair = '{cpair}'",
+            f"tick_dt >= '{from_dt}'",
+            f"tick_dt < '{to_dt}'"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["ask"]
+        dcol_aggs = [["avg"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class TickQP4(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 offset: int = 1,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        self.offset = offset
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+
+    def get_query_condition(self, request: TickRequest) -> str:
+        cpair = request["req_cpair"]
+        tick_dt = pd.to_datetime(request["req_dt"])
+        target_dt = pd.to_datetime(tick_dt) - dt.timedelta(hours=self.offset)
+        and_list = [
+            f"cpair = '{cpair}'",
+            f"year = {target_dt.year}",
+            f"month = {target_dt.month}",
+            f"day = {target_dt.day}",
+            f"hour = {target_dt.hour}"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["avg_ask"]
+        dcol_aggs = [[lambda x: x[0][0]]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops

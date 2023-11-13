@@ -19,3 +19,9 @@ $interpreter run.py --stage train --task $task_home --model lgbm --nparts $npart
 $interpreter run.py --stage offline --task $task_home --model lgbm --nparts $nparts --nreqs $oflnreqs --ncfgs $ncfg --clear_cache --ncores 0
 $interpreter run.py --stage online --task $task_home --model lgbm --nparts $nparts --offline_nreqs $oflnreqs --nreqs $nreqs --ncfgs $ncfgs --exact --ncores 0
 $interpreter run.py --stage online --task $task_home --model lgbm --nparts $nparts --offline_nreqs $oflnreqs --nreqs $nreqs --ncfgs $ncfgs --ncores 0 --pest_constraint error --max_error 0.5 --min_conf 0.95
+
+# python run.py --example cheaptrips --stage prepare --task test/cheaptrips --model xgb --nparts 10
+# python run.py --example cheaptrips --stage train --task test/cheaptrips --model xgb --nparts 10
+# python run.py --example cheaptrips --stage offline --task test/cheaptrips --model xgb --nparts 10 --nreqs 0 --ncfgs 10 --clear_cache --ncores 0
+# python run.py --example cheaptrips --stage online --task test/cheaptrips --model xgb --nparts 10 --offline_nreqs 0 --ncfgs 10 --exact --ncores 0
+# python run.py --example cheaptrips --stage online --task test/cheaptrips --model xgb --nparts 10 --offline_nreqs 0 --ncfgs 10 --ncores 0 --pest_constraint error --max_error 0 --min_conf 0.95

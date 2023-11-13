@@ -175,11 +175,25 @@ class OfflineExecutor:
         # a plan indicate the version of each query
         # for each plan, we need to evaluate the cost and the prediction error
         # we need to find the best plan
+        if len(self.agg_qids) > 5:
+            nversions = min(2, self.ncfgs)
+        elif len(self.agg_qids) > 3:
+            nversions = min(5, self.nparts)
+        else:
+            nversions = self.ncfgs
+        if np.power(nversions, len(self.agg_qids)) > 1000:
+            if nversions > 10:
+                nversions = 10
+            if np.power(nversions, len(self.agg_qids)) > 1000:
+                print(f'Warning: too many plans, {np.power(nversions, len(self.agg_qids))}, skip')
+                return
+
         all_plans = np.array(
             np.meshgrid(
-                *[np.arange(self.ncfgs) for _ in range(len(self.agg_qids))]
+                *[np.arange(nversions) for _ in range(len(self.agg_qids))]
             )
         ).T.reshape(-1, len(self.agg_qids))
+        all_plans = all_plans * (self.ncfgs // nversions) + (self.ncfgs % nversions)
 
         all_preds = []
         all_costs = []
@@ -328,7 +342,7 @@ class OfflineExecutor:
             with open(records_path, "wb") as f:
                 pickle.dump(records, f)
 
-        self.get_initial_plan(results, records)
+        # self.get_initial_plan(results, records)
 
         qsamples = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
         fvars = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
@@ -369,5 +383,7 @@ class OfflineExecutor:
         df.to_csv(os.path.join(self.model_dir, "features.csv"), index=False)
 
         self.plot_qcost(df)
+
+        self.get_initial_plan(results, records)
 
         return None

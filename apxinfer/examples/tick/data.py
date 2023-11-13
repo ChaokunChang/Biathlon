@@ -86,7 +86,8 @@ class TickDataIngestor(XIPDataIngestor):
         ), f"Unsupported data source type {self.dsrc_type}"
 
         # we first create an auxiliary table to store the data
-        aux_table = f"{self.table}_aux"
+        # aux_table = f"{self.table}_aux"
+        aux_table = "tick_aux"
         nrows = self.create_aux_table(aux_table)
         print(f"nrows = {nrows}")
 
@@ -132,7 +133,7 @@ class TickDataIngestor(XIPDataIngestor):
         self.db_client.command(sql)
 
         # we drop the auxiliary table
-        self.drop_aux_table(aux_table)
+        # self.drop_aux_table(aux_table)
 
     def drop_aux_table(self, aux_table: str) -> None:
         DBHelper.drop_table(self.db_client, self.database, aux_table)
@@ -289,3 +290,39 @@ class TickHourFStoreDataLoader(XIPDataLoader):
             SETTINGS max_threads = {loading_nthreads}
         """
         return self.load_from_fstore(request, qcfg, cols, sql)
+
+
+def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
+    dsrc_type = "user_files_dir"
+    possible_dsrcs = ["/public/ckchang/db/clickhouse/user_files/tick-data",
+                      "/mnt/sdb/dataset/tick-data",
+                      "/mnt/hddraid/clickhouse-data/user_files/tick-data/February2022"]
+                    #   "/mnt/hddraid/clickhouse-data/user_files/tick-data"]
+    dsrc = None
+    for src in possible_dsrcs:
+        if os.path.exists(src):
+            dsrc = src
+            print(f"dsrc path: {dsrc}")
+            break
+    if dsrc is None:
+        raise RuntimeError("no valid dsrc!")
+
+    ingestor = TickDataIngestor(
+        dsrc_type=dsrc_type,
+        dsrc=dsrc,
+        database="xip",
+        table=f"tick_{nparts}",
+        nparts=nparts,
+        seed=seed,
+    )
+    ingestor.run()
+
+    ingestor = TickHourFStoreIngestor(
+        dsrc_type="clickhouse",
+        dsrc=f"xip.tick_{nparts}",
+        database="xip",
+        table="tick_fstore_hour",
+        nparts=nparts,
+        seed=seed,
+    )
+    ingestor.run()

@@ -413,7 +413,12 @@ class XIPSchedulerOptimizer(XIPSchedulerWQCost):
 
         if np.any(priorities < 0.0):
             self.logger.debug(f"negative priority exists: {priorities}")
-        assert np.all(priorities >= 0)
+            priorities = np.maximum(priorities, 0.0)
+        assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
+        priorities = priorities / np.where(
+            delta_qsamples > 1e-9, self.get_qweights() * delta_qsamples, 1
+        )
+
         sorted_qids = np.argsort(priorities)[::-1]
 
         self.logger.debug(f"nsteps={nsteps}, valid_nsteps={valid_nsteps}")

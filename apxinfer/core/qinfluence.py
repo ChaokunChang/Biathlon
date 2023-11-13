@@ -147,8 +147,68 @@ class XIPQInfEstimatorSobol(XIPQInfEstimator):
             "dists": dists
         }
         calc_second_order = False
-        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order)
+        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=0)
         preds = model.predict(param_values)
-        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order)
+        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=0)
         qinfs = Si["S1"]
+        # print(f"qinfs = {qinfs}")
+        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
+        if np.var(preds) == 0:
+            qinfs = np.ones(fextractor.num_queries) * 1e-9
+        return XIPQInfEstimation(qinfs=qinfs)
+
+
+class XIPQInfEstimatorSTIndex(XIPQInfEstimatorSobol):
+    """Estimate the influence of a query on a prediction
+    by using the influence of each feature on the prediction
+    """
+
+    def __init__(
+        self, pred_estimator: XIPPredictionEstimator, verbose: bool = False
+    ) -> None:
+        super().__init__(pred_estimator, verbose)
+
+    def estimate(
+        self,
+        model: XIPModel,
+        fextractor: XIPFeatureExtractor,
+        fvec: XIPFeatureVec,
+        xip_pred: XIPPredEstimation,
+    ) -> XIPQInfEstimation:
+        fdists = fvec["fdists"]
+        fvals = fvec["fvals"]
+        fests = fvec["fests"]
+        n_features = len(fdists)
+        # print(fvec)
+        bounds = []
+        dists = []
+        for i in range(n_features):
+            if fdists[i] == 'fixed':
+                bounds.append([fvals[i], 1e-9])
+                dists.append('norm')
+            elif fdists[i] in ['normal', 'r-normal', 'l-normal']:
+                bounds.append([fvals[i], max(fests[i], 1e-9)])
+                dists.append('norm')
+            else:
+                raise ValueError(f"Unknown distribution {dists[i]}")
+        groups = []
+        for i in range(fextractor.num_queries):
+            for j in range(fextractor.queries[i].n_features):
+                groups.append(f'g{i}')
+        problem = {
+            "num_vars": n_features,
+            "groups": groups,
+            "names": fvec["fnames"],
+            "bounds": bounds,
+            "dists": dists
+        }
+        calc_second_order = False
+        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=0)
+        preds = model.predict(param_values)
+        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=0)
+        qinfs = Si["ST"]
+        # print(f"qinfs = {qinfs}")
+        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
+        if np.var(preds) == 0:
+            qinfs = np.ones(fextractor.num_queries) * 1e-9
         return XIPQInfEstimation(qinfs=qinfs)

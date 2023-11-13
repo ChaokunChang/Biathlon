@@ -315,13 +315,31 @@ class XIPQueryProcessor:
             self._dcache["cached_rrd"] = None
 
         if from_pid < to_pid:
-            sql = f"""
-                    SELECT {', '.join([qop['dcol'] for qop in self.qops])}
-                    FROM {self.dbtable}
-                    WHERE {qcond} AND pid >= {from_pid} AND pid < {to_pid}
-                    SETTINGS max_threads = {loading_nthreads}
-                """
-            new_rrd = self.execute_sql(sql)
+            pid_by_pid = False
+            if pid_by_pid:
+                rrds = []
+                for next_pid in range(from_pid, to_pid):
+                    sql = f"""
+                        SELECT {', '.join([qop['dcol'] for qop in self.qops])}
+                        FROM {self.dbtable}
+                        WHERE {qcond} AND pid >= {next_pid} AND pid < {next_pid+1}
+                        SETTINGS max_threads = {loading_nthreads}
+                    """
+                    prrd = self.execute_sql(sql)
+                    if prrd is not None and len(prrd) > 0:
+                        rrds.append(prrd)
+                if len(rrds) > 0:
+                    new_rrd = np.concatenate(rrds)
+                else:
+                    new_rrd = None
+            else:
+                sql = f"""
+                        SELECT {', '.join([qop['dcol'] for qop in self.qops])}
+                        FROM {self.dbtable}
+                        WHERE {qcond} AND pid >= {from_pid} AND pid < {to_pid}
+                        SETTINGS max_threads = {loading_nthreads}
+                    """
+                new_rrd = self.execute_sql(sql)
         else:
             self.logger.debug(f"all required data were cached for {self.qname}, {qcfg}")
             new_rrd = None
@@ -534,13 +552,31 @@ class XIPQueryProcessor:
             self._dcache["cached_rrd"] = None
 
         if from_pid < to_pid:
-            sql = f"""
-                    SELECT {', '.join([qop['dcol'] for qop in self.qops])}
-                    FROM {self.dbtable}
-                    WHERE {qcond} AND pid >= {from_pid} AND pid < {to_pid}
-                    SETTINGS max_threads = {loading_nthreads}
-                """
-            new_rrd = await self.execute_sql_async(sql)
+            pid_by_pid = False
+            if pid_by_pid:
+                rrds = []
+                for next_pid in range(from_pid, to_pid):
+                    sql = f"""
+                        SELECT {', '.join([qop['dcol'] for qop in self.qops])}
+                        FROM {self.dbtable}
+                        WHERE {qcond} AND pid >= {next_pid} AND pid < {next_pid+1}
+                        SETTINGS max_threads = {loading_nthreads}
+                    """
+                    prrd = await self.execute_sql_async(sql)
+                    if prrd is not None and len(prrd) > 0:
+                        rrds.append(prrd)
+                if len(rrds) > 0:
+                    new_rrd = np.concatenate(rrds)
+                else:
+                    new_rrd = None
+            else:
+                sql = f"""
+                        SELECT {', '.join([qop['dcol'] for qop in self.qops])}
+                        FROM {self.dbtable}
+                        WHERE {qcond} AND pid >= {from_pid} AND pid < {to_pid}
+                        SETTINGS max_threads = {loading_nthreads}
+                    """
+                new_rrd = await self.execute_sql_async(sql)
         else:
             self.logger.debug(f"all required data were cached for {self.qname}, {qcfg}")
             new_rrd = None

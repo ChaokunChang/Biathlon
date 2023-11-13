@@ -1,105 +1,83 @@
-import numpy as np
+from typing import List
 import pandas as pd
+import datetime as dt
 
-from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
-from apxinfer.core.utils import merge_fvecs, is_same_float
-from apxinfer.core.data import DBHelper
-from apxinfer.core.query import XIPQuery
-from apxinfer.core.feature import FEstimatorHelper
+from apxinfer.core.utils import XIPQType
+from apxinfer.core.data import XIPDataLoader
+from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
 from apxinfer.examples.ccfraud.data import CCFraudRequest
-from apxinfer.examples.ccfraud.data import CCFraudTxnsLoader
-from apxinfer.examples.ccfraud.data import CCFraudCardsLoader
-from apxinfer.examples.ccfraud.data import CCFraudUsersIngestor
 
 
-def get_embedding(database: str, table: str, col: str) -> dict:
-    """borough embedding, take borough str, output an int"""
-    db_client = DBHelper.get_db_client()
-    df: pd.DataFrame = db_client.query_df(
-        f"select distinct {col} from {database}.{table} order by {col}"
-    )
-    embedding = {value: i + 1 for i, value in enumerate(df[col].values)}
-    return embedding
-
-
-class CCFraudQ0(XIPQuery):
-    def __init__(
-        self, qname: str, database: str, table: str, enable_cache: bool = False
-    ) -> None:
-        data_loader = None
-        self.dt_fnames = ["hour"]
-        self.num_fnames = ["amount", "zip_code", "mcc"]
-        self.cat_fnames = [
+class CCFraudQP0(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        cat_fnames = [
             "use_chip",
             "merchant_name",
             "merchant_city",
             "merchant_state",
         ]
-        fnames = self.dt_fnames + self.num_fnames + self.cat_fnames
-        super().__init__(qname, XIPQType.NORMAL, data_loader, fnames, enable_cache)
-        self.embeddings = {
-            k: get_embedding(database, table, k) for k in self.cat_fnames
-        }
+        self.embeddings = {}
+        for dcol in cat_fnames:
+            self.get_dcol_embeddings(dcol)
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        txn_dt = pd.to_datetime(request["req_txn_datetime"])
-        dt_fvals = np.array([txn_dt.hour])
-        num_fvals = np.array([request[f"req_{key}"] for key in self.num_fnames])
-        cat_keys = [f"req_{key}" for key in self.cat_fnames]
-        cat_fvals = np.array(
-            [
-                self.embeddings[key.replace("req_", "")].get(f"{request[key]}", 0)
-                for key in cat_keys
-            ]
-        )
-        fvals = np.concatenate([dt_fvals, num_fvals, cat_fvals])
-        fests = np.zeros_like(fvals)
-        fdists = ["normal"] * len(fvals)
-        return XIPFeatureVec(
-            fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists
-        )
-
-
-class CCFraudQ1(XIPQuery):
-    def __init__(
-        self, qname: str, data_loader: CCFraudCardsLoader, enable_cache: bool = False
-    ) -> None:
-        self.num_fnames = [
-            "cvv",
-            "has_chip",
-            "cards_issued",
-            "credit_limit",
-            "pin_last_changed",
-            "card_on_dark_web",
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["req_txn_datetime",
+                 "req_amount", "req_zip_code", "req_mcc",
+                 "req_use_chip", "req_merchant_name",
+                 "req_merchant_city", "req_merchant_state"]
+        dcol_aggs = [
+            [lambda x: pd.to_datetime(x[0][0]).hour],
+            [lambda x: float(x[0][1])],
+            [lambda x: int(x[0][2])],
+            [lambda x: int(x[0][3])],
+            [lambda x: self.get_dcol_embeddings("use_chip").get(x[0][4], 0)],
+            [lambda x: self.get_dcol_embeddings("merchant_name").get(x[0][5], 0)],
+            [lambda x: self.get_dcol_embeddings("merchant_city").get(x[0][6], 0)],
+            [lambda x: self.get_dcol_embeddings("merchant_state").get(x[0][7], 0)],
         ]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class CCFraudQP1(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
         self.cat_fnames = ["card_brand", "card_type"]
-        fnames = self.num_fnames + self.cat_fnames
-        super().__init__(qname, XIPQType.KeySearch, data_loader, fnames, enable_cache)
-        database = self.data_loader.database
-        table = self.data_loader.table
-        self.embeddings = {
-            k: get_embedding(database, table, k) for k in self.cat_fnames
-        }
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        self.embeddings = {}
+        for dcol in self.cat_fnames:
+            self.get_dcol_embeddings(dcol)
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        fcols = self.fnames
-        fvals = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
-        for i in range(len(self.num_fnames), len(fvals)):
-            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
-                fvals[i], 0
-            )
-        fests = np.zeros_like(fvals)
-        fdists = ["normal"] * len(fvals)
-        return XIPFeatureVec(
-            fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists
-        )
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        uid = request["req_uid"]
+        card_index = request["req_card_index"]
+        and_list = [
+            f"uid = {uid}",
+            f"card_index = {card_index}"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = self.cat_fnames
+        dcol_aggs = [[lambda x: self.get_dcol_embeddings(self.cat_fnames[i]).get(x[0][i], 0)]
+                      for i in range(len(self.cat_fnames))]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
 
 
-class CCFraudQ2(XIPQuery):
-    def __init__(
-        self, qname: str, data_loader: CCFraudUsersIngestor, enable_cache: bool = False
-    ) -> None:
+class CCFraudQP2(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
         self.num_fnames = [
             "current_age",
             "retirement_age",
@@ -112,171 +90,127 @@ class CCFraudQ2(XIPQuery):
             "fico_score",
             "num_credit_cards",
         ]
-        self.cat_fnames = ["uname", "address", "apartment", "city", "state", "zipcode"]
-        fnames = self.num_fnames + self.cat_fnames
-        super().__init__(qname, XIPQType.KeySearch, data_loader, fnames, enable_cache)
-        database = self.data_loader.database
-        table = self.data_loader.table
-        self.embeddings = {
-            k: get_embedding(database, table, k) for k in self.cat_fnames
-        }
+        self.cat_fnames = ["uname", "address",
+                           "apartment", "city",
+                           "state", "zipcode"]
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        self.embeddings = {}
+        for dcol in self.cat_fnames:
+            self.get_dcol_embeddings(dcol)
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        fcols = self.fnames
-        fvals = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
-        for i in range(len(self.num_fnames), len(fvals)):
-            fvals[i] = self.embeddings[self.cat_fnames[i - len(self.num_fnames)]].get(
-                fvals[i], 0
-            )
-        fests = np.zeros_like(fvals)
-        fdists = ["normal"] * len(fvals)
-        return XIPFeatureVec(
-            fnames=self.fnames, fvals=fvals, fests=fests, fdists=fdists
-        )
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        uid = request["req_uid"]
+        qcond = f"uid = {uid}"
+        return qcond
 
-
-class CCFraudQ3(XIPQuery):
-    def __init__(
-        self,
-        qname: str,
-        data_loader: CCFraudTxnsLoader,
-        enable_cache: bool = False,
-    ) -> None:
-        wsize = data_loader.window_size
-        fnames = [
-            f"cnt_{wsize}days",
-            f"avg_amount_{wsize}days",
-            f"std_amount_{wsize}days",
-            f"min_amount_{wsize}days",
-            f"max_amount_{wsize}days",
-            f"median_amount_{wsize}days",
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = self.num_fnames + self.cat_fnames
+        dcol_aggs = [[lambda x: int(x[0][i])]
+                     for i in range(len(self.num_fnames))]
+        dcol_aggs += [[lambda x: self.get_dcol_embeddings(self.cat_fnames[i]).get(x[0][i + len(self.num_fnames)], 0)]
+                      for i in range(len(self.cat_fnames))]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
         ]
-        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
-
-        self.cached_reqid = -1
-        self.cached_qsample = 0
-        self.cached_data = None
-
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        qsample = qcfg["qsample"]
-        fcols = ["amount"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
-
-        if req_data is None or len(req_data) == 0:
-            fvals = np.zeros(len(self.fnames))
-            if is_same_float(qsample, 1.0):
-                self.logger.warning(f"no data for {request}")
-                fests = np.zeros(len(self.fnames))
-            else:
-                # self.logger.warning(f'no data for {request} with qsample={qsample}')
-                fests = np.ones(len(self.fnames)) * 1e9
-            return XIPFeatureVec(
-                fnames=self.fnames,
-                fvals=fvals,
-                fests=fests,
-                fdists=["normal"] * len(self.fnames),
-            )
-
-        aggs = ["count", "avg", "std", "min", "max", "median"]
-        fvecs = []
-        for i, agg in enumerate(aggs):
-            fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample, self.data_loader.statistics["tsize"]
-            )
-            fvecs.append(fvec)
-        fvec = merge_fvecs(fvecs, new_names=self.fnames)
-        return fvec
+        return qops
 
 
-class CCFraudQ4(XIPQuery):
-    def __init__(
-        self,
-        qname: str,
-        data_loader: CCFraudTxnsLoader,
-        enable_cache: bool = False,
-    ) -> None:
-        wsize = data_loader.window_size
-        col = "is_fraud"
-        fnames = [f"sum_{col}_{wsize}days", f"avg_{col}_{wsize}days"]
-        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
+class CCFraudQP3(XIPQueryProcessor):
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        window_size = 30
+        req_dt = pd.to_datetime(request["req_txn_datetime"])
+        from_dt = req_dt + dt.timedelta(days=-window_size)
+        req_uid = request["req_uid"]
+        and_list = [
+            f"txn_datetime >= '{from_dt}'",
+            f"txn_datetime < '{req_dt}'",
+            f"uid = '{req_uid}'"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
 
-        self.cached_reqid = -1
-        self.cached_qsample = 0
-        self.cached_data = None
-
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        qsample = qcfg["qsample"]
-        fcols = ["is_fraud"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
-
-        if req_data is None or len(req_data) == 0:
-            fvals = np.zeros(len(self.fnames))
-            if is_same_float(qsample, 1.0):
-                self.logger.warning(f"no data for {request}")
-                fests = np.zeros(len(self.fnames))
-            else:
-                # self.logger.warning(f'no data for {request} with qsample={qsample}')
-                fests = np.ones(len(self.fnames)) * 1e9
-            return XIPFeatureVec(
-                fnames=self.fnames,
-                fvals=fvals,
-                fests=fests,
-                fdists=["normal"] * len(self.fnames),
-            )
-
-        aggs = ["sum", "avg"]
-        fvecs = []
-        for i, agg in enumerate(aggs):
-            fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample, self.data_loader.statistics["tsize"]
-            )
-            fvecs.append(fvec)
-        fvec = merge_fvecs(fvecs, new_names=self.fnames)
-        return fvec
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["is_fraud"]
+        dcol_aggs = [["sum"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
 
 
-class CCFraudQ5(XIPQuery):
-    def __init__(
-        self,
-        qname: str,
-        data_loader: CCFraudTxnsLoader,
-        enable_cache: bool = False,
-    ) -> None:
-        wsize = data_loader.window_size
-        col = "errors"
-        fnames = [f"unique_{col}_{wsize}days"]
-        super().__init__(qname, XIPQType.AGG, data_loader, fnames, enable_cache)
+class CCFraudQP4(XIPQueryProcessor):
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        window_size = 30 * 12
+        req_dt = pd.to_datetime(request["req_txn_datetime"])
+        from_dt = req_dt + dt.timedelta(days=-window_size)
+        req_uid = request["req_uid"]
+        req_card = request['req_card_index']
+        and_list = [
+            f"txn_datetime >= '{from_dt}'",
+            f"txn_datetime < '{req_dt}'",
+            f"uid = '{req_uid}'",
+            f"card_index = '{req_card}'"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
 
-        self.cached_reqid = -1
-        self.cached_qsample = 0
-        self.cached_data = None
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["is_fraud"]
+        dcol_aggs = [["sum"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
 
-    def run(self, request: CCFraudRequest, qcfg: XIPQueryConfig, loading_nthreads: int = 1) -> XIPFeatureVec:
-        qsample = qcfg["qsample"]
-        fcols = ["errors"]
-        req_data = self.data_loader.load_data(request, qcfg, fcols, loading_nthreads)
 
-        if req_data is None or len(req_data) == 0:
-            fvals = np.zeros(len(self.fnames))
-            if is_same_float(qsample, 1.0):
-                self.logger.warning(f"no data for {request}")
-                fests = np.zeros(len(self.fnames))
-            else:
-                # self.logger.warning(f'no data for {request} with qsample={qsample}')
-                fests = np.ones(len(self.fnames)) * 1e9
-            return XIPFeatureVec(
-                fnames=self.fnames,
-                fvals=fvals,
-                fests=fests,
-                fdists=["normal"] * len(self.fnames),
-            )
+class CCFraudQP5(XIPQueryProcessor):
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        window_size = 30
+        req_dt = pd.to_datetime(request["req_txn_datetime"])
+        from_dt = req_dt + dt.timedelta(days=-window_size)
+        req_uid = request["req_uid"]
+        and_list = [
+            f"txn_datetime >= '{from_dt}'",
+            f"txn_datetime < '{req_dt}'",
+            f"uid = '{req_uid}'"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
 
-        aggs = ["unique"]
-        fvecs = []
-        for i, agg in enumerate(aggs):
-            fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                req_data, qsample, self.data_loader.statistics["tsize"]
-            )
-            fvecs.append(fvec)
-        fvec = merge_fvecs(fvecs, new_names=self.fnames)
-        return fvec
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["amount"]
+        dcol_aggs = [["avg"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class CCFraudQP6(XIPQueryProcessor):
+    def get_query_condition(self, request: CCFraudRequest) -> str:
+        window_size = 30 * 12
+        req_dt = pd.to_datetime(request["req_txn_datetime"])
+        from_dt = req_dt + dt.timedelta(days=-window_size)
+        req_uid = request["req_uid"]
+        req_card = request['req_card_index']
+        and_list = [
+            f"txn_datetime >= '{from_dt}'",
+            f"txn_datetime < '{req_dt}'",
+            f"uid = '{req_uid}'",
+            f"card_index = '{req_card}'"
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["amount"]
+        dcol_aggs = [["count"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops

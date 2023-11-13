@@ -37,16 +37,19 @@ class TickTrainer(XIPTrainer):
 
             # create and fit the LSTM network
             set_random_seed(self.seed)
-            batch_size = 1
+            batch_size = 4
+            nbatches = X.shape[0] // batch_size
+            X = X[:nbatches*batch_size]
+            y = y[:nbatches*batch_size]
             model = Sequential()
-            model.add(LSTM(4, input_shape=(batch_size, 9)))
+            model.add(LSTM(4, input_shape=(batch_size, X.shape[1])))
             model.add(Dense(1))
             model.compile(loss="mean_squared_error", optimizer="adam")
             X = np.reshape(
                 X.values,
                 (X.values.shape[0] // batch_size, batch_size, X.values.shape[1]),
             )
-            y = np.reshape(y.values, (y.values.shape[0], 1, 1))
+            y = np.reshape(y.values, (y.values.shape[0] // batch_size, batch_size, 1))
             # callback = keras.callbacks.EarlyStopping(monitor='loss', patience=3)
             model.fit(X, y, epochs=500, batch_size=batch_size, verbose=2)
             model = XIPRegressor(model)

@@ -150,7 +150,10 @@ def create_estimators(
         else:
             model = SUPPORTED_MODELS["regressor"][model_name](**kwargs)
     elif model_type == "classifier":
-        model = SUPPORTED_MODELS["classifier"][model_name](**kwargs)
+        if model_name == "knn":
+            model = KNeighborsClassifier()
+        else:
+            model = SUPPORTED_MODELS["classifier"][model_name](**kwargs)
     else:
         raise NotImplementedError
     if scaler_type is not None and scaler_type != "":

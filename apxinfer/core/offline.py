@@ -94,7 +94,9 @@ class OfflineExecutor:
                         sample = 1.0
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
                 try:
-                    fvec, qcosts = self.fextractor.extract(request, qcfgs, mode="sequential")
+                    fvec, qcosts = self.fextractor.extract(
+                        request, qcfgs, mode="sequential"
+                    )
                 except TypeError:
                     fvec, qcosts = self.fextractor.extract(request, qcfgs)
                 if len(profiles) > 0:
@@ -185,13 +187,13 @@ class OfflineExecutor:
             if nversions > 10:
                 nversions = 10
             if np.power(nversions, len(self.agg_qids)) > 1000:
-                print(f'Warning: too many plans, {np.power(nversions, len(self.agg_qids))}, skip')
+                print(
+                    f"Warning: too many plans, {np.power(nversions, len(self.agg_qids))}, skip"
+                )
                 return
 
         all_plans = np.array(
-            np.meshgrid(
-                *[np.arange(nversions) for _ in range(len(self.agg_qids))]
-            )
+            np.meshgrid(*[np.arange(nversions) for _ in range(len(self.agg_qids))])
         ).T.reshape(-1, len(self.agg_qids))
         all_plans = all_plans * (self.ncfgs // nversions) + (self.ncfgs % nversions)
 
@@ -224,6 +226,7 @@ class OfflineExecutor:
             all_preds.append(preds)
             # get prediction variance for this plan
             from apxinfer.core.festimator import get_feature_samples
+
             n_samples = 100
             seed = 0
             pvars = np.zeros(len(records))
@@ -242,20 +245,16 @@ class OfflineExecutor:
         all_preds = np.array(all_preds)
         all_costs = np.array(all_costs)
 
-        all_mses = np.array([
-            np.mean((labels - preds) ** 2)
-            for preds in all_preds
-        ])
+        all_mses = np.array([np.mean((labels - preds) ** 2) for preds in all_preds])
 
         exact_preds = self.model.predict(exact_fvals)
-        all_mses_sim = np.array([
-            np.mean((exact_preds - preds) ** 2)
-            for preds in all_preds
-        ])
+        all_mses_sim = np.array(
+            [np.mean((exact_preds - preds) ** 2) for preds in all_preds]
+        )
         # print(f'all_plans: {all_plans}')
-        print(f'all_costs: {all_costs}')
-        print(f'all_mses: {all_mses}')
-        print(f'all_mses_sim: {all_mses_sim}')
+        print(f"all_costs: {all_costs}")
+        print(f"all_mses: {all_mses}")
+        print(f"all_mses_sim: {all_mses_sim}")
 
         # plot scatter (cost, mse)
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -283,21 +282,23 @@ class OfflineExecutor:
 
         # find the plans whos mses is less or equal than mses[-1]
         plan_ids = np.where(all_mses <= all_mses[-1])[0]
-        print(f'plan_ids: {plan_ids}')
+        print(f"plan_ids: {plan_ids}")
         # find the plan with minimal cost in plan_ids
         best_plan_id = plan_ids[np.argmin(all_costs[plan_ids])]
         best_plan = all_plans[best_plan_id]
-        print(f'best_plan_id: {best_plan_id}, best_plan={best_plan}')
-        print(f'best_cost: {all_costs[best_plan_id]}')
-        print(f'best_mse: {all_mses[best_plan_id]}')
-        print(f'best_mse_sim: {all_mses_sim[best_plan_id]}')
+        print(f"best_plan_id: {best_plan_id}, best_plan={best_plan}")
+        print(f"best_cost: {all_costs[best_plan_id]}")
+        print(f"best_mse: {all_mses[best_plan_id]}")
+        print(f"best_mse_sim: {all_mses_sim[best_plan_id]}")
 
         # plot the cdf of pvars, and mark the best_plan
         fig, ax = plt.subplots(figsize=(8, 6))
         for i in range(len(all_pvars)):
             pvars = all_pvars[i]
             if i == best_plan_id:
-                ax.plot(np.sort(pvars), np.linspace(0, 1, len(pvars)), label='best_plan')
+                ax.plot(
+                    np.sort(pvars), np.linspace(0, 1, len(pvars)), label="best_plan"
+                )
             else:
                 ax.plot(np.sort(pvars), np.linspace(0, 1, len(pvars)), alpha=0.1)
         ax.set_xlabel("pvar")
@@ -307,7 +308,14 @@ class OfflineExecutor:
 
         best_pvars = all_pvars[best_plan_id]
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.hist(best_pvars, bins=100, density=True, cumulative=True, histtype='step', label='cdf')
+        ax.hist(
+            best_pvars,
+            bins=100,
+            density=True,
+            cumulative=True,
+            histtype="step",
+            label="cdf",
+        )
         ax.set_xlabel("pvar")
         ax.set_ylabel("cdf")
         plt.savefig(f"{self.working_dir}/pvar_cdf.pdf", bbox_inches="tight")
@@ -316,16 +324,16 @@ class OfflineExecutor:
             np.vstack((best_pvars, all_preds[best_plan_id], exact_preds, labels)).T,
             columns=["pvar", "pred", "exact", "label"],
         )
-        df['pdiff'] = df['pred'] - df['exact']
-        df['is_label'] = df['pred'] == df['label']
-        df['is_exact'] = df['pred'] == df['exact']
+        df["pdiff"] = df["pred"] - df["exact"]
+        df["is_label"] = df["pred"] == df["label"]
+        df["is_exact"] = df["pred"] == df["exact"]
         df.to_csv(os.path.join(self.working_dir, "pvar_preds.csv"), index=False)
         # plot pdiff v.s. pvar and pdiff^2 v.s. pvar
         fig, axes = plt.subplots(2, 1, figsize=(8, 12))
-        axes[0].scatter(df['pvar'], df['pdiff'], alpha=0.7)
+        axes[0].scatter(df["pvar"], df["pdiff"], alpha=0.7)
         axes[0].set_xlabel("pvar")
         axes[0].set_ylabel("pdiff")
-        axes[1].scatter(df['pvar'], np.power(df['pdiff'], 2), alpha=0.7)
+        axes[1].scatter(df["pvar"], np.power(df["pdiff"], 2), alpha=0.7)
         axes[1].set_xlabel("pvar")
         axes[1].set_ylabel("abs(pdiff)")
         plt.savefig(f"{self.working_dir}/pvar_pdiff.pdf", bbox_inches="tight")
@@ -341,8 +349,6 @@ class OfflineExecutor:
             records = self.collect(requests=results["requests"])
             with open(records_path, "wb") as f:
                 pickle.dump(records, f)
-
-        # self.get_initial_plan(results, records)
 
         qsamples = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
         fvars = np.zeros((len(records), self.ncfgs, len(self.agg_fids)))
@@ -362,7 +368,7 @@ class OfflineExecutor:
         self.plot_fvars(qsamples, fvars)
 
         self.build_cost_model(records)
-        self.logger.info(f'model saved to {self.model_dir}')
+        self.logger.info(f"model saved to {self.model_dir}")
 
         # Convert the array to a pandas DataFrame
         df = pd.DataFrame(
@@ -384,6 +390,6 @@ class OfflineExecutor:
 
         self.plot_qcost(df)
 
-        self.get_initial_plan(results, records)
+        # self.get_initial_plan(results, records)
 
         return None

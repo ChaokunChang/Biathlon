@@ -13,7 +13,7 @@ from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimat
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
-from apxinfer.core.qinfluence import XIPQInfEstimatorSobol
+from apxinfer.core.qinfluence import XIPQInfEstimatorSobol, XIPQInfEstimatorSTIndex
 from apxinfer.core.qcost import XIPQCostModel
 from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
@@ -36,24 +36,33 @@ def get_func(name: str):
         module = importlib.import_module(f"apxinfer.examples.{name}.{mod}")
         functions.update(vars(module))
 
-    # get_ingestor = functions["get_ingestor"]
-    # get_dloader = functions["get_dloader"]
-    # get_qps = functions["get_qps"]
-    # get_qengine = functions["get_qengine"]
-
 
 def get_fengine(name: str, args: BaseXIPArgs):
-    if name == "trips":
-        from apxinfer.examples.trips.data import get_dloader
-        from apxinfer.examples.trips.query import get_qps
-        from apxinfer.examples.trips.engine import get_qengine
-    elif name == "cheaptrips":
-        from apxinfer.examples.trips.data import get_dloader
-        from apxinfer.examples.trips.query import get_qps
-        from apxinfer.examples.trips.engine import get_qengine
-    dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
-    qps = get_qps(dloader, args.verbose, version=1)
-    fengine = get_qengine(qps, args.ncores, args.verbose)
+    if name == "ccfraud":
+        from apxinfer.examples.ccfraud.engine import get_ccfraud_engine
+        fengine = get_ccfraud_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "tick":
+        from apxinfer.examples.tick.engine import get_tick_engine
+        fengine = get_tick_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "tickv2":
+        from apxinfer.examples.tick.engine import get_tick_engine_v2
+        fengine = get_tick_engine_v2(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    else:
+        if name == "trips":
+            from apxinfer.examples.trips.data import get_dloader
+            from apxinfer.examples.trips.query import get_qps
+            from apxinfer.examples.trips.engine import get_qengine
+        elif name == "cheaptrips":
+            from apxinfer.examples.trips.data import get_dloader
+            from apxinfer.examples.trips.query import get_qps
+            from apxinfer.examples.trips.engine import get_qengine
+        elif name == "machinery":
+            from apxinfer.examples.machinery.data import get_dloader
+            from apxinfer.examples.machinery.query import get_qps
+            from apxinfer.examples.machinery.engine import get_qengine
+        dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+        qps = get_qps(dloader, args.verbose, version=1)
+        fengine = get_qengine(qps, args.ncores, args.verbose)
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
                                                                        seed=args.seed,
@@ -67,20 +76,43 @@ def get_fengine(name: str, args: BaseXIPArgs):
     return fengine
 
 
-def run_prepare(name: str, args: PrepareArgs):
+def run_ingest(name: str, args: BaseXIPArgs):
     if name == "trips":
         from apxinfer.examples.trips.data import get_ingestor
-        from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
-
-        model_type = "regressor"
+        ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
+        ingestor.run()
     elif name == "cheaptrips":
         from apxinfer.examples.trips.data import get_ingestor
+        ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
+        ingestor.run()
+    elif name == "machinery":
+        from apxinfer.examples.machinery.data import get_ingestor
+        ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
+        ingestor.run()
+    elif name == "ccfraud":
+        from apxinfer.examples.ccfraud.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name == "tick":
+        from apxinfer.examples.tick.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+
+
+def run_prepare(name: str, args: PrepareArgs):
+    if name == "trips":
+        from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
+        model_type = "regressor"
+    elif name == "cheaptrips":
         from apxinfer.examples.cheaptrips.prepare import CheapTripsPrepareWorker as Worker
-
         model_type = "classifier"
-
-    ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
-    ingestor.run()
+    elif name == "machinery":
+        from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
+        model_type = "classifier"
+    elif name == "ccfraud":
+        from apxinfer.examples.ccfraud.prepare import CCFraudPrepareWorker as Worker
+        model_type = "classifier"
+    elif name == "tick" or name == "tickv2":
+        from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+        model_type = "regressor"
 
     worker: XIPPrepareWorker = Worker(
         DIRHelper.get_prepare_dir(args),
@@ -99,12 +131,19 @@ def run_prepare(name: str, args: PrepareArgs):
 def run_trainer(name: str, args: TrainerArgs):
     if name == "trips":
         from apxinfer.examples.trips.trainer import TripsTrainer as Trainer
-
         model_type = "regressor"
     elif name == "cheaptrips":
         from apxinfer.examples.cheaptrips.trainer import CheapTripsTrainer as Trainer
-
         model_type = "classifier"
+    elif name == "machinery":
+        from apxinfer.examples.machinery.trainer import MachineryTrainer as Trainer
+        model_type = "classifier"
+    elif name == "ccfraud":
+        from apxinfer.examples.ccfraud.trainer import CCFraudTrainer as Trainer
+        model_type = "classifier"
+    elif name == "tick" or name == "tickv2":
+        from apxinfer.examples.tick.trainer import TickTrainer as Trainer
+        model_type = "regressor"
 
     trainer = Trainer(
         DIRHelper.get_prepare_dir(args),
@@ -192,6 +231,10 @@ def run_online(name: str, args: OnlineArgs):
         qinf_estimator = XIPQInfEstimatorSobol(
             pred_estimator=pred_estimator, verbose=verbose
         )
+    elif args.qinf == "sobolT":
+        qinf_estimator = XIPQInfEstimatorSTIndex(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
     else:
         raise ValueError("Invalid qinf estimator")
 
@@ -199,78 +242,31 @@ def run_online(name: str, args: OnlineArgs):
     qcost_model = load_xip_qcm(args)
 
     # create a scheduler for this task
+    step_sizes = [round(1.0 / args.ncfgs, 3)] * fengine.num_queries
+    scheduler_args = {
+        "fextractor": fengine,
+        "model": model,
+        "pred_estimator": pred_estimator,
+        "qinf_estimator": qinf_estimator,
+        "qcost_estimator": qcost_model,
+        "sample_grans": step_sizes,
+        "min_qsamples": [args.scheduler_init * i for i in step_sizes], 
+        "batch_size": args.scheduler_batch,
+        "min_card": args.err_min_support,
+        "verbose": verbose,
+    }
     if args.scheduler == "greedy":
-        scheduler = XIPSchedulerGreedy(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerGreedy(**scheduler_args)
     elif args.scheduler == "greedy_plus":
-        scheduler = XIPSchedulerWQCost(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerWQCost(**scheduler_args)
     elif args.scheduler == "random":
-        scheduler = XIPSchedulerRandom(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerRandom(**scheduler_args)
     elif args.scheduler == "uniform":
-        scheduler = XIPSchedulerUniform(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerUniform(**scheduler_args)
     elif args.scheduler == "blqcost":
-        scheduler = XIPSchedulerBalancedQCost(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerBalancedQCost(**scheduler_args)
     elif args.scheduler == "optimizer":
-        scheduler = XIPSchedulerOptimizer(
-            fextractor=fengine,
-            model=model,
-            pred_estimator=pred_estimator,
-            qinf_estimator=qinf_estimator,
-            qcost_estimator=qcost_model,
-            sample_grans=[round(1.0 / args.ncfgs, 3)] * fengine.num_queries,
-            batch_size=args.scheduler_batch,
-            min_card=args.err_min_support,
-            verbose=verbose,
-        )
+        scheduler = XIPSchedulerOptimizer(**scheduler_args)
     else:
         raise ValueError("Invalid scheduler")
 
@@ -307,7 +303,10 @@ class RunArgs(Tap):
 if __name__ == "__main__":
     args = RunArgs().parse_args(known_only=True)
     print(f"args= {args}")
-    if args.stage == "prepare":
+    if args.stage == "ingest":
+        staget_args = BaseXIPArgs().parse_args(known_only=True)
+        run_ingest(args.example, staget_args)
+    elif args.stage == "prepare":
         staget_args = PrepareArgs().parse_args(known_only=True)
         # print(f"run {args.stage} with {staget_args}")
         run_prepare(args.example, staget_args)

@@ -1,0 +1,121 @@
+import os
+import json
+import pandas as pd
+from tap import Tap
+
+
+class EvalArgs(Tap):
+    task_name: str = None
+    nparts: int = 2
+    ncfgs: int = None
+    ncores: int = 0
+    model: str = None
+    max_error: float = 1.0
+    agg_qids: list[int] = None
+    run_shared: bool = False
+    qinf: str = "sobol"
+    policy: str = "optimizer"
+    scheduler_init: int = 1
+    scheduler_batch: int = 1
+    nocache: bool = False
+
+    def process_args(self):
+        assert self.task_name is not None
+        assert self.model is not None
+        assert self.agg_qids is not None
+
+
+TASK_HOME = "final"
+EVALS_HOME = "./evals"
+
+args = EvalArgs().parse_args()
+args.process_args()
+
+TASK_NAME = args.task_name
+nparts = args.nparts
+if args.ncfgs is None:
+    ncfgs = nparts
+else:
+    ncfgs = args.ncfgs
+ncores = args.ncores
+max_error = args.max_error
+model = args.model
+qinf = args.qinf
+policy = args.policy
+scheduler_init = args.scheduler_init
+scheduler_batch = args.scheduler_batch
+
+offline_nreqs = 100
+if nparts >= 20:
+    offline_nreqs = 50
+
+agg_qids = args.agg_qids
+
+
+def extract_result(all_info: dict, min_conf, base_time=None):
+    avg_smpl_rate = 0.0
+    for qid in agg_qids:
+        avg_smpl_rate += all_info["avg_sample_query"][qid]
+    avg_smpl_rate /= len(agg_qids)
+
+    result = {
+        **args.as_dict(),
+        "min_conf": min_conf,
+
+        "sampling_rate": avg_smpl_rate,
+        "similarity": all_info["evals_to_ext"]["r2"],
+        "accuracy": all_info["evals_to_gt"]["r2"],
+        "avg_latency": all_info["avg_ppl_time"],
+        "speedup": base_time / all_info["avg_ppl_time"] if base_time is not None else 1.0,
+        "BD:AFC": all_info["avg_query_time"],
+        "BD:AMI": all_info["avg_pred_time"],
+        "BD:Sobol": all_info["avg_scheduler_time"],
+
+        "similarity-r2": all_info["evals_to_ext"]["r2"],
+        "accuracy-r2": all_info["evals_to_gt"]["r2"],
+        "similarity-mse": all_info["evals_to_ext"]["mse"],
+        "accuracy-mse": all_info["evals_to_gt"]["mse"],
+        "similarity-mape": all_info["evals_to_ext"]["mape"],
+        "accuracy-mape": all_info["evals_to_gt"]["mape"],
+        "similarity-maxe": all_info["evals_to_ext"]["maxe"],
+        "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
+    }
+    return result
+
+
+cmd_prefix = f"python run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores}"
+results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-0"
+
+if args.run_shared:
+    # offline
+    command = f"python run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores}"
+    print(command)
+    qcm_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
+    if not os.path.exists(qcm_path):
+        os.system(command=command)
+
+    # exact
+    command = f"{cmd_prefix} --ncores {ncores} --exact"
+    print(command)
+    exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}/exact/evals_exact.json"
+    if not os.path.exists(exact_path):
+        os.system(command=command)
+else:
+    evals = []
+    path_prefix = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}"
+    eval_path = f"{path_prefix}/exact/evals_exact.json"
+    evals.append(extract_result(json.load(open(eval_path)), 1.0))
+    print(f"last eval: {evals[-1]}")
+
+    for min_conf in [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]:
+        cmd_prefix += f" --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+        command = f"{cmd_prefix} --pest_constraint error --max_error {max_error} --min_conf {min_conf}"
+        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-0/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+        if args.nocache or (not os.path.exists(eval_path)):
+            os.system(command=command)
+        evals.append(extract_result(json.load(open(eval_path)), min_conf, evals[0]["avg_latency"]))
+        print(f"last eval: {evals[-1]}")
+
+    # conver evals to pd.DataFrame and save as csv
+    evals = pd.DataFrame(evals)
+    evals.to_csv(f"{EVALS_HOME}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv", index=False)

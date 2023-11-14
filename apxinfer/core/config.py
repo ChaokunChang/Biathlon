@@ -56,7 +56,7 @@ class OnlineArgs(BaseXIPArgs):
 
     pest_constraint: Literal[
         "conf", "error", "relative_error"
-    ] = "relative_error"  # prediction estimation constraint
+    ] = "error"  # prediction estimation constraint
     pest: Literal["MC"] = "MC"  # prediction estimation method
     pest_nsamples: int = 1000  # number of samples for prediction estimation
     pest_seed: int = 0
@@ -68,6 +68,7 @@ class OnlineArgs(BaseXIPArgs):
         "greedy", "random", "greedy_plus",
         "uniform", "blqcost", "optimizer",
     ] = "optimizer"  # scheduler
+    scheduler_init: int = 1
     scheduler_batch: int = 1
 
     # pipeline settings
@@ -158,7 +159,7 @@ class DIRHelper:
             )
             online_dir = os.path.join(online_dir, f"qinf-{args.qinf}")
             online_dir = os.path.join(
-                online_dir, f"scheduler-{args.scheduler}-{args.scheduler_batch}"
+                online_dir, f"scheduler-{args.scheduler}-{args.scheduler_init}-{args.scheduler_batch}"
             )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir

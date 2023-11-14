@@ -432,9 +432,10 @@ class XIPSchedulerOptimizer(XIPSchedulerWQCost):
                     break
                 if valid_nsteps[qid] == 0:
                     continue
-                next_qcfgs[qid]["qcfg_id"] += 1
-                next_qcfgs[qid]["qsample"] += self.sample_grans[qid]
-                nsteps -= 1
-                valid_nsteps[qid] -= 1
+                used_steps = min(nsteps, valid_nsteps[qid])
+                next_qcfgs[qid]["qcfg_id"] += used_steps
+                next_qcfgs[qid]["qsample"] += self.sample_grans[qid] * used_steps
+                nsteps -= used_steps
+                valid_nsteps[qid] -= used_steps
         self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs

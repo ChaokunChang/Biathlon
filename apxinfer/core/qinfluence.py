@@ -147,9 +147,10 @@ class XIPQInfEstimatorSobol(XIPQInfEstimator):
             "dists": dists
         }
         calc_second_order = False
-        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=0)
+        seed = self.pred_estimator.seed
+        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=seed)
         preds = model.predict(param_values)
-        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=0)
+        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
         qinfs = Si["S1"]
         # print(f"qinfs = {qinfs}")
         # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
@@ -203,9 +204,10 @@ class XIPQInfEstimatorSTIndex(XIPQInfEstimatorSobol):
             "dists": dists
         }
         calc_second_order = False
-        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=0)
+        seed = self.pred_estimator.seed
+        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=seed)
         preds = model.predict(param_values)
-        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=0)
+        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
         qinfs = Si["ST"]
         # print(f"qinfs = {qinfs}")
         # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")

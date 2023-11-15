@@ -58,10 +58,12 @@ class PredictionEstimatorHelper:
 
 class XIPPredictionEstimator:
     def __init__(
-        self, constraint_type: str, constraint_value: float, verbose: bool = False
+        self, constraint_type: str, constraint_value: float,
+        seed: int, verbose: bool = False
     ) -> None:
         self.constraint_type = constraint_type
         self.constraint_value = constraint_value
+        self.seed = seed
         self.verbose = verbose
 
         self.logger = logging.getLogger("XIPPredictionEstimator")
@@ -82,8 +84,7 @@ class MCPredictionEstimator(XIPPredictionEstimator):
         pest_point: bool = False,
         verbose: bool = False,
     ) -> None:
-        super().__init__(constraint_type, constraint_value, verbose)
-        self.seed = seed
+        super().__init__(constraint_type, constraint_value, seed, verbose)
         self.n_samples = n_samples
         self.pest_point = pest_point
 

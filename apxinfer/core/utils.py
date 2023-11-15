@@ -21,7 +21,7 @@ class XIPQType(Enum):
 class XIPQueryConfig(TypedDict, total=False):
     """Query configuration"""
 
-    qname: str  # identifer of XIPQuery
+    qname: str  # identifer of XIPQueryProcessor
     qtype: XIPQType  # type of the query
     qcfg_id: int  # identifier of different cfgs inside the same query
     qoffset: float  # sample offset (percentage)

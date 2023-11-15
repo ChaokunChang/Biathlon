@@ -1,8 +1,9 @@
-task_name="trips"
+task_name="cheaptrips"
 agg_qids="1 2 3"
 # model ncores max_error scheduler_init scheduler_batch
+# python prep.py --task_name $task_name --prepare_again
 
-for model in "lgbm" "xgb"
+for model in "xgb" "dt"
 do
     ncores=1 # only one core by default
     nparts=100 # ncfgs=nparts by default
@@ -10,12 +11,9 @@ do
     python eval_reg.py $shared_opts --run_shared
     for scheduler_init in 1 5 10 20
     do
-        for scheduler_batch in 1 5 10 20 
+        for scheduler_batch in 1 5 10 20
         do
-            for max_error in 0.5 1.0 2.0 3.0
-            do
-                python eval_reg.py $shared_opts --scheduler_init $scheduler_init --scheduler_batch $scheduler_batch --max_error $max_error
-            done
+            python eval_reg.py $shared_opts --scheduler_init $scheduler_init --scheduler_batch $scheduler_batch --max_error 0.0
         done
     done
 done

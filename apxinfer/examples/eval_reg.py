@@ -6,7 +6,7 @@ from tap import Tap
 
 class EvalArgs(Tap):
     task_name: str = None
-    nparts: int = 2
+    nparts: int = 20
     ncfgs: int = None
     ncores: int = 0
     model: str = None
@@ -61,25 +61,41 @@ def extract_result(all_info: dict, min_conf, base_time=None):
     result = {
         **args.as_dict(),
         "min_conf": min_conf,
-
         "sampling_rate": avg_smpl_rate,
-        "similarity": all_info["evals_to_ext"]["r2"],
-        "accuracy": all_info["evals_to_gt"]["r2"],
         "avg_latency": all_info["avg_ppl_time"],
-        "speedup": base_time / all_info["avg_ppl_time"] if base_time is not None else 1.0,
+        "speedup": base_time / all_info["avg_ppl_time"]
+        if base_time is not None
+        else 1.0,
         "BD:AFC": all_info["avg_query_time"],
         "BD:AMI": all_info["avg_pred_time"],
         "BD:Sobol": all_info["avg_scheduler_time"],
-
-        "similarity-r2": all_info["evals_to_ext"]["r2"],
-        "accuracy-r2": all_info["evals_to_gt"]["r2"],
-        "similarity-mse": all_info["evals_to_ext"]["mse"],
-        "accuracy-mse": all_info["evals_to_gt"]["mse"],
-        "similarity-mape": all_info["evals_to_ext"]["mape"],
-        "accuracy-mape": all_info["evals_to_gt"]["mape"],
-        "similarity-maxe": all_info["evals_to_ext"]["maxe"],
-        "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
     }
+    if args.task_name in ["trips", "tick", "tickv2"]:
+        accs = {
+            "similarity": all_info["evals_to_ext"]["r2"],
+            "accuracy": all_info["evals_to_gt"]["r2"],
+            "similarity-r2": all_info["evals_to_ext"]["r2"],
+            "accuracy-r2": all_info["evals_to_gt"]["r2"],
+            "similarity-mse": all_info["evals_to_ext"]["mse"],
+            "accuracy-mse": all_info["evals_to_gt"]["mse"],
+            "similarity-mape": all_info["evals_to_ext"]["mape"],
+            "accuracy-mape": all_info["evals_to_gt"]["mape"],
+            "similarity-maxe": all_info["evals_to_ext"]["maxe"],
+            "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
+        }
+    else:
+        assert args.task_name in ["cheaptrips", "machinery"]
+        accs = {
+            "similarity": all_info["evals_to_ext"]["acc"],
+            "accuracy": all_info["evals_to_gt"]["acc"],
+            "similarity-acc": all_info["evals_to_ext"]["acc"],
+            "accuracy-acc": all_info["evals_to_gt"]["acc"],
+            "similarity-f1": all_info["evals_to_ext"]["f1"],
+            "accuracy-f1": all_info["evals_to_gt"]["f1"],
+            "similarity-auc": all_info["evals_to_ext"]["auc"],
+            "accuracy-auc": all_info["evals_to_gt"]["auc"],
+        }
+    result = {**result, **accs}
     return result
 
 
@@ -102,20 +118,31 @@ if args.run_shared:
         os.system(command=command)
 else:
     evals = []
-    path_prefix = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}"
+    path_prefix = (
+        f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}"
+    )
     eval_path = f"{path_prefix}/exact/evals_exact.json"
     evals.append(extract_result(json.load(open(eval_path)), 1.0))
     print(f"last eval: {evals[-1]}")
 
     for min_conf in [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]:
-        cmd_prefix += f" --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+        cmd_prefix += (
+            f" --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+        )
         command = f"{cmd_prefix} --pest_constraint error --max_error {max_error} --min_conf {min_conf}"
         eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-0/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
         if args.nocache or (not os.path.exists(eval_path)):
             os.system(command=command)
-        evals.append(extract_result(json.load(open(eval_path)), min_conf, evals[0]["avg_latency"]))
+        evals.append(
+            extract_result(
+                json.load(open(eval_path)), min_conf, evals[0]["avg_latency"]
+            )
+        )
         print(f"last eval: {evals[-1]}")
 
     # conver evals to pd.DataFrame and save as csv
     evals = pd.DataFrame(evals)
-    evals.to_csv(f"{EVALS_HOME}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv", index=False)
+    evals.to_csv(
+        f"{EVALS_HOME}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
+        index=False,
+    )

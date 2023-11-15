@@ -186,36 +186,6 @@ class MachineryIngestor(XIPDataIngestor):
         self.clear_aux_table(f"{self.table}_aux")
 
 
-class MachineryLoader(XIPDataLoader):
-    def __init__(
-        self,
-        backend: str,
-        database: str,
-        table: str,
-        seed: int,
-        enable_cache: bool,
-        nparts: int,
-    ) -> None:
-        super().__init__(backend, database, table, seed, enable_cache)
-        self.nparts = nparts
-
-    def load_data(
-        self, request: MachineryRequest, qcfg: XIPQueryConfig, cols: List[str],
-        loading_nthreads: int = 1,
-    ) -> np.ndarray:
-        from_pid = self.nparts * qcfg.get("qoffset", 0)
-        to_pid = self.nparts * qcfg["qsample"]
-        bid = request["req_bid"]
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE pid >= {from_pid} AND pid < {to_pid}
-                AND bid = {bid}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        return self.db_client.query_np(sql)
-
-
 class MSensorsIngestor(XIPDataIngestor):
     def __init__(
         self,

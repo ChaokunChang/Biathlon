@@ -5,6 +5,7 @@ from tap import Tap
 
 
 class EvalArgs(Tap):
+    task_home: str = "final"
     task_name: str = None
     nparts: int = 20
     ncfgs: int = None
@@ -25,12 +26,11 @@ class EvalArgs(Tap):
         assert self.agg_qids is not None
 
 
-TASK_HOME = "final"
-EVALS_HOME = "./evals"
-
 args = EvalArgs().parse_args()
 args.process_args()
 
+EVALS_HOME = "./evals"
+TASK_HOME = args.task_home
 TASK_NAME = args.task_name
 nparts = args.nparts
 if args.ncfgs is None:

@@ -174,50 +174,6 @@ class CCFraudTxnsIngestor(XIPDataIngestor):
         self.clear_aux_table(f"{self.table}_aux")
 
 
-class CCFraudTxnsLoader(XIPDataLoader):
-    def __init__(
-        self,
-        ingestor: CCFraudTxnsIngestor,
-        window_size: int = 30,
-        condition_cols: List[str] = ["uid"],
-        enable_cache: bool = False,
-    ) -> None:
-        super().__init__(
-            "clickhouse",
-            ingestor.database,
-            ingestor.table,
-            ingestor.seed,
-            enable_cache=enable_cache,
-        )
-        self.ingestor = ingestor
-        self.db_client = ingestor.db_client
-        self.nparts = ingestor.nparts
-        self.window_size = window_size  # window size in days
-        self.condition_cols = condition_cols
-
-    def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
-    ) -> np.ndarray:
-        from_pid = self.nparts * qcfg.get("qoffset", 0)
-        to_pid = self.nparts * qcfg["qsample"]
-        req_dt = pd.to_datetime(request["req_txn_datetime"])
-        from_dt = req_dt + dt.timedelta(days=-self.window_size)
-        conditon_values = [request[f"req_{col}"] for col in self.condition_cols]
-        condtions = [
-            f"{col} = '{val}'" for col, val in zip(self.condition_cols, conditon_values)
-        ]
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE pid >= {int(from_pid)} AND pid < {int(to_pid)}
-                AND txn_datetime >= '{from_dt}' AND txn_datetime < '{req_dt}'
-                AND {' AND '.join(condtions)}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        return self.db_client.query_np(sql)
-
-
 class CCFraudCardsIngestor(CCFraudTxnsIngestor):
     def create_database(self) -> None:
         return super().create_database()
@@ -271,44 +227,6 @@ class CCFraudCardsIngestor(CCFraudTxnsIngestor):
                 FORMAT CSVWithNames
         """
         self.db_client.command(sql)
-
-
-class CCFraudCardsLoader(XIPDataLoader):
-    def __init__(
-        self, ingestor: CCFraudCardsIngestor, enable_cache: bool = False
-    ) -> None:
-        super().__init__(
-            "clickhouse",
-            ingestor.database,
-            ingestor.table,
-            ingestor.seed,
-            enable_cache=enable_cache,
-        )
-        self.ingestor = ingestor
-        self.db_client = ingestor.db_client
-
-    def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
-    ) -> np.ndarray:
-        uid = request["req_uid"]
-        card_index = request["req_card_index"]
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE uid = {uid} AND card_index = {card_index}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        df: pd.DataFrame = self.db_client.query_df(sql)
-        if df.empty:
-            self.logger.warning(f"No data found for request {request}")
-            return np.zeros(len(cols))
-        else:
-            if len(df) == 1:
-                return df.values[0]
-            else:
-                print(f"req={request}, cols={cols}, df={df}")
-                raise ValueError("feature aggregation is not supported yet")
 
 
 class CCFraudUsersIngestor(CCFraudTxnsIngestor):
@@ -381,42 +299,6 @@ class CCFraudUsersIngestor(CCFraudTxnsIngestor):
                 FORMAT CSVWithNames
         """
         self.db_client.command(sql)
-
-
-class CCFraudUsersLoader(XIPDataLoader):
-    def __init__(
-        self, ingestor: CCFraudUsersIngestor, enable_cache: bool = False
-    ) -> None:
-        super().__init__(
-            "clickhouse",
-            ingestor.database,
-            ingestor.table,
-            ingestor.seed,
-            enable_cache=enable_cache,
-        )
-        self.ingestor = ingestor
-        self.db_client = ingestor.db_client
-
-    def load_data(
-        self, request: CCFraudRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
-    ) -> np.ndarray:
-        uid = request["req_uid"]
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE uid = {uid}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        df: pd.DataFrame = self.db_client.query_df(sql)
-        if df.empty:
-            self.logger.warning(f"No data found for request {request}")
-            return np.zeros(len(cols))
-        else:
-            if len(df) == 1:
-                return df.values[0]
-            else:
-                raise ValueError("feature aggregation is not supported yet")
 
 
 def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):

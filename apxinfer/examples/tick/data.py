@@ -150,35 +150,6 @@ class TickDataIngestor(XIPDataIngestor):
         self.clear_aux_table(f"{self.table}_aux")
 
 
-class TickThisHourDataLoader(XIPDataLoader):
-    def __init__(
-        self, backend: str, database: str, table: str, seed: int, enable_cache: bool
-    ) -> None:
-        super().__init__(backend, database, table, seed, enable_cache)
-        sql = f"""SELECT max(pid) from {self.database}.{self.table}"""
-        self.nparts = self.db_client.command(sql)
-
-    def load_data(
-        self, request: TickRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
-    ) -> np.ndarray:
-        from_pid = self.nparts * qcfg.get("qoffset", 0)
-        to_pid = self.nparts * qcfg["qsample"]
-        cpair = request["req_cpair"]
-        tick_dt = pd.to_datetime(request["req_dt"])
-        from_dt = tick_dt
-        to_dt = from_dt + dt.timedelta(hours=1)
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE pid >= {from_pid} AND pid < {to_pid}
-                AND cpair = '{cpair}'
-                AND tick_dt >= '{from_dt}' AND tick_dt < '{to_dt}'
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        return self.db_client.query_np(sql)
-
-
 class TickHourFStoreIngestor(XIPDataIngestor):
     def __init__(
         self,
@@ -272,24 +243,6 @@ class TickHourFStoreIngestor(XIPDataIngestor):
         #     GROUP BY cpair, {', '.join(self.time_keys)}
         # """
         # self.db_client.command(sql)
-
-
-class TickHourFStoreDataLoader(XIPDataLoader):
-    def load_data(
-        self, request: TickRequest, qcfg: XIPQueryConfig,
-        cols: List[str], loading_nthreads: int = 1
-    ) -> np.ndarray:
-        cpair = request["req_cpair"]
-        tick_dt = pd.to_datetime(request["req_dt"])
-        sql = f"""
-            SELECT {', '.join(cols)}
-            FROM {self.database}.{self.table}
-            WHERE cpair = '{cpair}'
-                  AND year = {tick_dt.year} AND month = {tick_dt.month}
-                  AND day = {tick_dt.day} AND hour = {tick_dt.hour}
-            SETTINGS max_threads = {loading_nthreads}
-        """
-        return self.load_from_fstore(request, qcfg, cols, sql)
 
 
 def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):

@@ -196,7 +196,7 @@ class XIPQueryProcessor:
         else:
             raise NotImplementedError(f"{self.qtype} not supported yet.")
         if rrdata is None and is_same_float(qcfg["qsample"], 1.0):
-            self.logger.warning(f"no rrdata for {request} in {self.qname}")
+            self.logger.debug(f"no rrdata for {request} in {self.qname}")
         return rrdata
 
     def load_rrdata_agg(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
@@ -451,7 +451,7 @@ class XIPQueryProcessor:
         else:
             raise NotImplementedError(f"{self.qtype} not supported yet.")
         if rrdata is None and is_same_float(qcfg["qsample"], 1.0):
-            self.logger.warning(f"no rrdata for {request} in {self.qname}")
+            self.logger.debug(f"no rrdata for {request} in {self.qname}")
         return rrdata
 
     async def load_rrdata_agg_async(

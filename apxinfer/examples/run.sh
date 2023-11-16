@@ -1,17 +1,18 @@
 # !/bin/bash
-interpreter="python"
+# interpreter="python"
 # interpreter="sudo PYTHONPATH=/home/ckchang/ApproxInfer /home/ckchang/anaconda3/envs/apxinf/bin/python"
+interpreter="sudo /home/ckchang/anaconda3/envs/apx/bin/python"
 
 task_name="tick"
 agg_qids="1"
-python prep.py --task_name $task_name --prepare_again --all_nparts 2 100
+python prep.py --interpreter $interpreter --task_name $task_name --prepare_again --all_nparts 2 100
 
 model="lr"
 ncores=1 # only one core by default
 nparts=100 # ncfgs=nparts by default
 loading_mode=0
 
-shared_opts="--task_name $task_name --agg_qids $agg_qids --model $model --nparts $nparts --ncores $ncores  --loading_mode $loading_mode"
+shared_opts="--interpreter $interpreter --task_name $task_name --agg_qids $agg_qids --model $model --nparts $nparts --ncores $ncores  --loading_mode $loading_mode"
 python eval_reg.py $shared_opts --run_shared
 
 max_error=1.0

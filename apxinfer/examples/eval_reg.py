@@ -5,6 +5,7 @@ from tap import Tap
 
 
 class EvalArgs(Tap):
+    interpreter: str = "python"
     task_home: str = "final"
     task_name: str = None
     model: str = None
@@ -31,6 +32,7 @@ args = EvalArgs().parse_args()
 args.process_args()
 
 EVALS_HOME = "./evals"
+interpreter = args.interpreter
 TASK_HOME = args.task_home
 TASK_NAME = args.task_name
 model = args.model
@@ -101,12 +103,12 @@ def extract_result(all_info: dict, min_conf, base_time=None):
     return result
 
 
-cmd_prefix = f"python run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode}"
+cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode}"
 results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-0"
 
 if args.run_shared:
     # offline
-    command = f"python run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode}"
+    command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode}"
     print(command)
     qcm_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
     if not os.path.exists(qcm_path):

@@ -21,6 +21,7 @@ class EvalArgs(Tap):
     scheduler_init: int = 1
     scheduler_batch: int = 1
     nocache: bool = False
+    seed: int = 0
 
     def process_args(self):
         assert self.task_name is not None
@@ -50,6 +51,7 @@ qinf = args.qinf
 policy = args.policy
 scheduler_init = args.scheduler_init
 scheduler_batch = args.scheduler_batch
+seed = args.seed
 
 offline_nreqs = 100
 if nparts >= 20:
@@ -105,12 +107,12 @@ def extract_result(all_info: dict, min_conf, base_time=None):
     return result
 
 
-cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode}"
-results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-0"
+cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
+results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
 
 if args.run_shared:
     # offline
-    command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode}"
+    command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
     print(command)
     qcm_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
     if not os.path.exists(qcm_path):
@@ -135,8 +137,8 @@ else:
         cmd_prefix += (
             f" --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
         )
-        command = f"{cmd_prefix} --pest_constraint error --max_error {max_error} --min_conf {min_conf}"
-        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-0/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+        command = f"{cmd_prefix} --pest_constraint error --pest_seed {seed} --max_error {max_error} --min_conf {min_conf}"
+        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-{seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
         if args.nocache or (not os.path.exists(eval_path)):
             os.system(command=command)
         evals.append(
@@ -146,7 +148,7 @@ else:
         )
         print(f"last eval: {evals[-1]}")
 
-    evals_dir = os.path.join(EVALS_HOME, f'mode-{loading_mode}')
+    evals_dir = os.path.join(EVALS_HOME, f'seed-{seed}', f'mode-{loading_mode}')
     if not os.path.exists(evals_dir):
         os.makedirs(evals_dir, exist_ok=True)
 

@@ -11,12 +11,14 @@ class ExpArgs(Tap):
     loading_mode: int = None  # 0, 1, 2, 5, 10
     nparts: int = 100
     ncfgs: int = 100
+    seed: int = 0
 
     def process_args(self):
         assert self.exp is not None
-        assert self.model is not None
-        assert self.ncores is not None
-        assert self.loading_mode is not None
+        if self.exp != "prepare":
+            assert self.model is not None
+            assert self.ncores is not None
+            assert self.loading_mode is not None
 
 
 def get_scheduler_cfgs(args: ExpArgs):
@@ -25,6 +27,12 @@ def get_scheduler_cfgs(args: ExpArgs):
         return [1, 5, 10, 20], [1, 5, 10, 20]
     else:
         raise ValueError(f'invalid ncfgs {ncfgs}')
+
+
+def run_prepare(args: ExpArgs):
+    for task in ['trips', 'tick', 'tickv2', 'machinery']:
+        cmd = f"sudo {interpreter} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
+        os.system(cmd)
 
 
 def run_machinery(args: ExpArgs):
@@ -37,7 +45,7 @@ def run_machinery(args: ExpArgs):
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
-            cmd = f"sudo {interpreter} eval_reg.py"
+            cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
             cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
             cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
             cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error 0.0"
@@ -55,7 +63,7 @@ def run_cheaptrips(args: ExpArgs):
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
-            cmd = f"sudo {interpreter} eval_reg.py"
+            cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
             cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
             cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
             cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error 0.0"
@@ -75,7 +83,7 @@ def run_trips(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py"
+                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
                 cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
                 cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
                 cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
@@ -94,7 +102,7 @@ def run_tick_v1(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py"
+                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
                 cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
                 cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
                 cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
@@ -114,7 +122,7 @@ def run_tick_v2(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py"
+                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
                 cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
                 cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
                 cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
@@ -122,8 +130,10 @@ def run_tick_v2(args: ExpArgs):
 
 
 if __name__ == "__main__":
-    args = ExpArgs()
-    if args.exp == "trips":
+    args = ExpArgs().parse_args()
+    if args.exp == "prepare":
+        run_prepare(args)
+    elif args.exp == "trips":
         run_trips(args)
     elif args.exp == "tick-v1":
         run_tick_v1(args)

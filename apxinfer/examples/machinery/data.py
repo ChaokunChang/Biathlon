@@ -241,11 +241,22 @@ class MSensorsIngestor(XIPDataIngestor):
 
 
 def get_ingestor(nparts: int = 100, seed: int = 0):
-    dsrc = "/mnt/hddraid/clickhouse-data/user_files/machinery"
-    if not os.path.exists(dsrc):
-        dsrc = "/public/ckchang/db/clickhouse/user_files/machinery"
-    if not os.path.exists(dsrc):
-        dsrc = "/mnt/sdb/dataset/machinery"
+    possible_dsrcs = [
+        "/opt/nfs_dcc/ckchang/dataset/user_files/user_files/machinery",
+        "/public/ckchang/db/clickhouse/user_files/machinery",
+        "/mnt/sdb/dataset/machinery",
+        "/mnt/hddraid/clickhouse-data/user_files/machinery",
+        "/var/lib/clickhouse/user_files/machinery"
+    ]
+    dsrc = None
+    for src in possible_dsrcs:
+        if os.path.exists(src):
+            dsrc = src
+            print(f"dsrc path: {dsrc}")
+            break
+    if dsrc is None:
+        raise RuntimeError("no valid dsrc!")
+
     ingestor = MachineryIngestor(
         dsrc_type="csv_dir",
         dsrc=dsrc,

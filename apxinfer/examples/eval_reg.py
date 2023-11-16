@@ -7,10 +7,11 @@ from tap import Tap
 class EvalArgs(Tap):
     task_home: str = "final"
     task_name: str = None
+    model: str = None
     nparts: int = 20
     ncfgs: int = None
     ncores: int = 0
-    model: str = None
+    loading_mode: int = 1
     max_error: float = 1.0
     agg_qids: list[int] = None
     run_shared: bool = False
@@ -32,14 +33,15 @@ args.process_args()
 EVALS_HOME = "./evals"
 TASK_HOME = args.task_home
 TASK_NAME = args.task_name
+model = args.model
 nparts = args.nparts
 if args.ncfgs is None:
     ncfgs = nparts
 else:
     ncfgs = args.ncfgs
 ncores = args.ncores
+loading_mode = args.loading_mode
 max_error = args.max_error
-model = args.model
 qinf = args.qinf
 policy = args.policy
 scheduler_init = args.scheduler_init
@@ -99,27 +101,27 @@ def extract_result(all_info: dict, min_conf, base_time=None):
     return result
 
 
-cmd_prefix = f"python run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores}"
+cmd_prefix = f"python run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode}"
 results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-0"
 
 if args.run_shared:
     # offline
-    command = f"python run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores}"
+    command = f"python run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode}"
     print(command)
-    qcm_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
+    qcm_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
     if not os.path.exists(qcm_path):
         os.system(command=command)
 
     # exact
     command = f"{cmd_prefix} --ncores {ncores} --exact"
     print(command)
-    exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}/exact/evals_exact.json"
+    exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/exact/evals_exact.json"
     if not os.path.exists(exact_path):
         os.system(command=command)
 else:
     evals = []
     path_prefix = (
-        f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-1/nparts-{nparts}"
+        f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}"
     )
     eval_path = f"{path_prefix}/exact/evals_exact.json"
     evals.append(extract_result(json.load(open(eval_path)), 1.0))
@@ -140,9 +142,13 @@ else:
         )
         print(f"last eval: {evals[-1]}")
 
+    evals_dir = os.path.join(EVALS_HOME, f'mode-{loading_mode}')
+    if not os.path.exists(evals_dir):
+        os.makedirs(evals_dir, exist_ok=True)
+
     # conver evals to pd.DataFrame and save as csv
     evals = pd.DataFrame(evals)
     evals.to_csv(
-        f"{EVALS_HOME}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
+        f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
         index=False,
     )

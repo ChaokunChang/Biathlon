@@ -73,6 +73,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
                                                                        bs_bias_correction=args.bs_bias_correction,
                                                                        bs_for_var_std=args.bs_for_var_std))
         qry.set_estimator(fest)
+        qry.set_loading_mode(args.loading_mode)
     return fengine
 
 

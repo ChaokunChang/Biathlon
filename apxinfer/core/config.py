@@ -13,7 +13,7 @@ class BaseXIPArgs(Tap):
     scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
     nparts: int = 100  # maximum number of partitions of dataset
-    loading_nthreads: int = 1  # nthreads for loading data
+    loading_mode: int = 1  # nthreads for loading data
     bs_nthreads: int = 1  # nthreads for bootstrapping
     bs_type: Literal['descrete', 'fstd'] = "fstd"
     bs_nresamples: int = 100
@@ -129,7 +129,7 @@ class DIRHelper:
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
         offline_dir = os.path.join(working_dir, "offline", model_tag)
         offline_dir = os.path.join(offline_dir, f"ncores-{args.ncores}")
-        offline_dir = os.path.join(offline_dir, f"ldnthreads-{args.loading_nthreads}")
+        offline_dir = os.path.join(offline_dir, f"ldnthreads-{args.loading_mode}")
         offline_dir = os.path.join(offline_dir, f"nparts-{args.nparts}")
         offline_dir = os.path.join(offline_dir, f"ncfgs-{args.ncfgs}")
         offline_dir = os.path.join(offline_dir, f"nreqs-{args.nreqs}")
@@ -146,7 +146,7 @@ class DIRHelper:
         model_tag = DIRHelper.get_model_tag(args.model, args.scaler_type)
         online_dir = os.path.join(working_dir, "online", model_tag)
         online_dir = os.path.join(online_dir, f"ncores-{args.ncores}")
-        online_dir = os.path.join(online_dir, f"ldnthreads-{args.loading_nthreads}")
+        online_dir = os.path.join(online_dir, f"ldnthreads-{args.loading_mode}")
         online_dir = os.path.join(online_dir, f"nparts-{args.nparts}")
         if args.exact:
             online_dir = os.path.join(online_dir, "exact")

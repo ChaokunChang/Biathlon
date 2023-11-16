@@ -2,26 +2,19 @@
 interpreter="python"
 # interpreter="sudo PYTHONPATH=/home/ckchang/ApproxInfer /home/ckchang/anaconda3/envs/apxinf/bin/python"
 
-task_home="test/trips"
-nparts=2
-oflnreqs=20
-nreqs=200
-ncfgs=2
+task_name="tick"
+agg_qids="1"
+python prep.py --task_name $task_name --prepare_again --all_nparts 2 100
 
-# python run.py --stage prepare --task test/trips --model lgbm --nparts 2
-# python run.py --stage train --task test/trips --model lgbm --nparts 2
-# python run.py --stage offline --task test/trips --model lgbm --nparts 2 --nreqs 20 --ncfgs 2 --clear_cache --ncores 0
-# python run.py --stage online --task test/trips --model lgbm --nparts 2 --offline_nreqs 20 --nreqs 200 --ncfgs 2 --exact --ncores 0
-# python run.py --stage online --task test/trips --model lgbm --nparts 2 --offline_nreqs 20 --nreqs 200 --ncfgs 2 --ncores 0 --pest_constraint error --max_error 0.5 --min_conf 0.95
+model="lr"
+ncores=1 # only one core by default
+nparts=100 # ncfgs=nparts by default
+loading_mode=0
 
-$interpreter run.py --stage prepare --task $task_home --model lgbm --nparts $nparts
-$interpreter run.py --stage train --task $task_home --model lgbm --nparts $nparts
-$interpreter run.py --stage offline --task $task_home --model lgbm --nparts $nparts --nreqs $oflnreqs --ncfgs $ncfg --clear_cache --ncores 0
-$interpreter run.py --stage online --task $task_home --model lgbm --nparts $nparts --offline_nreqs $oflnreqs --nreqs $nreqs --ncfgs $ncfgs --exact --ncores 0
-$interpreter run.py --stage online --task $task_home --model lgbm --nparts $nparts --offline_nreqs $oflnreqs --nreqs $nreqs --ncfgs $ncfgs --ncores 0 --pest_constraint error --max_error 0.5 --min_conf 0.95
+shared_opts="--task_name $task_name --agg_qids $agg_qids --model $model --nparts $nparts --ncores $ncores  --loading_mode $loading_mode"
+python eval_reg.py $shared_opts --run_shared
 
-# python run.py --example cheaptrips --stage prepare --task test/cheaptrips --model xgb --nparts 10
-# python run.py --example cheaptrips --stage train --task test/cheaptrips --model xgb --nparts 10
-# python run.py --example cheaptrips --stage offline --task test/cheaptrips --model xgb --nparts 10 --nreqs 0 --ncfgs 10 --clear_cache --ncores 0
-# python run.py --example cheaptrips --stage online --task test/cheaptrips --model xgb --nparts 10 --offline_nreqs 0 --ncfgs 10 --exact --ncores 0
-# python run.py --example cheaptrips --stage online --task test/cheaptrips --model xgb --nparts 10 --offline_nreqs 0 --ncfgs 10 --ncores 0 --pest_constraint error --max_error 0 --min_conf 0.95
+max_error=1.0
+scheduler_init=1
+scheduler_batch=1
+python eval_reg.py $shared_opts --scheduler_init $scheduler_init --scheduler_batch $scheduler_batch --max_error $max_error

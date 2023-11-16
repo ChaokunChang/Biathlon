@@ -33,6 +33,8 @@ args.process_args()
 
 EVALS_HOME = "./evals"
 interpreter = args.interpreter
+if interpreter != "python":
+    interpreter = f"sudo {interpreter}"
 TASK_HOME = args.task_home
 TASK_NAME = args.task_name
 model = args.model

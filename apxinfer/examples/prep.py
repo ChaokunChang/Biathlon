@@ -17,6 +17,8 @@ class EvalArgs(Tap):
 args = EvalArgs().parse_args()
 
 interpreter = args.interpreter
+if interpreter != "python":
+    interpreter = f"sudo {interpreter}"
 TASK_HOME = args.task_home
 TASK_NAME = args.task_name
 

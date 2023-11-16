@@ -130,7 +130,7 @@ def run_tick_v2(args: ExpArgs):
 
 
 if __name__ == "__main__":
-    args = ExpArgs()
+    args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)
     elif args.exp == "trips":

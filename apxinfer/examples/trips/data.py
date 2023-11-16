@@ -1,6 +1,6 @@
 from apxinfer.core.utils import XIPRequest
 from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
-
+import os
 
 class TripsRequest(XIPRequest):
     req_trip_id: int
@@ -103,13 +103,34 @@ class TripsIngestor(XIPDataIngestor):
             ) ENGINE = MergeTree PARTITION BY passenger_count
             ORDER BY (pickup_datetime, dropoff_datetime)
             """
-        dsrc_home = "/var/lib/clickhouse/user_files/taxi-2015/trips_{0..19}.gz"
+
+        # dsrc_home = "/var/lib/clickhouse/user_files/taxi-2015/trips_{0..19}.gz"
+        # sql_insert = f"""
+        #     -- insert data into trips from lcoal files (20m records)
+        #     INSERT INTO {dtable}
+        #     SELECT * FROM file('{dsrc_home}', TSVWithNames)
+        #     -- FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
+        #     """
+
+        possible_dsrcs = [
+            "/opt/nfs_dcc/ckchang/dataset/user_files/taxi-2015/trips_{0..19}.gz",
+            "/public/ckchang/db/clickhouse/user_files/taxi-2015/trips_{0..19}.gz",
+            "/var/lib/clickhouse/user_files/taxi-2015/trips_{0..19}.gz",
+        ]
+        dsrc = None
+        for src in possible_dsrcs:
+            if os.path.exists(src):
+                dsrc = src
+                print(f"dsrc path: {dsrc}")
+                break
+        if dsrc is None:
+            raise RuntimeError("no valid dsrc!")
+
         sql_insert = f"""
             -- insert data into trips from lcoal files (20m records)
-            INSERT INTO {dtable}
-            SELECT * FROM file('{dsrc_home}', TSVWithNames)
-            -- FROM INFILE '{dsrc_home}' FORMAT TSVWithNames
-            """
+            INSERT INTO trips
+            FROM INFILE {dsrc} FORMAT TSVWithNames;
+        """
         sql_alter = f"""
             -- add new column trip_duration as (dropoff_datetime - pickup_datetime)
             ALTER TABLE {dtable}

@@ -20,6 +20,11 @@ run experiments
 2. run "evaluate_all.py --exp prepare" again. (will be fast, keep eye on it to see whether there is a bug)
 3. run evaluate_all.py with different arguments, see below
 
+Before Evluation
+```
+python evaluate_all.py --exp prepare --seed xxx
+```
+
 These are must
 ```
 python evaluate_all.py --exp trips --model lgbm --ncores 1 --loading_mode 0 --seed xxx

@@ -1,10 +1,9 @@
 from tap import Tap
 import os
 
-interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
-
 
 class ExpArgs(Tap):
+    interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
     exp: str = None
     model: str = None  # see each exp
     ncores: int = None  # 1, 0
@@ -26,18 +25,40 @@ def get_scheduler_cfgs(args: ExpArgs):
     if ncfgs == 100:
         return [1, 5, 10, 20], [1, 5, 10, 20]
     else:
-        raise ValueError(f'invalid ncfgs {ncfgs}')
+        raise ValueError(f"invalid ncfgs {ncfgs}")
 
 
 def run_prepare(args: ExpArgs):
-    for task in ['trips', 'tick', 'tickv2', 'machinery']:
+    interpreter = args.interpreter
+    for task in ["trips", "tick", "tickv2", "machinery"]:
         cmd = f"sudo {interpreter} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)
 
 
+def get_eval_cmd(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    agg_qids: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+):
+    interpreter = args.interpreter
+    if interpreter == "python":
+        cmd = f"{interpreter} eval_reg.py --seed {args.seed}"
+    else:
+        cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
+
+    cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
+    cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores} --loading_mode {args.loading_mode}"
+    cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
+    return cmd
+
+
 def run_machinery(args: ExpArgs):
     """
-        must models = ["mlp", "dt", "knn"]
+    must models = ["mlp", "dt", "knn"]
     """
     task_name = "machinery"
     agg_qids = "0 1 2 3 4 5 6 7"
@@ -45,17 +66,16 @@ def run_machinery(args: ExpArgs):
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
-            cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-            cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-            cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
-            cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error 0.0"
+            cmd = get_eval_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+            )
             os.system(cmd)
 
 
 def run_cheaptrips(args: ExpArgs):
     """
-        must models = ["xgb"]
-        optional models = ["dt", "lgbm", "rf"]
+    must models = ["xgb"]
+    optional models = ["dt", "lgbm", "rf"]
     """
     task_name = "cheaptrips"
     agg_qids = "1 2 3"
@@ -63,17 +83,16 @@ def run_cheaptrips(args: ExpArgs):
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
-            cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-            cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-            cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
-            cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error 0.0"
+            cmd = get_eval_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+            )
             os.system(cmd)
 
 
 def run_trips(args: ExpArgs):
     """
-        must models = ["lgbm"]
-        optional models = ["xgb", "dt", "rf"]
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
     """
     task_name = "trips"
     agg_qids = "1 2 3"
@@ -83,16 +102,21 @@ def run_trips(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-                cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-                cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
-                cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    scheduler_init,
+                    scheduler_batch,
+                    max_error,
+                )
                 os.system(cmd)
 
 
 def run_tick_v1(args: ExpArgs):
     """
-        models = ["lr", "dt", "rf"]
+    models = ["lr", "dt", "rf"]
     """
     task_name = "tick"
     agg_qids = "1"
@@ -102,17 +126,22 @@ def run_tick_v1(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-                cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-                cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
-                cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    scheduler_init,
+                    scheduler_batch,
+                    max_error,
+                )
                 os.system(cmd)
 
 
 def run_tick_v2(args: ExpArgs):
     """
-        must models = ["lr"]
-        optional models = ["dt", "rf"]
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
     """
     task_name = "tickv2"
     agg_qids = "6"
@@ -122,10 +151,15 @@ def run_tick_v2(args: ExpArgs):
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             for max_error in max_errors:
-                cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-                cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-                cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores}"
-                cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    scheduler_init,
+                    scheduler_batch,
+                    max_error,
+                )
                 os.system(cmd)
 
 
@@ -144,4 +178,4 @@ if __name__ == "__main__":
     elif args.exp == "machinery":
         run_machinery(args)
     else:
-        raise ValueError(f'invalid exp {args.exp}')
+        raise ValueError(f"invalid exp {args.exp}")

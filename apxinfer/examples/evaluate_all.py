@@ -35,6 +35,19 @@ def run_prepare(args: ExpArgs):
         os.system(cmd)
 
 
+def get_base_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
+    interpreter = args.interpreter
+    if interpreter == "python":
+        cmd = f"{interpreter} eval_reg.py --seed {args.seed}"
+    else:
+        cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
+
+    cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
+    cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores} --loading_mode {args.loading_mode}"
+    cmd = f"{cmd} --run_shared"
+    return cmd
+
+
 def get_eval_cmd(
     args: ExpArgs,
     task_name: str,
@@ -63,6 +76,8 @@ def run_machinery(args: ExpArgs):
     task_name = "machinery"
     agg_qids = "0 1 2 3 4 5 6 7"
     model = args.model
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -80,6 +95,8 @@ def run_cheaptrips(args: ExpArgs):
     task_name = "cheaptrips"
     agg_qids = "1 2 3"
     model = args.model
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -97,6 +114,8 @@ def run_trips(args: ExpArgs):
     task_name = "trips"
     agg_qids = "1 2 3"
     model = args.model
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.5, 1.0, 2.0, 3.0]
     for scheduler_init in init_sizes:
@@ -121,6 +140,8 @@ def run_tick_v1(args: ExpArgs):
     task_name = "tick"
     agg_qids = "1"
     model = args.model
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:
@@ -146,6 +167,8 @@ def run_tick_v2(args: ExpArgs):
     task_name = "tickv2"
     agg_qids = "6"
     model = args.model
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:

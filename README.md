@@ -85,57 +85,48 @@ python evaluate_all.py --exp cheaptrips --model xgb --ncores 0 --loading_mode 1 
 python evaluate_all.py --exp machinery --model mlp --ncores 0 --loading_mode 1 --seed xxx
 python evaluate_all.py --exp machinery --model dt --ncores 0 --loading_mode 1 --seed xxx
 python evaluate_all.py --exp machinery --model knn --ncores 0 --loading_mode 1 --seed xxx
-python evaluate_all.py --exp trips --model lgbm --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 1 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 1 --loading_mode 2 --seed xxx
-
-python evaluate_all.py --exp trips --model lgbm --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 0 --loading_mode 2 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 0 --loading_mode 2 --seed xxx
-
-python evaluate_all.py --exp trips --model lgbm --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 1 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 1 --loading_mode 5 --seed xxx
-
-python evaluate_all.py --exp trips --model lgbm --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 0 --loading_mode 5 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 0 --loading_mode 5 --seed xxx
-
-python evaluate_all.py --exp trips --model lgbm --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 1 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 1 --loading_mode 10 --seed xxx
-
-python evaluate_all.py --exp trips --model lgbm --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp tick-v1 --model lr --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp tick-v2 --model lr --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp cheaptrips --model xgb --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model mlp --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model dt --ncores 0 --loading_mode 10 --seed xxx
-python evaluate_all.py --exp machinery --model knn --ncores 0 --loading_mode 10 --seed xxx
 
 ```
 
 These are Optional 3
+
+```
+python evaluate_all.py --exp trips --model lgbm --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp tick-v1 --model lr --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp tick-v2 --model lr --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp cheaptrips --model xgb --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp machinery --model mlp --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp machinery --model dt --ncores 2 --loading_mode 2 --seed xxx
+python evaluate_all.py --exp machinery --model knn --ncores 2 --loading_mode 2 --seed xxx
+
+python evaluate_all.py --exp trips --model lgbm --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp tick-v1 --model lr --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp tick-v2 --model lr --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp cheaptrips --model xgb --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp machinery --model mlp --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp machinery --model dt --ncores 4 --loading_mode 4 --seed xxx
+python evaluate_all.py --exp machinery --model knn --ncores 4 --loading_mode 4 --seed xxx
+
+python evaluate_all.py --exp trips --model lgbm --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp tick-v1 --model lr --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp tick-v2 --model lr --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp cheaptrips --model xgb --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp machinery --model mlp --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp machinery --model dt --ncores 6 --loading_mode 6 --seed xxx
+python evaluate_all.py --exp machinery --model knn --ncores 6 --loading_mode 6 --seed xxx
+
+python evaluate_all.py --exp trips --model lgbm --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp tick-v1 --model lr --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp tick-v2 --model lr --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp cheaptrips --model xgb --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp machinery --model mlp --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp machinery --model dt --ncores 8 --loading_mode 8 --seed xxx
+python evaluate_all.py --exp machinery --model knn --ncores 8 --loading_mode 8 --seed xxx
+
+
+```
+
+These are Optional 4
 ```
 python evaluate_all.py --exp trips --model lgbm --ncores 1 --loading_mode 0 --seed xxx --nparts 10 --ncfgs 10
 python evaluate_all.py --exp tick-v1 --model lr --ncores 1 --loading_mode 0 --seed xxx --nparts 10 --ncfgs 10

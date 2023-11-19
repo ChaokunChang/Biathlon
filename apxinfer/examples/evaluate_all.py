@@ -30,7 +30,7 @@ def get_scheduler_cfgs(args: ExpArgs):
 
 def run_prepare(args: ExpArgs):
     interpreter = args.interpreter
-    for task in ["trips", "tick", "tickv2", "machinery"]:
+    for task in ["trips", "tick", "tickv2", "cheaptrips", "machinery"]:
         cmd = f"sudo {interpreter} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)
 

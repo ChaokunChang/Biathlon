@@ -5,6 +5,7 @@ results2/
 logs/
 apxinfer/examples/evals
 .vscode/
+plotting/cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

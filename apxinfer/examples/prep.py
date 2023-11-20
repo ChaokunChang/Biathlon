@@ -8,6 +8,7 @@ class EvalArgs(Tap):
     task_name: str = None
     prepare_again: bool = False
     all_nparts: list[int] = [2, 5, 10, 20, 100]
+    prep_nparts: int = 100
     all_models: list[str] = ["xgb", "lgbm", "dt", "rf", "lr", "knn", "svm", "mlp"]
     seed: int = 0
 
@@ -28,7 +29,7 @@ for nparts in args.all_nparts:
     command = f"{interpreter} run.py --example {TASK_NAME} --stage ingest --task {TASK_HOME}/{TASK_NAME} --nparts {nparts} --seed {seed}"
     os.system(command=command)
 
-nparts = min(args.all_nparts)
+nparts = args.prep_nparts
 command = f"{interpreter} run.py --example {TASK_NAME} --stage prepare --task {TASK_HOME}/{TASK_NAME} --nparts {nparts} --seed {seed}"
 if args.prepare_again:
     os.system(command=command)

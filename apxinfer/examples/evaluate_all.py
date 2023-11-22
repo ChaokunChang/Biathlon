@@ -11,6 +11,7 @@ class ExpArgs(Tap):
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
+    skip_shared: bool = False
 
     def process_args(self):
         assert self.exp is not None
@@ -20,10 +21,14 @@ class ExpArgs(Tap):
             assert self.loading_mode is not None
 
 
-def get_scheduler_cfgs(args: ExpArgs):
+def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
     ncfgs = args.ncfgs
     if ncfgs == 100:
-        return [1, 5, 10, 20], [1, 5, 10, 20]
+        inits = [1, 5, 10, 20]
+        max_batch = naggs * ncfgs
+        batches = [1, 5, 10, 20, 50]
+        batches = batches + [i for i in range(100, max_batch + 1, 50)]
+        return inits, batches
     else:
         raise ValueError(f"invalid ncfgs {ncfgs}")
 
@@ -76,8 +81,9 @@ def run_machinery(args: ExpArgs):
     task_name = "machinery"
     agg_qids = "0 1 2 3 4 5 6 7"
     model = args.model
-    cmd = get_base_cmd(args, task_name, model, agg_qids)
-    os.system(cmd)
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -95,8 +101,29 @@ def run_cheaptrips(args: ExpArgs):
     task_name = "cheaptrips"
     agg_qids = "1 2 3"
     model = args.model
-    cmd = get_base_cmd(args, task_name, model, agg_qids)
-    os.system(cmd)
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    for scheduler_init in init_sizes:
+        for scheduler_batch in step_sizes:
+            cmd = get_eval_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+            )
+            os.system(cmd)
+
+
+def run_ccfraud(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "xgb", "lgbm", "rf"]
+    """
+    task_name = "ccfraud"
+    agg_qids = "3 4 5 6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -114,8 +141,9 @@ def run_trips(args: ExpArgs):
     task_name = "trips"
     agg_qids = "1 2 3"
     model = args.model
-    cmd = get_base_cmd(args, task_name, model, agg_qids)
-    os.system(cmd)
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.5, 1.0, 2.0, 3.0]
     for scheduler_init in init_sizes:
@@ -140,8 +168,9 @@ def run_tick_v1(args: ExpArgs):
     task_name = "tick"
     agg_qids = "1"
     model = args.model
-    cmd = get_base_cmd(args, task_name, model, agg_qids)
-    os.system(cmd)
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:
@@ -167,8 +196,9 @@ def run_tick_v2(args: ExpArgs):
     task_name = "tickv2"
     agg_qids = "6"
     model = args.model
-    cmd = get_base_cmd(args, task_name, model, agg_qids)
-    os.system(cmd)
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
     init_sizes, step_sizes = get_scheduler_cfgs(args)
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:
@@ -200,5 +230,7 @@ if __name__ == "__main__":
         run_cheaptrips(args)
     elif args.exp == "machinery":
         run_machinery(args)
+    elif args.exp == "ccfraud":
+        run_ccfraud(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

@@ -13,7 +13,7 @@ class BaseXIPArgs(Tap):
     scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
     nparts: int = 100  # maximum number of partitions of dataset
-    loading_mode: int = 1  # nthreads for loading data
+    loading_mode: int = 1  # 0 means part by part, 1 means together, k>1 means k parts by k parts
     bs_nthreads: int = 1  # nthreads for bootstrapping
     bs_type: Literal['descrete', 'fstd'] = "fstd"
     bs_nresamples: int = 100

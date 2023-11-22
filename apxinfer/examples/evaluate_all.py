@@ -23,6 +23,8 @@ class ExpArgs(Tap):
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
     ncfgs = args.ncfgs
+    if naggs is None:
+        return [1, 5, 10, 20], [1, 5, 10, 20]
     if ncfgs == 100:
         inits = [1, 5, 10, 20]
         max_batch = naggs * ncfgs
@@ -35,8 +37,20 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
 
 def run_prepare(args: ExpArgs):
     interpreter = args.interpreter
-    for task in ["trips", "tick", "tickv2", "cheaptrips", "machinery", "ccfraud", "tripsfeast"]:
-        cmd = f"sudo {interpreter} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
+    if interpreter == "python":
+        cmd = f"{interpreter}"
+    else:
+        cmd = f"sudo {interpreter}"
+    for task in [
+        "trips",
+        "tick",
+        "tickv2",
+        "cheaptrips",
+        "machinery",
+        "ccfraud",
+        "tripsfeast",
+    ]:
+        cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)
 
 
@@ -84,7 +98,7 @@ def run_machinery(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             cmd = get_eval_cmd(
@@ -104,7 +118,7 @@ def run_cheaptrips(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             cmd = get_eval_cmd(
@@ -124,7 +138,7 @@ def run_ccfraud(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
             cmd = get_eval_cmd(
@@ -144,7 +158,7 @@ def run_trips(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.5, 1.0, 2.0, 3.0]
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -167,12 +181,12 @@ def run_tripsfeast(args: ExpArgs):
     optional models = ["xgb", "dt", "rf"]
     """
     task_name = "tripsfeast"
-    agg_qids = "1 2 3"
+    agg_qids = "1 2"
     model = args.model
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.5, 1.0, 2.0, 3.0]
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -199,7 +213,7 @@ def run_tick_v1(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
@@ -227,7 +241,7 @@ def run_tick_v2(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.001, 0.01, 0.05, 0.1]
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:

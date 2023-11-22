@@ -48,11 +48,11 @@ tasks = [
 shared_default_settings = {
     "policy": "optimizer",
     "ncores": 1,
-    "min_conf": 0.9,
+    "min_conf": 0.95,
     "nparts": 100,
     "ncfgs": 100,
-    "scheduler_init": 1,
-    "scheduler_batch": 1
+    "scheduler_init": 5,
+    "scheduler_batch": 5
 }
 task_default_settings = {
     "trips": {
@@ -430,6 +430,8 @@ def plot_vary_min_conf(df: pd.DataFrame):
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="min_conf", y="speedup", data=df_tmp, ax=axes[i])
         sns.lineplot(x="min_conf", y="speedup", data=df_tmp, ax=axes[i])
@@ -449,6 +451,8 @@ def plot_vary_min_conf(df: pd.DataFrame):
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="min_conf", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="min_conf", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -483,6 +487,8 @@ def plot_vary_min_conf(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange")
         axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
@@ -600,6 +606,8 @@ def plot_vary_max_error(df: pd.DataFrame):
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["max_error"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="max_error", y="speedup", data=df_tmp, ax=axes[i])
         sns.lineplot(x="max_error", y="speedup", data=df_tmp, ax=axes[i])
@@ -619,6 +627,8 @@ def plot_vary_max_error(df: pd.DataFrame):
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["max_error"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="max_error", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="max_error", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -636,6 +646,8 @@ def plot_vary_max_error(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["max_error"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="max_error", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="max_error", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -786,6 +798,8 @@ def plot_vary_alpha(df: pd.DataFrame):
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="alpha", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="alpha", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -803,6 +817,8 @@ def plot_vary_alpha(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="alpha", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="alpha", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -820,6 +836,8 @@ def plot_vary_alpha(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange")
         axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
@@ -934,6 +952,8 @@ def plot_vary_beta(df: pd.DataFrame):
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="beta", y="speedup", data=df_tmp, ax=axes[i])
         sns.lineplot(x="beta", y="speedup", data=df_tmp, ax=axes[i])
@@ -953,6 +973,8 @@ def plot_vary_beta(df: pd.DataFrame):
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="beta", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="beta", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -970,6 +992,8 @@ def plot_vary_beta(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         sns.scatterplot(x="beta", y=acc_metric, data=df_tmp, ax=axes[i])
         sns.lineplot(x="beta", y=acc_metric, data=df_tmp, ax=axes[i])
@@ -987,6 +1011,8 @@ def plot_vary_beta(df: pd.DataFrame):
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange")
         axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
@@ -1129,6 +1155,76 @@ def vary_alpha_beta(df: pd.DataFrame):
         axes[i].set_title("Task: {}".format(task_name))
     plt.tight_layout()
     plt.savefig(os.path.join(HOME_DIR, "plots", "speedup_vs_accdis_6.pdf"))
+
+    # plot 2x3 figures, each figure for one task
+    # x-axis: alpha
+    # y-axis: speedup (scatter)
+
+    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    axes = axes.flatten()
+    acc_metric = "similarity"
+    for i, task_name in enumerate(tasks):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+
+        # for each scheduler_batch, plot two lines: speedup and similarity
+        # two lines are plotted in the same figure with different markers but same color
+        # speedup is dashed line, similarity is solid line
+        all_betas = df_tmp["beta"].unique()
+        all_colors = sns.color_palette("hls", len(all_betas))
+        for beta, color in zip(all_betas, all_colors): 
+            df_tmp_beta = df_tmp[df_tmp["beta"] == beta]
+            df_tmp_beta = df_tmp_beta.sort_values(by=["alpha"])
+            df_tmp_beta = df_tmp_beta.reset_index(drop=True)
+
+            axes[i].scatter(df_tmp_beta["alpha"], df_tmp_beta["speedup"], marker='o', color=color)
+            axes[i].plot(df_tmp_beta["alpha"], df_tmp_beta["speedup"], marker='o', color=color, label=f"Speedup(beta={beta})", linestyle="--")
+
+            twnx = axes[i].twinx()
+            twnx.scatter(df_tmp_beta["alpha"], df_tmp_beta[acc_metric], marker='+', color=color)
+            twnx.plot(df_tmp_beta["alpha"], df_tmp_beta[acc_metric], marker='+', color=color, label=f"Similarity")
+
+        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_xlabel("Initial Sampling Percentage")
+        axes[i].set_ylabel("Speedup")
+        axes[i].legend(loc="upper left")
+
+        twnx.set_ylabel("Similarity")
+        twnx.legend(loc="upper right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(HOME_DIR, "plots", "sim-sup_vary_alpha_beta.pdf"))
+    # plt.show()
+
+    # plot 2x3 figures, each figure for one task
+    # x-axis: alpha
+    # y-axis: speedup (scatter)
+
+    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    axes = axes.flatten()
+    acc_metric = "similarity"
+    for i, task_name in enumerate(tasks):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        # select only those scheduler_init == scheduler_batch
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == df_tmp["scheduler_batch"]]
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange")
+        axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+
+        twnx = axes[i].twinx()
+        twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue")
+        twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue", label="Similarity")
+
+        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_xlabel("Initial Sampling Percentage and Step Size")
+        axes[i].set_ylabel("Speedup")
+        axes[i].legend(loc="upper left")
+
+        twnx.set_ylabel("Similarity")
+        twnx.legend(loc="upper right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(HOME_DIR, "plots", "sim-sup_vary_alpha=beta.pdf"))
+    # plt.show()
 
     plt.close("all")
 

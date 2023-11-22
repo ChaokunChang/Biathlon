@@ -47,6 +47,9 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "tickv2":
         from apxinfer.examples.tick.engine import get_tick_engine_v2
         fengine = get_tick_engine_v2(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "tripsfeast":
+        from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
+        fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
     else:
         if name == "trips":
             from apxinfer.examples.trips.data import get_dloader
@@ -78,7 +81,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
 
 
 def run_ingest(name: str, args: BaseXIPArgs):
-    if name == "trips":
+    if name == "trips" or name == "tripsfeast":
         from apxinfer.examples.trips.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
@@ -99,7 +102,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
 
 
 def run_prepare(name: str, args: PrepareArgs):
-    if name == "trips":
+    if name == "trips" or name == "tripsfeast":
         from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
         model_type = "regressor"
     elif name == "cheaptrips":
@@ -130,7 +133,7 @@ def run_prepare(name: str, args: PrepareArgs):
 
 
 def run_trainer(name: str, args: TrainerArgs):
-    if name == "trips":
+    if name == "trips" or name == "tripsfeast":
         from apxinfer.examples.trips.trainer import TripsTrainer as Trainer
         model_type = "regressor"
     elif name == "cheaptrips":

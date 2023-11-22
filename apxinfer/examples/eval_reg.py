@@ -78,7 +78,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "BD:AMI": all_info["avg_pred_time"],
         "BD:Sobol": all_info["avg_scheduler_time"],
     }
-    if args.task_name in ["trips", "tick", "tickv2"]:
+    if args.task_name in ["trips", "tripsfeast", "tick", "tickv2"]:
         accs = {
             "similarity": all_info["evals_to_ext"]["r2"],
             "accuracy": all_info["evals_to_gt"]["r2"],

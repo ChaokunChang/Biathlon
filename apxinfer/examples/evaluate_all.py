@@ -35,7 +35,7 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
 
 def run_prepare(args: ExpArgs):
     interpreter = args.interpreter
-    for task in ["trips", "tick", "tickv2", "cheaptrips", "machinery"]:
+    for task in ["trips", "tick", "tickv2", "cheaptrips", "machinery", "ccfraud", "tripsfeast"]:
         cmd = f"sudo {interpreter} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)
 
@@ -161,6 +161,34 @@ def run_trips(args: ExpArgs):
                 os.system(cmd)
 
 
+def run_tripsfeast(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsfeast"
+    agg_qids = "1 2 3"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    init_sizes, step_sizes = get_scheduler_cfgs(args)
+    max_errors = [0.5, 1.0, 2.0, 3.0]
+    for scheduler_init in init_sizes:
+        for scheduler_batch in step_sizes:
+            for max_error in max_errors:
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    scheduler_init,
+                    scheduler_batch,
+                    max_error,
+                )
+                os.system(cmd)
+
+
 def run_tick_v1(args: ExpArgs):
     """
     models = ["lr", "dt", "rf"]
@@ -232,5 +260,7 @@ if __name__ == "__main__":
         run_machinery(args)
     elif args.exp == "ccfraud":
         run_ccfraud(args)
+    elif args.exp == "tripsfeast":
+        run_tripsfeast(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

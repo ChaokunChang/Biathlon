@@ -5,12 +5,22 @@ import os
 import numpy as np
 import math
 
+from tap import Tap
 
-HOME_DIR = "./cache"
+
+class EvalArgs(Tap):
+    home_dir: str = "./cache"
+    filename: str = "evals.csv"
+    loading_mode: int = 0
+    ncores: int = 1
+
+
+args = EvalArgs().parse_args()
+HOME_DIR = args.home_dir
 
 
 def load_df(csv_dir: str = HOME_DIR) -> pd.DataFrame:
-    df = pd.read_csv(os.path.join(csv_dir, "evals.csv"))
+    df = pd.read_csv(os.path.join(csv_dir, args.filename))
     df['BD:Others'] = df['avg_latency'] - df['BD:AFC'] - df['BD:AMI'] - df['BD:Sobol']
 
     # special handling for profiling results
@@ -30,8 +40,15 @@ def load_df(csv_dir: str = HOME_DIR) -> pd.DataFrame:
         # df = df[df["ncfgs"] != 50]
         return df
 
+    def handler_loading_mode(df: pd.DataFrame) -> pd.DataFrame:
+        # keep only the rows with the specified mode
+        loading_mode = args.loading_mode
+        df = df[df["loading_mode"] == loading_mode]
+        return df
+
     # df = handler_soboltime(df)
     df = handler_filter_ncfgs(df)
+    df = handler_loading_mode(df)
     return df
 
 
@@ -47,7 +64,7 @@ tasks = [
 
 shared_default_settings = {
     "policy": "optimizer",
-    "ncores": 1,
+    "ncores": args.ncores,
     "min_conf": 0.95,
     "nparts": 100,
     "ncfgs": 100,

@@ -3,6 +3,15 @@ import json
 import pandas as pd
 from tap import Tap
 
+ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2"]
+ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery", "ccfraud", "machinerymulti"]
+
+MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
+MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
+
+ALL_CLS_TASKS += MachineryVaryNF
+ALL_CLS_TASKS += MachineryMultiVaryNF
+
 
 class EvalArgs(Tap):
     interpreter: str = "python"
@@ -22,6 +31,7 @@ class EvalArgs(Tap):
     scheduler_batch: int = 1
     nocache: bool = False
     seed: int = 0
+    min_confs: list[float] = [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
 
     def process_args(self):
         assert self.task_name is not None
@@ -47,6 +57,7 @@ else:
 ncores = args.ncores
 loading_mode = args.loading_mode
 max_error = args.max_error
+min_confs = args.min_confs
 qinf = args.qinf
 policy = args.policy
 scheduler_init = args.scheduler_init
@@ -78,7 +89,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "BD:AMI": all_info["avg_pred_time"],
         "BD:Sobol": all_info["avg_scheduler_time"],
     }
-    if args.task_name in ["trips", "tripsfeast", "tick", "tickv2"]:
+    if args.task_name in ALL_REG_TASKS:
         accs = {
             "similarity": all_info["evals_to_ext"]["r2"],
             "accuracy": all_info["evals_to_gt"]["r2"],
@@ -92,8 +103,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
             "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
         }
     else:
-        assert args.task_name in ["cheaptrips", "cheaptripsfeast",
-                                  "machinery", "ccfraud", "machinerymulti"]
+        assert args.task_name in ALL_CLS_TASKS
         accs = {
             "similarity": all_info["evals_to_ext"]["acc"],
             "accuracy": all_info["evals_to_gt"]["acc"],
@@ -134,7 +144,7 @@ else:
     evals.append(extract_result(json.load(open(eval_path)), 1.0))
     print(f"last eval: {evals[-1]}")
 
-    for min_conf in [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]:
+    for min_conf in min_confs:
         cmd_prefix += (
             f" --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
         )

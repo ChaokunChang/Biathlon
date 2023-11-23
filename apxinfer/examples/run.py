@@ -53,22 +53,35 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "cheaptripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
         fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
-    else:
-        if name == "trips":
-            from apxinfer.examples.trips.data import get_dloader
-            from apxinfer.examples.trips.query import get_qps
-            from apxinfer.examples.trips.engine import get_qengine
-        elif name == "cheaptrips":
-            from apxinfer.examples.trips.data import get_dloader
-            from apxinfer.examples.trips.query import get_qps
-            from apxinfer.examples.trips.engine import get_qengine
-        elif name == "machinery" or name == "machinerymulti":
-            from apxinfer.examples.machinery.data import get_dloader
-            from apxinfer.examples.machinery.query import get_qps
-            from apxinfer.examples.machinery.engine import get_qengine
+    elif name == "trips":
+        from apxinfer.examples.trips.data import get_dloader
+        from apxinfer.examples.trips.query import get_qps
+        from apxinfer.examples.trips.engine import get_qengine
         dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, version=1)
         fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name == "cheaptrips":
+        from apxinfer.examples.trips.data import get_dloader
+        from apxinfer.examples.trips.query import get_qps
+        from apxinfer.examples.trips.engine import get_qengine
+        dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+        qps = get_qps(dloader, args.verbose, version=1)
+        fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name == "machinery" or name == "machinerymulti":
+        from apxinfer.examples.machinery.data import get_dloader
+        from apxinfer.examples.machinery.query import get_qps
+        from apxinfer.examples.machinery.engine import get_qengine
+        dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+        qps = get_qps(dloader, args.verbose)
+        fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name in ([f"machineryf{i}" for i in range(1, 8)] + [f"machinerymultif{i}" for i in range(1, 8)]):
+        from apxinfer.examples.machinery.data import get_dloader
+        from apxinfer.examples.machinery.query import get_qps
+        from apxinfer.examples.machinery.engine import get_qengine
+        dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+        qps = get_qps(dloader, args.verbose, nf=int(name[-1]))
+        fengine = get_qengine(qps, args.ncores, args.verbose)
+
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
                                                                        seed=args.seed,
@@ -92,7 +105,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
         from apxinfer.examples.trips.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
-    elif name == "machinery" or name == "machinerymulti":
+    elif name.startswith("machinery"):
         from apxinfer.examples.machinery.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
@@ -111,10 +124,10 @@ def run_prepare(name: str, args: PrepareArgs):
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.prepare import CheapTripsPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinery":
+    elif name == "machinery" or (name in [f"machineryf{i}" for i in range(1, 8)]):
         from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinerymulti":
+    elif name == "machinerymulti" or (name in [f"machinerymultif{i}" for i in range(1, 8)]):
         from apxinfer.examples.machinery.prepare import MachineryMultiClassPrepareWorker as Worker
         model_type = "classifier"
     elif name == "ccfraud":
@@ -145,7 +158,7 @@ def run_trainer(name: str, args: TrainerArgs):
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.trainer import CheapTripsTrainer as Trainer
         model_type = "classifier"
-    elif name == "machinery" or name == "machinerymulti":
+    elif name.startswith("machinery"):
         from apxinfer.examples.machinery.trainer import MachineryTrainer as Trainer
         model_type = "classifier"
     elif name == "ccfraud":

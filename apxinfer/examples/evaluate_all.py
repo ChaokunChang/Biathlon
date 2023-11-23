@@ -25,15 +25,22 @@ class ExpArgs(Tap):
 def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
     ncfgs = args.ncfgs
     if naggs is None:
-        return [1, 5, 10, 20], [1, 5, 10, 20]
-    if ncfgs == 100:
+        inits, batches = [1, 5, 10, 20], [1, 5, 10, 20]
+    elif ncfgs == 100:
         inits = [1, 5, 10, 20]
         max_batch = naggs * ncfgs
         batches = [1, 5, 10, 20, 50]
         batches = batches + [i for i in range(100, max_batch + 1, 50)]
-        return inits, batches
     else:
         raise ValueError(f"invalid ncfgs {ncfgs}")
+    # create scheduler configs as pairs of (init, batch)
+    cfgs = []
+    for init in inits:
+        for batch in batches:
+            cfgs.append((init, batch))
+    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
+    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    return cfgs
 
 
 def run_prepare(args: ExpArgs):
@@ -104,13 +111,12 @@ def run_machinery(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cmd = get_eval_cmd(
-                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
-            )
-            os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 def run_machinerymulti(args: ExpArgs):
@@ -123,13 +129,12 @@ def run_machinerymulti(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cmd = get_eval_cmd(
-                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
-            )
-            os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 def run_cheaptrips(args: ExpArgs):
@@ -143,13 +148,12 @@ def run_cheaptrips(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cmd = get_eval_cmd(
-                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
-            )
-            os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 def run_ccfraud(args: ExpArgs):
@@ -163,13 +167,12 @@ def run_ccfraud(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cmd = get_eval_cmd(
-                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
-            )
-            os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 def run_trips(args: ExpArgs):
@@ -183,21 +186,20 @@ def run_trips(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.5, 1.0, 2.0, 3.0]
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            for max_error in max_errors:
-                cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    scheduler_init,
-                    scheduler_batch,
-                    max_error,
-                )
-                os.system(cmd)
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
 
 
 def run_tripsfeast(args: ExpArgs):
@@ -211,21 +213,20 @@ def run_tripsfeast(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.5, 1.0, 2.0, 3.0]
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            for max_error in max_errors:
-                cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    scheduler_init,
-                    scheduler_batch,
-                    max_error,
-                )
-                os.system(cmd)
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
 
 
 def run_cheaptripsfeast(args: ExpArgs):
@@ -239,13 +240,12 @@ def run_cheaptripsfeast(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cmd = get_eval_cmd(
-                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
-            )
-            os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 def run_tick_v1(args: ExpArgs):
@@ -258,21 +258,20 @@ def run_tick_v1(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.001, 0.01, 0.05, 0.1]
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            for max_error in max_errors:
-                cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    scheduler_init,
-                    scheduler_batch,
-                    max_error,
-                )
-                os.system(cmd)
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
 
 
 def run_tick_v2(args: ExpArgs):
@@ -286,24 +285,92 @@ def run_tick_v2(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    cfgs = get_scheduler_cfgs(args, len(agg_qids))
     max_errors = [0.001, 0.01, 0.05, 0.1]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
+
+
+def get_eval_vary_nf_cmd(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    agg_qids: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+):
+    cmd = get_eval_cmd(
+        args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
+    )
+    cmd = f"{cmd} --min_confs 0.95 0.9"
+    return cmd
+
+
+def run_machinery_vary_nf(args: ExpArgs, nf: int):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = f"machineryf{nf}"
+    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+
+    init_sizes, step_sizes = [5, 10], [5, 10] + list(range(50, 100*len(agg_qids)+1, 50))
+    # get pair of init_sizes and step_sizes
+    cfgs = []
     for scheduler_init in init_sizes:
         for scheduler_batch in step_sizes:
-            for max_error in max_errors:
-                cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    scheduler_init,
-                    scheduler_batch,
-                    max_error,
-                )
-                os.system(cmd)
+            cfgs.append((scheduler_init, scheduler_batch))
+    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
+    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_vary_nf_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
+
+
+def run_machinerymulti_vary_nf(args: ExpArgs, nf: int):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = f"machinerymultif{nf}"
+    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    init_sizes, step_sizes = [5, 10], [5, 10] + list(range(50, 100*len(agg_qids)+1, 50))
+    # get pair of init_sizes and step_sizes
+    cfgs = []
+    for scheduler_init in init_sizes:
+        for scheduler_batch in step_sizes:
+            cfgs.append((scheduler_init, scheduler_batch))
+    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
+    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_vary_nf_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
 
 
 if __name__ == "__main__":
+    MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
+    MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)
@@ -325,5 +392,11 @@ if __name__ == "__main__":
         run_cheaptripsfeast(args)
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
+    elif args.exp in MachineryVaryNF:
+        nf = int(args.exp[len("machineryf"):])
+        run_machinery_vary_nf(args, nf)
+    elif args.exp in MachineryMultiVaryNF:
+        nf = int(args.exp[len("machinerymultif"):])
+        run_machinerymulti_vary_nf(args, nf)
     else:
         raise ValueError(f"invalid exp {args.exp}")

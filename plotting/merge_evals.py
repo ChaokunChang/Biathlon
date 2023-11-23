@@ -2,16 +2,26 @@ import os
 import sys
 import json
 import pandas as pd
+from tap import Tap
+from tqdm import tqdm
 
-csv_dir = "./cache/evals"
 # read all csv files in the directory, and merge them into one dataframe
 # parse the filename to get the task name, model name, nparts, ncfgs, ncores, and max_error,
 # and add them as columns to the dataframe
 # save the dataframe to a csv file
 
 
-def parse_filename(filename):
-    print(filename)
+class EvalArgs(Tap):
+    csv_dir: str = "./cache/evals"
+    output_dir: str = "./cache"
+    output_filename: str = "evals.csv"
+    recursive: bool = False
+    avg: bool = False
+
+
+def parse_filename(filename, verbose: bool = False):
+    if verbose:
+        print(filename)
     # remove the extension
     filename = filename.replace(".csv", "")
     elements = filename.split("_")
@@ -36,12 +46,25 @@ def parse_filename(filename):
     return task_name, model_name, nparts, ncfgs, ncores, max_error
 
 
-def merge_csv(csv_dir):
+def merge_csv(args: EvalArgs):
+    csv_dir = args.csv_dir
+    # get all files in the directory
+    files = []
+    if args.recursive:
+        for root, dirs, filenames in os.walk(csv_dir):
+            for filename in filenames:
+                if filename.endswith(".csv"):
+                    files.append(os.path.join(root, filename))
+    else:
+        files = [os.path.join(csv_dir, filename) for filename in os.listdir(csv_dir) if filename.endswith(".csv")]
+    print(f"Found {len(files)} csv files in {csv_dir}")
+
     df = pd.DataFrame()
-    for filename in os.listdir(csv_dir):
-        if filename.endswith(".csv"):
-            task_name, model_name, nparts, ncfgs, ncores, max_error = parse_filename(filename)
-            df_tmp = pd.read_csv(os.path.join(csv_dir, filename))
+    for fpath in tqdm(files):
+        if fpath.endswith(".csv"):
+            fname = os.path.basename(fpath)
+            task_name, model_name, nparts, ncfgs, ncores, max_error = parse_filename(fname)
+            df_tmp = pd.read_csv(os.path.join(fpath))
             df_tmp["task_name"] = task_name
             df_tmp["model_name"] = model_name
             # df_tmp["nparts"] = nparts # already in the csv file
@@ -75,8 +98,23 @@ def merge_csv(csv_dir):
 
 
 def main():
-    df = merge_csv(csv_dir)
-    df.to_csv(os.path.join(csv_dir, "..", "evals.csv"), index=False)
+    args = EvalArgs().parse_args()
+    df = merge_csv(args)
+    useless_cols = ['run_shared', 'nocache', 'interpreter']
+    df = df.drop(columns=useless_cols)
+    if args.avg:
+        # seed,
+        # agg_qids,task_home,
+        # similarity-maxe,accuracy-maxe,sampling_rate,avg_latency,speedup,BD:AFC,BD:AMI,BD:Sobol,similarity,accuracy,similarity-r2,accuracy-r2,similarity-mse,accuracy-mse,similarity-mape,accuracy-mape,acc_loss,acc_loss_pct,acc_diff,similarity-auc,accuracy-auc,similarity-acc,accuracy-acc,similarity-f1,accuracy-f1
+        keys = ['task_name', 'model_name', 'model',
+                'task_home', 'agg_qids',
+                'qinf', 'policy', 'nparts', 'ncfgs',
+                'ncores', 'loading_mode',
+                'scheduler_batch', 'scheduler_init',
+                'max_error', 'min_conf']
+        df = df.groupby(keys).mean().reset_index()
+    print(f'total number of rows: {len(df)}')
+    df.to_csv(os.path.join(args.output_dir, args.output_filename), index=False)
 
 
 if __name__ == "__main__":

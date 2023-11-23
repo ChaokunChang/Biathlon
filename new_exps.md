@@ -17,6 +17,9 @@ python evaluate_all.py --exp tick-v2 --model lr --ncores 0 --loading_mode 0 --se
 New ones:
 
 ```
+python evaluate_all.py --exp prepare --prep_single tripsfeast --seed xxx
+python evaluate_all.py --exp prepare --prep_single machinerymulti --seed xxx
+
 python evaluate_all.py --exp machinerymulti --model mlp --ncores 1 --loading_mode 0 --seed xxx
 python evaluate_all.py --exp machinerymulti --model svm --ncores 1 --loading_mode 0 --seed xxx
 python evaluate_all.py --exp machinerymulti --model knn --ncores 1 --loading_mode 0 --seed xxx

@@ -49,6 +49,7 @@ def run_prepare(args: ExpArgs):
         "machinery",
         "ccfraud",
         "tripsfeast",
+        "machinerymulti"
     ]:
         cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)

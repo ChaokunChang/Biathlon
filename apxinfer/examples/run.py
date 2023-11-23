@@ -62,7 +62,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
             from apxinfer.examples.trips.data import get_dloader
             from apxinfer.examples.trips.query import get_qps
             from apxinfer.examples.trips.engine import get_qengine
-        elif name == "machinery":
+        elif name == "machinery" or name == "machinerymulti":
             from apxinfer.examples.machinery.data import get_dloader
             from apxinfer.examples.machinery.query import get_qps
             from apxinfer.examples.machinery.engine import get_qengine
@@ -92,7 +92,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
         from apxinfer.examples.trips.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
-    elif name == "machinery":
+    elif name == "machinery" or name == "machinerymulti":
         from apxinfer.examples.machinery.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
@@ -113,6 +113,9 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name == "machinery":
         from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
+        model_type = "classifier"
+    elif name == "machinerymulti":
+        from apxinfer.examples.machinery.prepare import MachineryMultiClassPrepareWorker as Worker
         model_type = "classifier"
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.prepare import CCFraudPrepareWorker as Worker

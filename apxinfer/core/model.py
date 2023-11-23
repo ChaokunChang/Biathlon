@@ -152,6 +152,8 @@ def create_estimators(
     elif model_type == "classifier":
         if model_name == "knn":
             model = KNeighborsClassifier()
+        elif model_name == "svm" and multi_class:
+            model = SVC(probability=True)
         else:
             model = SUPPORTED_MODELS["classifier"][model_name](**kwargs)
     else:
@@ -183,11 +185,15 @@ def create_model(
     """Create a model"""
     if model_type == "regressor":
         return XIPRegressor(
-            create_estimators(model_type, model_name, scaler_type, **kwargs)
+            create_estimators(model_type, model_name, 
+                              scaler_type, multi_class,
+                              **kwargs)
         )
     elif model_type == "classifier":
         return XIPClassifier(
-            create_estimators(model_type, model_name, scaler_type, **kwargs),
+            create_estimators(model_type, model_name, 
+                              scaler_type, multi_class,
+                              **kwargs),
             multi_class=multi_class,
         )
     else:

@@ -12,6 +12,7 @@ class ExpArgs(Tap):
     ncfgs: int = 100
     seed: int = 0
     skip_shared: bool = False
+    prep_single: str = None
 
     def process_args(self):
         assert self.exp is not None
@@ -41,16 +42,20 @@ def run_prepare(args: ExpArgs):
         cmd = f"{interpreter}"
     else:
         cmd = f"sudo {interpreter}"
-    for task in [
-        "trips",
-        "tick",
-        "tickv2",
-        "cheaptrips",
-        "machinery",
-        "ccfraud",
-        "tripsfeast",
-        "machinerymulti"
-    ]:
+    if args.prep_single:
+        tasks = [args.prep_single]
+    else:
+        tasks = [
+            "trips",
+            "tick",
+            "tickv2",
+            "cheaptrips",
+            "machinery",
+            "ccfraud",
+            "tripsfeast",
+            "machinerymulti",
+        ]
+    for task in tasks:
         cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
         os.system(cmd)
 
@@ -91,9 +96,28 @@ def get_eval_cmd(
 
 def run_machinery(args: ExpArgs):
     """
-    must models = ["mlp", "dt", "knn"]
+    must models = ["mlp", "svm", "knn"]
     """
     task_name = "machinery"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init in init_sizes:
+        for scheduler_batch in step_sizes:
+            cmd = get_eval_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+            )
+            os.system(cmd)
+
+
+def run_machinerymulti(args: ExpArgs):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = "machinerymulti"
     agg_qids = "0 1 2 3 4 5 6 7"
     model = args.model
     if not args.skip_shared:
@@ -299,5 +323,7 @@ if __name__ == "__main__":
         run_tripsfeast(args)
     elif args.exp == "cheaptripsfeast":
         run_cheaptripsfeast(args)
+    elif args.exp == "machinerymulti":
+        run_machinerymulti(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

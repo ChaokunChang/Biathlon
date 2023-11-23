@@ -145,7 +145,7 @@ def run_trainer(name: str, args: TrainerArgs):
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.trainer import CheapTripsTrainer as Trainer
         model_type = "classifier"
-    elif name == "machinery":
+    elif name == "machinery" or name == "machinerymulti":
         from apxinfer.examples.machinery.trainer import MachineryTrainer as Trainer
         model_type = "classifier"
     elif name == "ccfraud":
@@ -161,6 +161,7 @@ def run_trainer(name: str, args: TrainerArgs):
         args.model,
         args.seed,
         scaler_type=args.scaler_type,
+        multi_class=(name == "machinerymulti")
     )
     trainer.run()
 

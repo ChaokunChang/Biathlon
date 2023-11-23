@@ -473,7 +473,7 @@ class XIPSchedulerStepGradient(XIPSchedulerWQCost):
             priorities = np.maximum(priorities, 0.0)
         assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
 
-        delta_variance = priorities
+        delta_variance = priorities * pred["pred_var"]
         delta_qcosts = self.get_qweights() * delta_qsamples
         gradient = delta_variance / np.where(delta_qsamples > 1e-9, delta_qcosts, 1)
         assert np.all(gradient >= 0), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"
@@ -548,7 +548,7 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
             priorities = np.maximum(priorities, 0.0)
         assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
 
-        delta_variance = priorities
+        delta_variance = priorities * pred["pred_var"]
         delta_qcosts = self.get_qweights() * delta_qsamples
         gradient = delta_variance / np.where(delta_qsamples > 1e-9, delta_qcosts, 1)
         assert np.all(gradient >= 0), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"

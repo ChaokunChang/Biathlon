@@ -203,6 +203,26 @@ def run_tripsfeast(args: ExpArgs):
                 os.system(cmd)
 
 
+def run_cheaptripsfeast(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    optional models = ["dt", "lgbm", "rf"]
+    """
+    task_name = "cheaptripsfeast"
+    agg_qids = "1 2"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    init_sizes, step_sizes = get_scheduler_cfgs(args, len(agg_qids))
+    for scheduler_init in init_sizes:
+        for scheduler_batch in step_sizes:
+            cmd = get_eval_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+            )
+            os.system(cmd)
+
+
 def run_tick_v1(args: ExpArgs):
     """
     models = ["lr", "dt", "rf"]
@@ -276,5 +296,7 @@ if __name__ == "__main__":
         run_ccfraud(args)
     elif args.exp == "tripsfeast":
         run_tripsfeast(args)
+    elif args.exp == "cheaptripsfeast":
+        run_cheaptripsfeast(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

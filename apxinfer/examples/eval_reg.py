@@ -92,7 +92,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
             "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
         }
     else:
-        assert args.task_name in ["cheaptrips", "machinery", "ccfraud"]
+        assert args.task_name in ["cheaptrips", "cheaptripsfeast", "machinery", "ccfraud"]
         accs = {
             "similarity": all_info["evals_to_ext"]["acc"],
             "accuracy": all_info["evals_to_gt"]["acc"],

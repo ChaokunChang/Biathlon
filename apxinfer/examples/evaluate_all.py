@@ -40,6 +40,7 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
             cfgs.append((init, batch))
     # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
     cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
     return cfgs
 
 
@@ -336,6 +337,8 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int):
             cfgs.append((scheduler_init, scheduler_batch))
     # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
     cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    naggs = len(agg_qids)
+    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_vary_nf_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
@@ -361,6 +364,8 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int):
             cfgs.append((scheduler_init, scheduler_batch))
     # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
     cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
+    naggs = len(agg_qids)
+    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_vary_nf_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0

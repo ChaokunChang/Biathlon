@@ -67,6 +67,7 @@ class OnlineArgs(BaseXIPArgs):
     scheduler: Literal[
         "greedy", "random", "greedy_plus",
         "uniform", "blqcost", "optimizer",
+        "gradient", "stepgradient"
     ] = "optimizer"  # scheduler
     scheduler_init: int = 1
     scheduler_batch: int = 1

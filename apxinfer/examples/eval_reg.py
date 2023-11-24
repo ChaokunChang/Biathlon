@@ -8,9 +8,11 @@ ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery", "ccfraud", "machi
 
 MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 8)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 8)]
-
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF
+
+TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
+ALL_REG_TASKS += TickVaryNMonths
 
 
 class EvalArgs(Tap):

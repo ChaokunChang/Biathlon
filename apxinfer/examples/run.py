@@ -48,6 +48,11 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "tickv2":
         from apxinfer.examples.tick.engine import get_tick_engine_v2
         fengine = get_tick_engine_v2(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name.startswith("tickvaryNM"):
+        from apxinfer.examples.tickvary.engine import get_tick_engine
+        num_months = int(name[len("tickvaryNM"):])
+        fengine = get_tick_engine(nparts=args.nparts, ncores=args.ncores,
+                                  num_months=num_months, verbose=args.verbose)
     elif name == "tripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
         fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
@@ -123,6 +128,11 @@ def run_ingest(name: str, args: BaseXIPArgs):
     elif name == "tick":
         from apxinfer.examples.tick.data import ingest
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name.startswith("tickvaryNM"):
+        from apxinfer.examples.tickvary.data import ingest
+        num_months = int(name[len("tickvaryNM"):])
+        ingest(nparts=args.nparts, seed=args.seed,
+               num_months=num_months, verbose=args.verbose)
 
 
 def run_prepare(name: str, args: PrepareArgs):
@@ -141,7 +151,7 @@ def run_prepare(name: str, args: PrepareArgs):
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.prepare import CCFraudPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "tick" or name == "tickv2":
+    elif name.startswith("tick"):
         from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
         model_type = "regressor"
 
@@ -172,7 +182,7 @@ def run_trainer(name: str, args: TrainerArgs):
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.trainer import CCFraudTrainer as Trainer
         model_type = "classifier"
-    elif name == "tick" or name == "tickv2":
+    elif name.startswith("tick"):
         from apxinfer.examples.tick.trainer import TickTrainer as Trainer
         model_type = "regressor"
 

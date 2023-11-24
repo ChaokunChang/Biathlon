@@ -368,11 +368,39 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
         os.system(cmd)
 
 
+def run_tick_vary_nmonths(args: ExpArgs, nmonths: int):
+    """
+    models = ["lr", "dt", "rf"]
+    """
+    task_name = f"tickvaryNM{nmonths}"
+    agg_qids = "6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+
+    cfgs = get_eval_vary_nf_cmd(args, 1)
+    max_errors = [0.001, 0.01, 0.05, 0.1]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
+
+
 if __name__ == "__main__":
     MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
     MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 8)]
     MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
     MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
+    TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)
@@ -406,5 +434,8 @@ if __name__ == "__main__":
     elif args.exp in MachineryMultiVaryXNF:
         nf = int(args.exp[len("machinerymultixf"):])
         run_machinerymulti_vary_nf(args, nf, fixed=True)
+    elif args.exp in TickVaryNMonths:
+        nmonths = int(args.exp[len("tickvaryNM"):])
+        run_tick_vary_nmonths(args, nmonths)
     else:
         raise ValueError(f"invalid exp {args.exp}")

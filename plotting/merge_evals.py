@@ -113,6 +113,8 @@ def main():
                 'scheduler_batch', 'scheduler_init',
                 'max_error', 'min_conf']
         df = df.groupby(keys).mean().reset_index()
+    # add column naggs, which = len(agg_qids)
+    df['naggs'] = df['agg_qids'].apply(lambda x: len(json.loads(x)))
     print(f'total number of rows: {len(df)}')
     df.to_csv(os.path.join(args.output_dir, args.output_filename), index=False)
 

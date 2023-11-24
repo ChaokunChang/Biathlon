@@ -15,6 +15,7 @@ class EvalArgs(Tap):
     filename: str = "evals.csv"
     loading_mode: int = 0
     ncores: int = 1
+    beta_of_all: bool = False
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -196,15 +197,15 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
     ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-AFC")
-    ax.bar(x1, baseline_df['BD:AMI'], width, bottom=baseline_df['BD:AFC'], label="Baseline-AMI")
-    ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Sobol")
-    ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
+    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
+    # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
+    # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
 
     # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
     ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
     ax.bar(x, default_df['BD:AMI'], width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
-    ax.bar(x, default_df['BD:Sobol'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'], label=f"{PJNAME}-Sobol")
-    ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
+    ax.bar(x, default_df['BD:Sobol'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'], label=f"{PJNAME}-Planner")
+    # ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
 
     # add speedup on top of the bar of PJNAME
     for i, task_name in enumerate(default_df['task_name']):
@@ -256,10 +257,10 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     selected_df["sns_AFC"] = selected_df["BD:AFC"]
     selected_df["sns_AMI"] = selected_df["BD:AMI"] + selected_df["sns_AFC"]
     selected_df["sns_Sobol"] = selected_df["BD:Sobol"] + selected_df["sns_AMI"]
-    selected_df["sns_Others"] = selected_df["BD:Others"] + selected_df["sns_Sobol"]
+    # selected_df["sns_Others"] = selected_df["BD:Others"] + selected_df["sns_Sobol"]
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    sns.barplot(x="task_name", y="sns_Others", data=selected_df, ax=ax, label="Others")
+    # sns.barplot(x="task_name", y="sns_Others", data=selected_df, ax=ax, label="Others")
     sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner")
     sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI")
     sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=ax, label="Executor:AFC")
@@ -270,12 +271,6 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "lat_breakdown_default.pdf"))
     # plt.show()
-
-    exact_df = get_evals_baseline(df)
-    exact_df["sns_AFC"] = exact_df["BD:AFC"]
-    exact_df["sns_AMI"] = exact_df["BD:AMI"] + exact_df["sns_AFC"]
-    exact_df["sns_Sobol"] = exact_df["BD:Sobol"] + exact_df["sns_AMI"]
-    exact_df["sns_Others"] = exact_df["BD:Others"] + exact_df["sns_Sobol"]
 
 
 def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
@@ -461,6 +456,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
     selected_df['beta'] = selected_df['scheduler_batch'] / selected_df['ncfgs']
+    if args.beta_of_all:
+        selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
@@ -517,6 +514,8 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     selected_df['alpha'] = selected_df['scheduler_init'] / selected_df['ncfgs']
     selected_df['beta'] = selected_df['scheduler_batch'] / selected_df['ncfgs']
+    if args.beta_of_all:
+        selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "alpha", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]

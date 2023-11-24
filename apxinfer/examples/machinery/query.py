@@ -46,3 +46,25 @@ def get_qps(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
                                dcol_ops=["avg"],
                                verbose=verbose))
     return qps
+
+
+def get_qps_x(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
+    nf = kwargs.get("nf", 8)
+    qps: List[XIPQueryProcessor] = []
+    # dcols = [f'sensor_{i}' for i in range(8)]
+    # dcols_aggs = [["avg"] for i in range(8)]
+    for i in range(nf):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.AGG,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    for i in range(nf, 8):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.NORMAL,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    return qps

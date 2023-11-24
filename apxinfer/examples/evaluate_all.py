@@ -324,11 +324,14 @@ def get_eval_vary_nf_cmd(
     return cmd
 
 
-def run_machinery_vary_nf(args: ExpArgs, nf: int):
+def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
     """
     must models = ["mlp", "svm", "knn"]
     """
-    task_name = f"machineryf{nf}"
+    if fixed:
+        task_name = f"machineryxf{nf}"
+    else:
+        task_name = f"machineryf{nf}"
     agg_qids = " ".join([f"{i}" for i in range(nf)])
     model = args.model
     if not args.skip_shared:
@@ -343,11 +346,14 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int):
         os.system(cmd)
 
 
-def run_machinerymulti_vary_nf(args: ExpArgs, nf: int):
+def run_machinerymulti_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
     """
     must models = ["mlp", "svm", "knn"]
     """
-    task_name = f"machinerymultif{nf}"
+    if fixed:
+        task_name = f"machinerymultixf{nf}"
+    else:
+        task_name = f"machinerymultif{nf}"
     agg_qids = " ".join([f"{i}" for i in range(nf)])
     model = args.model
     if not args.skip_shared:
@@ -364,7 +370,9 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int):
 
 if __name__ == "__main__":
     MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
+    MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 8)]
     MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
+    MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)
@@ -392,5 +400,11 @@ if __name__ == "__main__":
     elif args.exp in MachineryMultiVaryNF:
         nf = int(args.exp[len("machinerymultif"):])
         run_machinerymulti_vary_nf(args, nf)
+    elif args.exp in MachineryVaryXNF:
+        nf = int(args.exp[len("machineryxf"):])
+        run_machinery_vary_nf(args, nf, fixed=True)
+    elif args.exp in MachineryMultiVaryXNF:
+        nf = int(args.exp[len("machinerymultixf"):])
+        run_machinerymulti_vary_nf(args, nf, fixed=True)
     else:
         raise ValueError(f"invalid exp {args.exp}")

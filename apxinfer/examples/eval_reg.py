@@ -6,8 +6,8 @@ from tap import Tap
 ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2"]
 ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery", "ccfraud", "machinerymulti"]
 
-MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
-MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
+MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 8)]
+MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 8)]
 
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF
@@ -88,6 +88,9 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "BD:AFC": all_info["avg_query_time"],
         "BD:AMI": all_info["avg_pred_time"],
         "BD:Sobol": all_info["avg_scheduler_time"],
+        "avg_nrounds": all_info["avg_nrounds"],
+        "avg_sample_query": all_info["avg_sample_query"],
+        "avg_qtime_query": all_info["avg_qtime_query"],
     }
     if args.task_name in ALL_REG_TASKS:
         accs = {

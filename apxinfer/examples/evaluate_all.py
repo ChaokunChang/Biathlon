@@ -302,6 +302,12 @@ def run_tick_v2(args: ExpArgs):
             os.system(cmd)
 
 
+def get_scheduler_vary_nf_cfgs(args: ExpArgs, naggs: int):
+    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 1*naggs), (3, 3*naggs), (1, 1*naggs)]
+    cfgs += [(5, 5), (5, 10), (5, 3), (5, 1)]
+    return cfgs
+
+
 def get_eval_vary_nf_cmd(
     args: ExpArgs,
     task_name: str,
@@ -329,16 +335,7 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    init_sizes, step_sizes = [5, 10], [5, 10] + list(range(50, 100*nf+1, 50))
-    # get pair of init_sizes and step_sizes
-    cfgs = []
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cfgs.append((scheduler_init, scheduler_batch))
-    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
-    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
-    naggs = len(agg_qids)
-    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
+    cfgs = get_scheduler_vary_nf_cfgs(args, nf)
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_vary_nf_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
@@ -356,16 +353,8 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    init_sizes, step_sizes = [5, 10], [5, 10] + list(range(50, 100*nf+1, 50))
-    # get pair of init_sizes and step_sizes
-    cfgs = []
-    for scheduler_init in init_sizes:
-        for scheduler_batch in step_sizes:
-            cfgs.append((scheduler_init, scheduler_batch))
-    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
-    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
-    naggs = len(agg_qids)
-    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
+
+    cfgs = get_scheduler_vary_nf_cfgs(args, nf)
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_vary_nf_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0

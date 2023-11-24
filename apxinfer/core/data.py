@@ -28,6 +28,7 @@ class DBHelper:
             username=username,
             password=passwd,
             session_id=session_id,
+            connect_timeout=36000,
         )
 
     def database_exists(db_client: Client, database) -> bool:

@@ -215,7 +215,7 @@ def run_tripsfeast(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 2)
-    max_errors = [0.5, 1.0, 2.0, 3.0]
+    max_errors = [0.5, 1.0, 1.66, 2.0, 3.0]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -287,7 +287,7 @@ def run_tick_v2(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 1)
-    max_errors = [0.001, 0.01, 0.05, 0.1]
+    max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -380,7 +380,34 @@ def run_tick_vary_nmonths(args: ExpArgs, nmonths: int):
         os.system(cmd)
 
     cfgs = get_eval_vary_nf_cmd(args, 1)
-    max_errors = [0.001, 0.01, 0.05, 0.1]
+    max_errors = [0.01, 0.04]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
+
+
+def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
+    """
+    models = ["lgbm", "xgb", "dt", "rf"]
+    """
+    task_name = f"tripsfeastw{nmonths}"
+    agg_qids = "1 2"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+
+    cfgs = get_eval_vary_nf_cmd(args, 2)
+    max_errors = [1.0, 1.66]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -401,6 +428,8 @@ if __name__ == "__main__":
     MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
     MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
     TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
+    TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 8)]
+
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)
@@ -437,5 +466,8 @@ if __name__ == "__main__":
     elif args.exp in TickVaryNMonths:
         nmonths = int(args.exp[len("tickvaryNM"):])
         run_tick_vary_nmonths(args, nmonths)
+    elif args.exp in TripsFeastVaryWindow:
+        nmonths = int(args.exp[len("tripsfeastw"):])
+        run_tripsfeast_vary_window_size(args, nmonths)
     else:
         raise ValueError(f"invalid exp {args.exp}")

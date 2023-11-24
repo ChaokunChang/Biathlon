@@ -14,6 +14,9 @@ ALL_CLS_TASKS += MachineryMultiVaryNF
 TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
 ALL_REG_TASKS += TickVaryNMonths
 
+TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 8)]
+ALL_CLS_TASKS += TripsFeastVaryWindow
+
 
 class EvalArgs(Tap):
     interpreter: str = "python"

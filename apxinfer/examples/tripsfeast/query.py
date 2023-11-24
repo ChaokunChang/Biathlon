@@ -94,3 +94,72 @@ class TripsQP2(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+
+class TripsQP3(XIPQueryProcessor):
+    def __init__(
+        self,
+        qname: str,
+        qtype: XIPQType,
+        data_loader: XIPDataLoader,
+        window: float,
+        fnames: List[str] = None,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        self.window = window
+
+    def get_query_condition(self, request: TripsRequest) -> str:
+        to_dt = pd.to_datetime(request["req_pickup_datetime"])
+        from_dt = to_dt - dt.timedelta(hours=self.window)
+        pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
+        and_list = [
+            f"pickup_datetime >= '{from_dt}'",
+            f"pickup_datetime < '{to_dt}'",
+            f"pickup_ntaname = '{pickup_ntaname}'",
+            # "dropoff_datetime IS NOT NULL",
+            # f"dropoff_datetime <= '{to_dt}'",
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["fare_amount"]
+        dcol_aggs = [["count"], ["avg"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class TripsQP4(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType,
+                 data_loader: XIPDataLoader, window: float,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+        self.window = window
+
+    def get_query_condition(self, request: TripsRequest) -> str:
+        to_dt = pd.to_datetime(request["req_pickup_datetime"])
+        from_dt = to_dt - dt.timedelta(hours=self.window)
+        # pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
+        dropoff_ntaname = request["req_dropoff_ntaname"].replace("'", r"\'")
+        and_list = [
+            f"dropoff_datetime >= '{from_dt}'",
+            f"dropoff_datetime < '{to_dt}'",
+            f"dropoff_ntaname = '{dropoff_ntaname}'",
+            # "dropoff_datetime IS NOT NULL",
+            # f"dropoff_datetime <= '{to_dt}'",
+        ]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["fare_amount"]
+        dcol_aggs = [["count"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops

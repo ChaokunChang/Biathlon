@@ -56,6 +56,11 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "tripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
         fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name.startswith("tripsfeastw"):
+        from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine_vary
+        rate = int(name[len("tripsfeastw"):])
+        fengine = get_trips_feast_engine_vary(nparts=args.nparts, rate=rate,
+                                              ncores=args.ncores, verbose=args.verbose)
     elif name == "cheaptripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
         fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
@@ -110,7 +115,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
 
 
 def run_ingest(name: str, args: BaseXIPArgs):
-    if name == "trips" or name == "tripsfeast":
+    if name.startswith("trips"):
         from apxinfer.examples.trips.data import get_ingestor
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
@@ -136,7 +141,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
 
 
 def run_prepare(name: str, args: PrepareArgs):
-    if name == "trips" or name == "tripsfeast":
+    if name.startswith("trips"):
         from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
         model_type = "regressor"
     elif name == "cheaptrips" or name == "cheaptripsfeast":
@@ -170,7 +175,7 @@ def run_prepare(name: str, args: PrepareArgs):
 
 
 def run_trainer(name: str, args: TrainerArgs):
-    if name == "trips" or name == "tripsfeast":
+    if name.startswith("trips"):
         from apxinfer.examples.trips.trainer import TripsTrainer as Trainer
         model_type = "regressor"
     elif name == "cheaptrips" or name == "cheaptripsfeast":

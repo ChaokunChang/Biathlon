@@ -302,13 +302,13 @@ def run_tick_v2(args: ExpArgs):
             os.system(cmd)
 
 
-def get_scheduler_vary_nf_cfgs(args: ExpArgs, naggs: int):
+def get_scheduler_vary_cfgs(args: ExpArgs, naggs: int):
     cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 1*naggs), (3, 3*naggs), (1, 1*naggs)]
     cfgs += [(5, 5), (5, 10), (5, 3), (5, 1)]
     return cfgs
 
 
-def get_eval_vary_nf_cmd(
+def get_eval_vary_cmd(
     args: ExpArgs,
     task_name: str,
     model: str,
@@ -320,7 +320,7 @@ def get_eval_vary_nf_cmd(
     cmd = get_eval_cmd(
         args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
     )
-    cmd = f"{cmd} --min_confs 0.95 0.9"
+    cmd = f"{cmd} --min_confs 0.95"
     return cmd
 
 
@@ -338,9 +338,9 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    cfgs = get_scheduler_vary_nf_cfgs(args, nf)
+    cfgs = get_scheduler_vary_cfgs(args, nf)
     for scheduler_init, scheduler_batch in cfgs:
-        cmd = get_eval_vary_nf_cmd(
+        cmd = get_eval_vary_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
         os.system(cmd)
@@ -360,9 +360,9 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    cfgs = get_scheduler_vary_nf_cfgs(args, nf)
+    cfgs = get_scheduler_vary_cfgs(args, nf)
     for scheduler_init, scheduler_batch in cfgs:
-        cmd = get_eval_vary_nf_cmd(
+        cmd = get_eval_vary_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
         os.system(cmd)
@@ -379,18 +379,12 @@ def run_tick_vary_nmonths(args: ExpArgs, nmonths: int):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    cfgs = get_eval_vary_nf_cmd(args, 1)
+    cfgs = get_scheduler_vary_cfgs(args, 1)
     max_errors = [0.01, 0.04]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                scheduler_init,
-                scheduler_batch,
-                max_error,
+            cmd = get_eval_vary_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
             os.system(cmd)
 
@@ -406,18 +400,12 @@ def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    cfgs = get_eval_vary_nf_cmd(args, 2)
+    cfgs = get_scheduler_vary_cfgs(args, 2)
     max_errors = [1.0, 1.66]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                scheduler_init,
-                scheduler_batch,
-                max_error,
+            cmd = get_eval_vary_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
             os.system(cmd)
 

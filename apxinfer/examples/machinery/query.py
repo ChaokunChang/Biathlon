@@ -62,7 +62,7 @@ def get_qps_x(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
                                verbose=verbose))
     for i in range(nf, 8):
         qps.append(MachineryQP(qname=f"q-{len(qps)}",
-                               qtype=XIPQType.NORMAL,
+                               qtype=XIPQType.KeySearch,
                                data_loader=data_loader,
                                dcol=f'sensor_{i}',
                                dcol_ops=["avg"],

@@ -92,7 +92,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name in ([f"machineryxf{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 8)]):
+    elif name in ([f"machineryxf{i}" for i in range(1, 9)] + [f"machinerymultixf{i}" for i in range(1, 9)]):
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps_x
         from apxinfer.examples.machinery.engine import get_qengine
@@ -147,10 +147,10 @@ def run_prepare(name: str, args: PrepareArgs):
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.prepare import CheapTripsPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinery" or (name in [f"machineryf{i}" for i in range(1, 8)]) or (name in [f"machineryxf{i}" for i in range(1, 8)]):
+    elif name == "machinery" or (name in [f"machineryf{i}" for i in range(1, 8)]) or (name in [f"machineryxf{i}" for i in range(1, 9)]):
         from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinerymulti" or (name in [f"machinerymultif{i}" for i in range(1, 8)]) or (name in [f"machinerymultixf{i}" for i in range(1, 8)]):
+    elif name == "machinerymulti" or (name in [f"machinerymultif{i}" for i in range(1, 8)]) or (name in [f"machinerymultixf{i}" for i in range(1, 9)]):
         from apxinfer.examples.machinery.prepare import MachineryMultiClassPrepareWorker as Worker
         model_type = "classifier"
     elif name == "ccfraud":

@@ -6,8 +6,8 @@ from tap import Tap
 ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2"]
 ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery", "ccfraud", "machinerymulti"]
 
-MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 8)]
-MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 8)]
+MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
+MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 9)]
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF
 
@@ -23,10 +23,10 @@ class EvalArgs(Tap):
     task_home: str = "final"
     task_name: str = None
     model: str = None
-    nparts: int = 20
+    nparts: int = 100
     ncfgs: int = None
-    ncores: int = 0
-    loading_mode: int = 1
+    ncores: int = 1
+    loading_mode: int = 0
     max_error: float = 1.0
     agg_qids: list[int] = None
     run_shared: bool = False

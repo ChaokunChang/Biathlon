@@ -2,9 +2,9 @@ from tap import Tap
 import os
 
 MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
-MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 8)]
+MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
-MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
+MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 9)]
 TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
 TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 8)]
 

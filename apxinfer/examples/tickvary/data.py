@@ -262,7 +262,7 @@ class TickVaryHourFStoreIngestor(XIPDataIngestor):
 
 
 def ingest(nparts: int = 100, seed: int = 0,
-           num_month: int = 1, verbose: bool = False):
+           num_months: int = 1, verbose: bool = False):
     """
     2.2G    ./January2022
     12G     ./February2022 (275M)
@@ -292,17 +292,17 @@ def ingest(nparts: int = 100, seed: int = 0,
         raise RuntimeError("no valid dsrc!")
     all_months = ["February2022", "March2022", "April2022", "May2022",
                   "June2022", "July2022", "August2022"]
-    selected_months = all_months[:num_month]
+    selected_months = all_months[:num_months]
     # check if the data directory exists
     for month in selected_months:
         assert os.path.exists(os.path.join(dsrc, month)), f"{month} does not exist!"
 
-    month_ids = [f"{i}" for i in range(2, num_month + 2)]
+    month_ids = [f"{i}" for i in range(2, num_months + 2)]
     ingestor = TickVaryDataIngestor(
         dsrc_type=dsrc_type,
         dsrc=dsrc,
         database="xip",
-        table=f"tickvary_{num_month}_{nparts}",
+        table=f"tickvary_{num_months}_{nparts}",
         nparts=nparts,
         seed=seed,
         monthes=month_ids

@@ -12,7 +12,7 @@ def get_tick_engine(nparts: int, ncores: int = 0,
     tick_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database="xip",
-        table=f"tick_{num_months}_{nparts}",
+        table=f"ticktickvary_{num_months}_{nparts}",
         seed=0,
         enable_cache=False,
     )

@@ -111,51 +111,100 @@ class TickVaryDataIngestor(XIPDataIngestor):
                 AND toMonth(tick_dt) in ({','.join(self.monthes)})
         """
         nrows = self.db_client.command(sql)
+        print(f'nrows to ingest = {nrows}')
 
         # we then insert the data into the main table
         self.logger.info(f"Ingesting data from {aux_table} into table {self.table}")
-        sql = f"""
-            INSERT INTO {self.database}.{self.table}
-            SELECT tmp1.*, tmp2.pid
-            FROM
-            (
-                SELECT rowNumberInAllBlocks() as txn_id, *
-                FROM {self.database}.{aux_table}
-                WHERE toYear(tick_dt) == 2022
-                    AND toMonth(tick_dt) in ({','.join(self.monthes)})
-            ) as tmp1
-            JOIN
-            (
-                SELECT rowNumberInAllBlocks() as txn_id,
-                        value % {self.nparts} as pid
-                FROM generateRandom('value UInt32', {self.seed})
-                LIMIT {nrows}
-            ) as tmp2
-            ON tmp1.txn_id = tmp2.txn_id
-        """
-        if nrows > 1e8:
-            nrows = int(1e8)
-            sql = f"""
-                INSERT INTO {self.database}.{self.table}
-                SELECT tmp1.*, tmp2.pid
-                FROM
-                (
-                    SELECT rowNumberInAllBlocks() as txn_id, *
-                    FROM {self.database}.{aux_table}
-                    WHERE toYear(tick_dt) == 2022
-                        AND toMonth(tick_dt) in ({','.join(self.monthes)})
-                ) as tmp1
-                JOIN
-                (
-                    SELECT rowNumberInAllBlocks() as txn_id,
-                            value % {self.nparts} as pid
-                    FROM generateRandom('value UInt32', {self.seed})
-                    LIMIT {nrows}
-                ) as tmp2
-                ON (tmp1.txn_id % {nrows}) = tmp2.txn_id
-            """
+        for month in self.monthes:
+            for day in range(1, 32):
+                # sql = f"""
+                #     INSERT INTO {self.database}.{self.table}
+                #     SELECT *
+                #     FROM {self.database}.{aux_table}
+                #     WHERE toYear(tick_dt) == 2022
+                #         AND toMonth(tick_dt) == {month}
+                #         AND toDayOfMonth(tick_dt) == {day}
+                # """
+                # self.db_client.command(sql)
 
-        self.db_client.command(sql)
+                # count the current number of rows in the main table
+                sql = f"""
+                    SELECT count() FROM {self.database}.{self.table}
+                """
+                current_count = self.db_client.command(sql)
+
+                # count this part first
+                sql = f"""
+                    SELECT count() FROM {self.database}.{aux_table}
+                    WHERE toYear(tick_dt) == 2022
+                        AND toMonth(tick_dt) == {month}
+                        AND toDayOfMonth(tick_dt) == {day}
+                """
+                nrows_part = self.db_client.command(sql)
+
+                sql = f"""
+                    INSERT INTO {self.database}.{self.table}
+                    SELECT tmp1.*, tmp2.pid
+                    FROM
+                    (
+                        SELECT rowNumberInAllBlocks() + {current_count} as txn_id, *
+                        FROM {self.database}.{aux_table}
+                        WHERE toYear(tick_dt) == 2022
+                            AND toMonth(tick_dt) == {month}
+                            AND toDayOfMonth(tick_dt) == {day}
+                    ) as tmp1
+                    JOIN
+                    (
+                        SELECT rowNumberInAllBlocks() + {current_count} as txn_id,
+                                value % {self.nparts} as pid
+                        FROM generateRandom('value UInt32', {self.seed})
+                        LIMIT {nrows_part}
+                    ) as tmp2
+                    ON tmp1.txn_id = tmp2.txn_id
+                """
+                self.db_client.command(sql)
+        # sql = f"""
+        #     INSERT INTO {self.database}.{self.table}
+        #     SELECT tmp1.*, tmp2.pid
+        #     FROM
+        #     (
+        #         SELECT rowNumberInAllBlocks() as txn_id, *
+        #         FROM {self.database}.{aux_table}
+        #         WHERE toYear(tick_dt) == 2022
+        #             AND toMonth(tick_dt) in ({','.join(self.monthes)})
+        #     ) as tmp1
+        #     JOIN
+        #     (
+        #         SELECT rowNumberInAllBlocks() as txn_id,
+        #                 value % {self.nparts} as pid
+        #         FROM generateRandom('value UInt32', {self.seed})
+        #         LIMIT {nrows}
+        #     ) as tmp2
+        #     ON tmp1.txn_id = tmp2.txn_id
+        # """
+        # if nrows > 1e8:
+        #     nrows = int(1e8)
+        #     sql = f"""
+        #         INSERT INTO {self.database}.{self.table}
+        #         SELECT tmp1.*, tmp2.pid
+        #         FROM
+        #         (
+        #             SELECT rowNumberInAllBlocks() as txn_id, *
+        #             FROM {self.database}.{aux_table}
+        #             WHERE toYear(tick_dt) == 2022
+        #                 AND toMonth(tick_dt) in ({','.join(self.monthes)})
+        #         ) as tmp1
+        #         JOIN
+        #         (
+        #             SELECT rowNumberInAllBlocks() as txn_id,
+        #                     value % {self.nparts} as pid
+        #             FROM generateRandom('value UInt32', {self.seed})
+        #             LIMIT {nrows}
+        #         ) as tmp2
+        #         ON (tmp1.txn_id % {nrows}) = tmp2.txn_id
+        #     """
+
+        # self.db_client.command(sql)
 
     def drop_table(self) -> None:
         DBHelper.drop_table(self.db_client, self.database, self.table)

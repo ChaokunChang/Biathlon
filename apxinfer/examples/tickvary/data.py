@@ -113,20 +113,28 @@ class TickVaryDataIngestor(XIPDataIngestor):
         nrows = self.db_client.command(sql)
         print(f'nrows to ingest = {nrows}')
 
-        # we then insert the data into the main table
-        self.logger.info(f"Ingesting data from {aux_table} into table {self.table}")
-        for month in self.monthes:
-            for day in range(1, 32):
-                # sql = f"""
-                #     INSERT INTO {self.database}.{self.table}
-                #     SELECT *
-                #     FROM {self.database}.{aux_table}
-                #     WHERE toYear(tick_dt) == 2022
-                #         AND toMonth(tick_dt) == {month}
-                #         AND toDayOfMonth(tick_dt) == {day}
-                # """
-                # self.db_client.command(sql)
+        tb_prefix, tb_id, tb_nparts = self.table.split("_")
+        tb_nparts = int(tb_nparts)
+        assert tb_nparts == self.nparts
+        tb_id = int(tb_id)
+        prev_table = f"{tb_prefix}_{tb_id - 1}_{tb_nparts}"
+        # check if the previous table exists
+        assert DBHelper.table_exists(self.db_client, self.database, prev_table)
+        # check if the previous table is empty
+        assert not DBHelper.table_empty(self.db_client, self.database, prev_table)
+        # load data from the previous table to the current table
+        sql = f"""
+            INSERT INTO {self.database}.{self.table}
+            SELECT *
+            FROM {self.database}.{prev_table}
+        """
+        self.db_client.command(sql)
 
+        remaining_monthes = [self.monthes[-1]]
+        # we then insert the remaining data into the main table
+        self.logger.info(f"Ingesting data from {aux_table} into table {self.table}")
+        for month in remaining_monthes:
+            for day in range(1, 32):
                 # count the current number of rows in the main table
                 sql = f"""
                     SELECT count() FROM {self.database}.{self.table}
@@ -163,48 +171,6 @@ class TickVaryDataIngestor(XIPDataIngestor):
                     ON tmp1.txn_id = tmp2.txn_id
                 """
                 self.db_client.command(sql)
-        # sql = f"""
-        #     INSERT INTO {self.database}.{self.table}
-        #     SELECT tmp1.*, tmp2.pid
-        #     FROM
-        #     (
-        #         SELECT rowNumberInAllBlocks() as txn_id, *
-        #         FROM {self.database}.{aux_table}
-        #         WHERE toYear(tick_dt) == 2022
-        #             AND toMonth(tick_dt) in ({','.join(self.monthes)})
-        #     ) as tmp1
-        #     JOIN
-        #     (
-        #         SELECT rowNumberInAllBlocks() as txn_id,
-        #                 value % {self.nparts} as pid
-        #         FROM generateRandom('value UInt32', {self.seed})
-        #         LIMIT {nrows}
-        #     ) as tmp2
-        #     ON tmp1.txn_id = tmp2.txn_id
-        # """
-        # if nrows > 1e8:
-        #     nrows = int(1e8)
-        #     sql = f"""
-        #         INSERT INTO {self.database}.{self.table}
-        #         SELECT tmp1.*, tmp2.pid
-        #         FROM
-        #         (
-        #             SELECT rowNumberInAllBlocks() as txn_id, *
-        #             FROM {self.database}.{aux_table}
-        #             WHERE toYear(tick_dt) == 2022
-        #                 AND toMonth(tick_dt) in ({','.join(self.monthes)})
-        #         ) as tmp1
-        #         JOIN
-        #         (
-        #             SELECT rowNumberInAllBlocks() as txn_id,
-        #                     value % {self.nparts} as pid
-        #             FROM generateRandom('value UInt32', {self.seed})
-        #             LIMIT {nrows}
-        #         ) as tmp2
-        #         ON (tmp1.txn_id % {nrows}) = tmp2.txn_id
-        #     """
-
-        # self.db_client.command(sql)
 
     def drop_table(self) -> None:
         DBHelper.drop_table(self.db_client, self.database, self.table)

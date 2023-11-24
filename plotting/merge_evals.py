@@ -35,14 +35,14 @@ def parse_filename(filename, verbose: bool = False):
     if task_name == "tick":
         task_name = "tick-v1"
     elif task_name == "tickv2":
-        task_name = "tick-v2"
+        task_name = "Tick-Price"
     elif task_name == "machinery":
         if model_name == "mlp":
-            task_name = "machinery-v1"
+            task_name = "Bearing-MLP"
         elif model_name == "dt":
             task_name = "machinery-v2"
         elif model_name == "knn":
-            task_name = "machinery-v3"
+            task_name = "Bearing-KNN"
     return task_name, model_name, nparts, ncfgs, ncores, max_error
 
 

@@ -7,6 +7,8 @@ import math
 
 from tap import Tap
 
+PJNAME = "Biathlon"
+
 
 class EvalArgs(Tap):
     home_dir: str = "./cache"
@@ -54,12 +56,12 @@ def load_df(csv_dir: str = HOME_DIR) -> pd.DataFrame:
 
 tasks = [
     "trips",
-    "tick-v1",
-    "tick-v2",
-    "cheaptrips",
-    "machinery-v1",
-    "machinery-v2",
-    # "machinery-v3",
+    # "tick-v1",
+    "Tick-Price",
+    # "cheaptrips",
+    "Bearing-MLP",
+    # "machinery-v2",
+    "Bearing-KNN",
 ]
 
 shared_default_settings = {
@@ -80,7 +82,7 @@ task_default_settings = {
         "model_name": "lr",
         "max_error": 0.01,
     },
-    "tick-v2": {
+    "Tick-Price": {
         "model_name": "lr",
         "max_error": 0.01,
     },
@@ -88,7 +90,7 @@ task_default_settings = {
         "model_name": "xgb",
         "max_error": 0.0,
     },
-    "machinery-v1": {
+    "Bearing-MLP": {
         "model_name": "mlp",
         "max_error": 0.0,
     },
@@ -96,11 +98,32 @@ task_default_settings = {
         "model_name": "dt",
         "max_error": 0.0,
     },
-    "machinery-v3": {
+    "Bearing-KNN": {
         "model_name": "knn",
         "max_error": 0.0,
     },
 }
+
+
+def get_evals_baseline(df: pd.DataFrame) -> pd.DataFrame:
+    selected_df = []
+    for task_name in tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    # print(selected_df)
+    return selected_df
 
 
 def get_evals_basic(df: pd.DataFrame) -> pd.DataFrame:
@@ -248,7 +271,7 @@ def plot_lat_breakdown(df: pd.DataFrame):
     sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=axes[1], label="Executor:AFC")
     axes[1].set_xlabel("Task Name")
     axes[1].set_ylabel("Latency (s)")
-    axes[1].set_title("Latency Breakdown of Marksman")
+    axes[1].set_title(f"Latency Breakdown of {PJNAME}")
     axes[1].legend()
     plt.tight_layout()
     plt.savefig(os.path.join(HOME_DIR, "plots", "lat_breakdown_default_w_exact.pdf"))
@@ -259,7 +282,7 @@ def plot_lat_breakdown(df: pd.DataFrame):
 
 def plot_lat_comparsion(df: pd.DataFrame):
     """
-    Compare Marksman(ours) with other systems.
+    Compare PJNAME(ours) with other systems.
     Baseline A: single-core, no sampling
     Baseline B: single-core, with sampling but min_conf=0.5
     """
@@ -269,7 +292,7 @@ def plot_lat_comparsion(df: pd.DataFrame):
     # x-axis: task_name
     # y-axis-1: avg_latency (bar)
     # y-axis-2: accuracy (bar)
-    # three groups of bars: Marksman, Baseline
+    # three groups of bars: PJNAME, Baseline
 
     df = selected_df[['task_name', 'avg_latency', 'speedup',
                       'accuracy', 'acc_loss', 'acc_loss_pct']]
@@ -290,9 +313,9 @@ def plot_lat_comparsion(df: pd.DataFrame):
         ax.set_xticklabels(tasks)
 
         ax.bar(x1, df['avg_latency_baselineA'], width, label="Baseline")
-        ax.bar(x, df['avg_latency'], width, label="Marksman")
+        ax.bar(x, df['avg_latency'], width, label=f"{PJNAME}")
 
-        # add speedup on top of the bar of Marksman
+        # add speedup on top of the bar of PJNAME
         for i, task_name in enumerate(df['task_name']):
             lat = df[df["task_name"] == task_name]["avg_latency"].values[0]
             speedup = df[df["task_name"] == task_name]["speedup"].values[0]
@@ -312,9 +335,9 @@ def plot_lat_comparsion(df: pd.DataFrame):
         ax.set_xticklabels(tasks)
 
         ax.bar(x1, df['accuracy_baselineA'], width, label="Baseline")
-        ax.bar(x, df['accuracy'], width, label="Marksman")
+        ax.bar(x, df['accuracy'], width, label=f"{PJNAME}")
 
-        # add acc_loss on top of the bar of Marksman
+        # add acc_loss on top of the bar of PJNAME
         for i, task_name in enumerate(df['task_name']):
             acc = df[df["task_name"] == task_name]["accuracy"].values[0]
             acc_loss = df[df["task_name"] == task_name]["acc_loss"].values[0]
@@ -336,6 +359,84 @@ def plot_lat_comparsion(df: pd.DataFrame):
     plt.close("all")
 
 
+def plot_lat_comparsion_w_breakdown(df: pd.DataFrame):
+    """
+    Compare PJNAME(ours) with other systems.
+    Baseline A: single-core, no sampling
+    """
+    baseline_df = get_evals_baseline(df)
+    default_df = get_evals_with_default_settings(df)
+    assert len(baseline_df) == len(default_df)
+    required_cols = ["task_name", "avg_latency", "speedup",
+                     "accuracy", "acc_loss", "acc_loss_pct",
+                     "similarity", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
+    baseline_df = baseline_df[required_cols]
+    default_df = default_df[required_cols]
+    print(baseline_df)
+    print(default_df)
+
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(figsize=(10, 8), nrows=2, ncols=1, sharex=True, sharey=False)
+
+    xticklabels = default_df['task_name'].values
+
+    width = 0.35
+    x = [i for i in range(len(tasks))]
+    x1 = [i - width for i in x]
+
+    ax = axes[0]  # latency comparison
+    ax.set_xticks(x)
+    ax.set_xticklabels(xticklabels)
+
+    # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
+    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-AFC")
+    ax.bar(x1, baseline_df['BD:AMI'], width, bottom=baseline_df['BD:AFC'], label="Baseline-AMI")
+    ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Sobol")
+    ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
+
+    # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
+    ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
+    ax.bar(x, default_df['BD:AMI'], width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
+    ax.bar(x, default_df['BD:Sobol'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'], label=f"{PJNAME}-Sobol")
+    ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
+
+    # add speedup on top of the bar of PJNAME
+    for i, task_name in enumerate(default_df['task_name']):
+        lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+        speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+        ax.text(i, lat + 0.01, "{:.2f}x".format(speedup), ha="center")
+
+    ax.set_xlabel("Task Name")
+    ax.set_ylabel("Latency (s)")
+    ax.set_title("Latency Comparison with Default Settings")
+    ax.legend()
+
+    ax = axes[1]  # similarity comparison
+    ax.set_xticks(x)
+    ax.set_xticklabels(xticklabels)
+
+    # draw baseline on x1, similarity
+    ax.bar(x1, baseline_df['similarity'], width, label="Baseline")
+    # draw default on x, similarity
+    ax.bar(x, default_df['similarity'], width, label=f"{PJNAME}")
+
+    # add acc_loss on top of the bar of PJNAME
+    for i, task_name in enumerate(default_df['task_name']):
+        similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
+        ax.text(i, similarity + 0.01, "{:.2f}%".format(similarity*100), ha="center")
+
+    ax.set_xlabel("Task Name")
+    ax.set_ylabel("Accuracy")
+    ax.set_title("Accuracy Comparison with Default Settings")
+    ax.legend(loc="lower right")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(HOME_DIR, "plots", "lat_comparison_default_w_beakdown.pdf"))
+    # plt.show()
+
+    plt.close("all")
+
+
 def plot_vary_min_conf(df: pd.DataFrame):
     """
     For each task,
@@ -352,7 +453,7 @@ def plot_vary_min_conf(df: pd.DataFrame):
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
-    selected_df = pd.concat(selected_df)    
+    selected_df = pd.concat(selected_df)
     print(selected_df)
 
     # plot one figure, where
@@ -442,8 +543,13 @@ def plot_vary_min_conf(df: pd.DataFrame):
     # each plot has two scattered lines: speedup and accuracy
     # x-axis: min_conf
     # y-axis: speedup (scatter + line)
-
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    if len(tasks) == 4:
+        # 2x2
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -463,7 +569,12 @@ def plot_vary_min_conf(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "speedup_vary_min_conf.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
@@ -482,7 +593,12 @@ def plot_vary_min_conf(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "acc_vary_min_conf.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -499,7 +615,12 @@ def plot_vary_min_conf(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "sim_vary_min_conf.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -535,7 +656,7 @@ def plot_vary_max_error(df: pd.DataFrame):
     """
     df = get_evals_basic(df)
     selected_df = []
-    for task_name in ['tick-v1', 'tick-v2', 'trips']:
+    for task_name in ['tick-v1', 'Tick-Price', 'trips']:
         df_tmp = df[df["task_name"] == task_name]
         df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
         df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
@@ -639,7 +760,12 @@ def plot_vary_max_error(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "speedup_vary_max_error.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
@@ -658,7 +784,12 @@ def plot_vary_max_error(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "acc_vary_max_error.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -677,7 +808,12 @@ def plot_vary_max_error(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "sim_vary_max_error.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -792,7 +928,12 @@ def plot_vary_alpha(df: pd.DataFrame):
     # x-axis: alpha
     # y-axis: speedup (scatter + line)
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -810,7 +951,12 @@ def plot_vary_alpha(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "speedup_vary_alpha.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
@@ -829,7 +975,12 @@ def plot_vary_alpha(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "acc_vary_alpha.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -848,7 +999,12 @@ def plot_vary_alpha(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "sim_vary_alpha.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -965,7 +1121,12 @@ def plot_vary_beta(df: pd.DataFrame):
     # x-axis: beta
     # y-axis: speedup (scatter + line)
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -985,7 +1146,12 @@ def plot_vary_beta(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "speedup_vary_beta.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "acc_diff"
     for i, task_name in enumerate(tasks):
@@ -1004,7 +1170,12 @@ def plot_vary_beta(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "acc_vary_beta.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=True, sharey=True)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -1023,7 +1194,12 @@ def plot_vary_beta(df: pd.DataFrame):
     plt.savefig(os.path.join(HOME_DIR, "plots", "sim_vary_beta.pdf"))
     # plt.show()
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -1126,7 +1302,12 @@ def vary_alpha_beta(df: pd.DataFrame):
     # x-axis: accuracy
     # y-axis: speedup (scatter)
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -1143,7 +1324,12 @@ def vary_alpha_beta(df: pd.DataFrame):
     # x-axis: similarity
     # y-axis: speedup (scatter)
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -1160,7 +1346,12 @@ def vary_alpha_beta(df: pd.DataFrame):
     # x-axis: acc_diff
     # y-axis: speedup (scatter)
 
-    fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     for i, task_name in enumerate(tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -1177,7 +1368,12 @@ def vary_alpha_beta(df: pd.DataFrame):
     # x-axis: alpha
     # y-axis: speedup (scatter)
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -1215,7 +1411,12 @@ def vary_alpha_beta(df: pd.DataFrame):
     # x-axis: alpha
     # y-axis: speedup (scatter)
 
-    fig, axes = plt.subplots(figsize=(20, 10), nrows=2, ncols=3, sharex=False, sharey=False)
+    if len(tasks) == 4:
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+    elif len(tasks) in [5, 6]:
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    else:
+        raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -1248,15 +1449,16 @@ def vary_alpha_beta(df: pd.DataFrame):
 
 def main():
     df = load_df()
-    plot_default(df)
-    plot_lat_breakdown(df)
-    plot_lat_comparsion(df)
-    plot_vary_min_conf(df)
-    plot_vary_max_error(df)
-    plot_vary_alpha(df)
-    plot_vary_beta(df)
-    plot_speeup_vs_accuracy(df)
-    vary_alpha_beta(df)
+    # plot_default(df)
+    # plot_lat_comparsion(df)
+    # plot_lat_breakdown(df)
+    plot_lat_comparsion_w_breakdown(df)
+    # plot_vary_min_conf(df)
+    # plot_vary_max_error(df)
+    # plot_vary_alpha(df)
+    # plot_vary_beta(df)
+    # plot_speeup_vs_accuracy(df)
+    # vary_alpha_beta(df)
 
     print(get_evals_with_default_settings(df))
 

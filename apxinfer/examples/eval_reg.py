@@ -149,7 +149,7 @@ else:
 
     for min_conf in min_confs:
         cmd_prefix += (
-            f"--scheduler {policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+            f" --scheduler {policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
         )
         command = f"{cmd_prefix} --pest_constraint error --pest_seed {seed} --max_error {max_error} --min_conf {min_conf}"
         eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-{seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"

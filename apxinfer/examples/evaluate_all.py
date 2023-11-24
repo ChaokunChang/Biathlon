@@ -1,6 +1,13 @@
 from tap import Tap
 import os
 
+MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
+MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 8)]
+MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
+MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
+TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
+TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 8)]
+
 
 class ExpArgs(Tap):
     interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
@@ -65,6 +72,8 @@ def run_prepare(args: ExpArgs):
         ]
     for task in tasks:
         cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
+        if task in TickVaryNMonths:
+            cmd = f"{cmd} --all_nparts 100"
         os.system(cmd)
 
 
@@ -411,13 +420,6 @@ def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
 
 
 if __name__ == "__main__":
-    MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
-    MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 8)]
-    MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
-    MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 8)]
-    TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 8)]
-    TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 8)]
-
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
         run_prepare(args)

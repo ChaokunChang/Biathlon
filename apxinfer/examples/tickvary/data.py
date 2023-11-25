@@ -117,11 +117,14 @@ class TickVaryDataIngestor(XIPDataIngestor):
         tb_nparts = int(tb_nparts)
         assert tb_nparts == self.nparts
         tb_id = int(tb_id)
-        prev_table = f"{tb_prefix}_{tb_id - 1}_{tb_nparts}"
-        # check if the previous table exists
-        assert DBHelper.table_exists(self.db_client, self.database, prev_table)
-        # check if the previous table is empty
-        assert not DBHelper.table_empty(self.db_client, self.database, prev_table)
+        prev_id = tb_id - 1
+        while prev_id > 0:
+            prev_table = f"{tb_prefix}_{prev_id}_{tb_nparts}"
+            if DBHelper.table_exists(self.db_client, self.database, prev_table):
+                if not DBHelper.table_empty(self.db_client, self.database, prev_table):
+                    break
+            prev_id -= 1
+        prev_table = f"{tb_prefix}_{prev_id}_{tb_nparts}"
         # load data from the previous table to the current table
         sql = f"""
             INSERT INTO {self.database}.{self.table}
@@ -130,7 +133,7 @@ class TickVaryDataIngestor(XIPDataIngestor):
         """
         self.db_client.command(sql)
 
-        remaining = [self.year_months[-1]]
+        remaining = [self.year_months[i] for i in range(prev_id, len(self.year_months))]
         # we then insert the remaining data into the main table
         self.logger.info(f"Ingesting data from {aux_table} into table {self.table}")
         for year_month in remaining:

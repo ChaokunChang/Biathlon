@@ -25,23 +25,13 @@ from apxinfer.core.offline import OfflineExecutor
 from apxinfer.core.online import OnlineExecutor
 
 
-def get_func(name: str):
-    module_names = {
-        "trips": ["data", "query", "engine"],
-        "machinery": ["data", "query", "engine"],
-        # add more module names for other values of name
-    }
-
-    functions = {}
-    for mod in module_names[name]:
-        module = importlib.import_module(f"apxinfer.examples.{name}.{mod}")
-        functions.update(vars(module))
-
-
 def get_fengine(name: str, args: BaseXIPArgs):
     if name == "ccfraud":
         from apxinfer.examples.ccfraud.engine import get_ccfraud_engine
         fengine = get_ccfraud_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "tdfraud":
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
+        fengine = get_tdfraud_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
     elif name == "tick":
         from apxinfer.examples.tick.engine import get_tick_engine
         fengine = get_tick_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
@@ -130,6 +120,9 @@ def run_ingest(name: str, args: BaseXIPArgs):
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.data import ingest
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name == "tdfraud":
+        from apxinfer.examples.tdfraud.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name == "tick":
         from apxinfer.examples.tick.data import ingest
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
@@ -155,6 +148,9 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.prepare import CCFraudPrepareWorker as Worker
+        model_type = "classifier"
+    elif name == "tdfraud":
+        from apxinfer.examples.tdfraud.prepare import TDFraudPrepareWorker as Worker
         model_type = "classifier"
     elif name.startswith("tick"):
         from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
@@ -186,6 +182,9 @@ def run_trainer(name: str, args: TrainerArgs):
         model_type = "classifier"
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.trainer import CCFraudTrainer as Trainer
+        model_type = "classifier"
+    elif name == "tdfraud":
+        from apxinfer.examples.tdfraud.trainer import TDFraudTrainer as Trainer
         model_type = "classifier"
     elif name.startswith("tick"):
         from apxinfer.examples.tick.trainer import TickTrainer as Trainer

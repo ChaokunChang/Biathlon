@@ -69,6 +69,7 @@ def run_prepare(args: ExpArgs):
             "ccfraud",
             "tripsfeast",
             "machinerymulti",
+            "tdfraud"
         ]
     for task in tasks:
         cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
@@ -173,6 +174,24 @@ def run_ccfraud(args: ExpArgs):
     """
     task_name = "ccfraud"
     agg_qids = "3 4 5 6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 4)
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
+
+
+def run_tdfraud(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraud"
+    agg_qids = "1 2 3"
     model = args.model
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
@@ -488,5 +507,7 @@ if __name__ == "__main__":
         run_tripsfeast_vary_window_size(args, nmonths)
     elif args.exp == "tickprice":
         run_tick_price(args)
+    elif args.exp == "tdfraud":
+        run_tdfraud(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

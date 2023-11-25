@@ -30,7 +30,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
             seed,
         )
         self.database = "xip"
-        self.table = f"ccfraud_txns_{nparts}"
+        self.table = f"tdfraud_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:
         # for each user, we extract the most recent 5 fraudlent transaction

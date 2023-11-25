@@ -9,6 +9,7 @@ import json
 from tap import Tap
 
 PJNAME = "Biathlon"
+YLIM_ACC = [0.9, 1.01]
 
 
 class EvalArgs(Tap):
@@ -319,6 +320,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup", color="orange")
         axes[i].legend(loc="upper left")
 
+        twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
         twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -374,6 +376,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup", color="orange")
         axes[i].legend(loc="upper left")
 
+        twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
         twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -431,6 +434,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup", color="orange")
         axes[i].legend(loc="upper left")
 
+        twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
         twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -490,6 +494,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup", color="orange")
         axes[i].legend(loc="upper left")
 
+        twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
         twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -556,6 +561,7 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup")
         axes[i].legend(loc="upper left")
 
+        twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy")
         twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -634,6 +640,7 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     ax.set_ylabel("Speedup", color="orange")
     ax.legend(loc="upper left")
 
+    twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="blue")
     twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -703,7 +710,8 @@ def vary_num_nf(df: pd.DataFrame, args: EvalArgs):
     ax.set_xlabel("Number of Aggregation Operators")
     ax.set_ylabel("Speedup", color="orange")
     ax.legend(loc="upper left")
-
+    
+    twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="blue")
     twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -780,7 +788,7 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     ax.legend(loc="upper left")
 
     # set range for y-axis
-    twnx.set_ylim([0.95, 1.01])
+    twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="blue")
     twnx.legend(loc="upper right")
     plt.tight_layout()
@@ -792,14 +800,14 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
 
 def main(args: EvalArgs):
     df = load_df(args)
-    # plot_lat_comparsion_w_breakdown(df, args)
-    # plot_lat_breakdown(df, args)
-    # plot_vary_min_conf(df, args)
-    # plot_vary_max_error(df, args)
-    # plot_vary_alpha(df, args)
-    # plot_vary_beta(df, args)
-    # vary_alpha_beta(df, args)
-    # vary_num_agg(df, args)
+    plot_lat_comparsion_w_breakdown(df, args)
+    plot_lat_breakdown(df, args)
+    plot_vary_min_conf(df, args)
+    plot_vary_max_error(df, args)
+    plot_vary_alpha(df, args)
+    plot_vary_beta(df, args)
+    vary_alpha_beta(df, args)
+    vary_num_agg(df, args)
     # vary_num_nf(df, args)
     vary_datasize(df, args)
 

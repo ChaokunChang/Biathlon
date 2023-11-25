@@ -114,23 +114,47 @@ class TDFraudTxnsIngestor(XIPDataIngestor):
         self.logger.info(
             f"Ingesting data from {aux_table} into table {self.database}.{self.table}"
         )
+        # data is to large, we ingest day by day
+        # get distinct days
         sql = f"""
-            INSERT INTO {self.database}.{self.table}
-            SELECT tmp1.*, tmp2.pid
-            FROM
-            (
-                SELECT rowNumberInAllBlocks() as txn_id, *
-                FROM {self.database}.{aux_table}
-            ) as tmp1
-            JOIN
-            (
-                SELECT rowNumberInAllBlocks() as txn_id, value % {self.nparts} as pid
-                FROM generateRandom('value UInt32', {self.seed})
-                LIMIT {nrows}
-            ) as tmp2
-            ON tmp1.txn_id = tmp2.txn_id
+            SELECT DISTINCT toDate(click_time) as day
+            FROM {self.database}.{aux_table}
+            ORDER BY day
         """
-        self.db_client.command(sql)
+        days = self.db_client.query_df(sql)["day"].values
+        for day in days:
+            # get current number of rows
+            sql = f"""
+                SELECT count()
+                FROM {self.database}.{self.table}
+            """
+            current_nrows = self.db_client.command(sql)
+
+            sql = f"""
+                SELECT count()
+                FROM {self.database}.{aux_table}
+                WHERE toDate(click_time) = '{day}'
+            """
+            nrows_day = self.db_client.command(sql)
+
+            sql = f"""
+                INSERT INTO {self.database}.{self.table}
+                SELECT tmp1.*, tmp2.pid
+                FROM
+                (
+                    SELECT rowNumberInAllBlocks() + {current_nrows} as txn_id, *
+                    FROM {self.database}.{aux_table}
+                    WHERE toDate(click_time) = '{day}'
+                ) as tmp1
+                JOIN
+                (
+                    SELECT rowNumberInAllBlocks() + {current_nrows} as txn_id, value % {self.nparts} as pid
+                    FROM generateRandom('value UInt32', {self.seed})
+                    LIMIT {nrows_day}
+                ) as tmp2
+                ON tmp1.txn_id = tmp2.txn_id
+            """
+            self.db_client.command(sql)
 
         # we drop the auxiliary table
         self.drop_aux_table(aux_table)

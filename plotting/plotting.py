@@ -4,6 +4,7 @@ import seaborn as sns
 import os
 import numpy as np
 import math
+import json
 
 from tap import Tap
 
@@ -564,15 +565,165 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
     plt.close()
 
 
+def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
+    required_cols = ["task_name", "naggs", "speedup", "similarity",
+                     "avg_latency", "accuracy"]
+    selected_tasks = [f'machineryxf{i}' for i in range(1, 8)] + ['Bearing-MLP']
+    selected_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    selected_df = selected_df.sort_values(by=["naggs"])
+
+    # get baseline df
+    baseline_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        baseline_df.append(df_tmp)
+    baseline_df = pd.concat(baseline_df)
+    baseline_df = baseline_df.sort_values(by=["naggs"])
+
+    # update latency of machineryxfi in baseline and PJNAME, its latency should be sum(avg_qtime_query[:naggs])
+    # update speedup accordingly
+    for i in range(1, 8):
+        # baseline_df.loc[baseline_df["task_name"] == f'machineryxf{i}', "avg_latency"] = baseline_df.loc[baseline_df["task_name"] == f'machineryxf{i}', "avg_qtime_query"].apply(lambda x: sum(np.array(json.loads(x))[:i]))
+        selected_df.loc[selected_df["task_name"] == f'machineryxf{i}', "avg_latency"] = selected_df.loc[selected_df["task_name"] == f'machineryxf{i}', "avg_qtime_query"].apply(lambda x: sum(np.array(json.loads(x))[:i]))
+        selected_df.loc[selected_df["task_name"] == f'machineryxf{i}', "avg_latency"] += baseline_df.loc[baseline_df["task_name"] == f'machineryxf{i}', "avg_qtime_query"].apply(lambda x: sum(np.array(json.loads(x))[i:]))
+        selected_df.loc[selected_df["task_name"] == f'machineryxf{i}', "speedup"] = baseline_df.loc[baseline_df["task_name"] == f'machineryxf{i}', "avg_latency"].values[0] / selected_df.loc[selected_df["task_name"] == f'machineryxf{i}', "avg_latency"].values[0]
+
+    baseline_df = baseline_df[required_cols]
+    selected_df = selected_df[required_cols]
+
+    print(selected_df)
+
+    # plot as a scatter line chart
+    # x-axis: naggs
+    # y-axis: speedup and similarity
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange")
+    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+
+    twnx = ax.twinx()
+    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue")
+    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+
+    ax.set_xlabel("Number of Aggregation Operators")
+    ax.set_ylabel("Speedup", color="orange")
+    ax.legend(loc="upper left")
+
+    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.legend(loc="upper right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_agg.pdf"))
+    # plt.show()
+
+    plt.close("all")
+
+
+def vary_num_nf(df: pd.DataFrame, args: EvalArgs):
+    required_cols = ["task_name", "naggs", "speedup", "similarity",
+                     "avg_latency", "accuracy"]
+    selected_tasks = [f'machineryf{i}' for i in range(1, 8)] + ['Bearing-MLP']
+    selected_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    selected_df = selected_df.sort_values(by=["naggs"])
+
+    # get baseline df
+    baseline_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        baseline_df.append(df_tmp)
+    baseline_df = pd.concat(baseline_df)
+    baseline_df = baseline_df.sort_values(by=["naggs"])
+
+    baseline_df = baseline_df[required_cols]
+    selected_df = selected_df[required_cols]
+
+    print(selected_df)
+
+    # plot as a scatter line chart
+    # x-axis: naggs
+    # y-axis: speedup and similarity
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange")
+    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+
+    twnx = ax.twinx()
+    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue")
+    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+
+    ax.set_xlabel("Number of Aggregation Operators")
+    ax.set_ylabel("Speedup", color="orange")
+    ax.legend(loc="upper left")
+
+    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.legend(loc="upper right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_nf.pdf"))
+    # plt.show()
+
+    plt.close("all")
+
+
 def main(args: EvalArgs):
     df = load_df(args)
-    plot_lat_comparsion_w_breakdown(df, args)
-    plot_lat_breakdown(df, args)
-    plot_vary_min_conf(df, args)
-    plot_vary_max_error(df, args)
-    plot_vary_alpha(df, args)
-    plot_vary_beta(df, args)
-    vary_alpha_beta(df, args)
+    # plot_lat_comparsion_w_breakdown(df, args)
+    # plot_lat_breakdown(df, args)
+    # plot_vary_min_conf(df, args)
+    # plot_vary_max_error(df, args)
+    # plot_vary_alpha(df, args)
+    # plot_vary_beta(df, args)
+    # vary_alpha_beta(df, args)
+    vary_num_agg(df, args)
+    vary_num_nf(df, args)
 
     # print(get_evals_with_default_settings(df))
 

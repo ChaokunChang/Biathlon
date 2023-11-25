@@ -99,9 +99,10 @@ def merge_csv(args: EvalArgs):
 
 def main():
     args = EvalArgs().parse_args()
-    df = merge_csv(args)
-    useless_cols = ['run_shared', 'nocache', 'interpreter']
-    df = df.drop(columns=useless_cols)
+    raw_df = merge_csv(args)
+    useless_cols = ['run_shared', 'nocache', 'interpreter',
+                    'min_confs', "avg_sample_query", "avg_qtime_query"]
+    df = raw_df.drop(columns=useless_cols)
     if args.avg:
         # seed,
         # agg_qids,task_home,
@@ -113,6 +114,13 @@ def main():
                 'scheduler_batch', 'scheduler_init',
                 'max_error', 'min_conf']
         df = df.groupby(keys).mean().reset_index()
+
+    # add columns "avg_sample_query", "avg_qtime_query" back
+    # the number of rows should be equal to df
+    to_add = raw_df[raw_df['seed'] == 0]
+    df = pd.merge(df, to_add[keys+['avg_sample_query', 'avg_qtime_query']],
+                  on=keys, how='left')
+
     # add column naggs, which = len(agg_qids)
     df['naggs'] = df['agg_qids'].apply(lambda x: len(json.loads(x)))
     print(f'total number of rows: {len(df)}')

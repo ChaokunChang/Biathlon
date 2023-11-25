@@ -117,7 +117,7 @@ class TDFraudTxnsIngestor(XIPDataIngestor):
         # data is to large, we ingest day by day
         # get distinct days
         sql = f"""
-            SELECT DISTINCT toDate(click_time) as day
+            SELECT DISTINCT toDayOfMonth(click_time) as day
             FROM {self.database}.{aux_table}
             ORDER BY day
         """
@@ -133,7 +133,7 @@ class TDFraudTxnsIngestor(XIPDataIngestor):
             sql = f"""
                 SELECT count()
                 FROM {self.database}.{aux_table}
-                WHERE toDate(click_time) = '{day}'
+                WHERE toDayOfMonth(click_time) = '{day}'
             """
             nrows_day = self.db_client.command(sql)
 
@@ -144,7 +144,7 @@ class TDFraudTxnsIngestor(XIPDataIngestor):
                 (
                     SELECT rowNumberInAllBlocks() + {current_nrows} as txn_id, *
                     FROM {self.database}.{aux_table}
-                    WHERE toDate(click_time) = '{day}'
+                    WHERE toDayOfMonth(click_time) = '{day}'
                 ) as tmp1
                 JOIN
                 (

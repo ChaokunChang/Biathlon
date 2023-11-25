@@ -7,7 +7,7 @@ class EvalArgs(Tap):
     task_home: str = "final"
     task_name: str = None
     prepare_again: bool = False
-    all_nparts: list[int] = [2, 5, 10, 20, 100]
+    all_nparts: list[int] = [100]
     prep_nparts: int = 100
     all_models: list[str] = ["xgb", "lgbm", "dt", "rf", "lr", "knn", "svm", "mlp"]
     seed: int = 0

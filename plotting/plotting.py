@@ -713,6 +713,83 @@ def vary_num_nf(df: pd.DataFrame, args: EvalArgs):
     plt.close("all")
 
 
+def vary_datasize(df: pd.DataFrame, args: EvalArgs):
+    required_cols = ["task_name", "num_months", "speedup", "similarity",
+                     "avg_latency", "accuracy"]
+    selected_tasks = [f'tickvaryNM{i}' for i in range(1, 8)] # + ['Tick-Price']
+    selected_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Tick-Price"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
+        df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
+        df_tmp = df_tmp.sort_values(by=["task_name"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    selected_df = selected_df.sort_values(by=["num_months"])
+
+    # get baseline df
+    baseline_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Tick-Price"]["model_name"]]
+        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
+        df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
+        df_tmp = df_tmp.sort_values(by=["task_name"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        baseline_df.append(df_tmp)
+    baseline_df = pd.concat(baseline_df)
+    baseline_df = baseline_df.sort_values(by=["num_months"])
+
+    baseline_df = baseline_df[required_cols]
+    selected_df = selected_df[required_cols]
+
+    # with original tick_100, the latency is 0.620491 => 0.063319
+
+    print(baseline_df)
+    print(selected_df)
+
+    # plot as a scatter line chart
+    # x-axis: num_months
+    # y-axis: speedup and similarity
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange")
+    ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+
+    twnx = ax.twinx()
+    twnx.scatter(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue")
+    twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+
+    ax.set_xlabel("Number of Months")
+    ax.set_ylabel("Speedup", color="orange")
+    ax.legend(loc="upper left")
+
+    # set range for y-axis
+    twnx.set_ylim([0.95, 1.01])
+    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.legend(loc="upper right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_nm.pdf"))
+    # plt.show()
+
+    plt.close("all")
+
+
 def main(args: EvalArgs):
     df = load_df(args)
     # plot_lat_comparsion_w_breakdown(df, args)
@@ -722,8 +799,9 @@ def main(args: EvalArgs):
     # plot_vary_alpha(df, args)
     # plot_vary_beta(df, args)
     # vary_alpha_beta(df, args)
-    vary_num_agg(df, args)
-    vary_num_nf(df, args)
+    # vary_num_agg(df, args)
+    # vary_num_nf(df, args)
+    vary_datasize(df, args)
 
     # print(get_evals_with_default_settings(df))
 

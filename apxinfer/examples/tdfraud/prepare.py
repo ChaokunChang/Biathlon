@@ -78,7 +78,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
                         toString(click_time) as click_time
                 FROM {self.database}.{self.table}
                 WHERE ip = {ip} AND is_attributed = 0
-                ORDER BY {self.database}.{self.table}.txn_datetime DESC
+                ORDER BY {self.database}.{self.table}.click_time DESC
                 LIMIT {group_cnt}
                 """
             df_non_fraudulent: pd.DataFrame = self.db_client.query_df(sql)

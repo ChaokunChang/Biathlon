@@ -48,6 +48,14 @@ Remember to add seed to evaluate_all.py
 ``` bash
 python evaluate_all.py --exp prepare --prep_single tickvaryNM1 --interpreter python
 python evaluate_all.py --exp tickvaryNM1 --model lr --ncores 1 --loading_mode 0 --interpreter python
+python evaluate_all.py --exp tickprice --model lr --ncores 1 --loading_mode 0 --interpreter python --skip_shared
+```
+
+``` bash 
+# scp -r numa:/public/ckchang/db/clickhouse/user_files/tick-data server:/xxx/user_files/
+```
+
+``` bash
 for nm in {2..29}
 do    
     cp -r /home/ckchang/.cache/apxinf/xip/final/tickvaryNM1 /home/ckchang/.cache/apxinf/xip/final/tickvaryNM$nm

@@ -419,6 +419,33 @@ def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
             os.system(cmd)
 
 
+def run_tick_price(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickvaryNM1"
+    agg_qids = "6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 1)
+    max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
+
+
 if __name__ == "__main__":
     args = ExpArgs().parse_args()
     if args.exp == "prepare":
@@ -459,5 +486,7 @@ if __name__ == "__main__":
     elif args.exp in TripsFeastVaryWindow:
         nmonths = int(args.exp[len("tripsfeastw"):])
         run_tripsfeast_vary_window_size(args, nmonths)
+    elif args.exp == "tickprice":
+        run_tick_price(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

@@ -36,10 +36,10 @@ class TickVaryDataIngestor(XIPDataIngestor):
         table: str,
         nparts: int,
         seed: int,
-        monthes: list[str] = ["2"],
+        year_months: list[str] = ["2022-2"],
     ) -> None:
         super().__init__(dsrc_type, dsrc, database, table, nparts, seed)
-        self.monthes = monthes
+        self.year_months = year_months
 
     def create_table(self) -> None:
         self.logger.info(f"Creating table {self.database}.{self.table}")
@@ -105,13 +105,13 @@ class TickVaryDataIngestor(XIPDataIngestor):
         print(f"nrows = {nrows}")
 
         # count number of rows in the auxiliary table with self.monthes
-        sql = f"""
-            SELECT count() FROM {self.database}.{aux_table}
-            WHERE toYear(tick_dt) == 2022
-                AND toMonth(tick_dt) in ({','.join(self.monthes)})
-        """
-        nrows = self.db_client.command(sql)
-        print(f'nrows to ingest = {nrows}')
+        # sql = f"""
+        #     SELECT count() FROM {self.database}.{aux_table}
+        #     WHERE toYear(tick_dt) == 2022
+        #         AND toMonth(tick_dt) in ({','.join(self.year_months)})
+        # """
+        # nrows = self.db_client.command(sql)
+        # print(f'nrows to ingest = {nrows}')
 
         tb_prefix, tb_id, tb_nparts = self.table.split("_")
         tb_nparts = int(tb_nparts)
@@ -130,10 +130,11 @@ class TickVaryDataIngestor(XIPDataIngestor):
         """
         self.db_client.command(sql)
 
-        remaining_monthes = [self.monthes[-1]]
+        remaining = [self.year_months[-1]]
         # we then insert the remaining data into the main table
         self.logger.info(f"Ingesting data from {aux_table} into table {self.table}")
-        for month in remaining_monthes:
+        for year_month in remaining:
+            year, month = year_month.split("-")
             for day in range(1, 32):
                 # count the current number of rows in the main table
                 sql = f"""
@@ -144,7 +145,7 @@ class TickVaryDataIngestor(XIPDataIngestor):
                 # count this part first
                 sql = f"""
                     SELECT count() FROM {self.database}.{aux_table}
-                    WHERE toYear(tick_dt) == 2022
+                    WHERE toYear(tick_dt) == {year}
                         AND toMonth(tick_dt) == {month}
                         AND toDayOfMonth(tick_dt) == {day}
                 """
@@ -157,7 +158,7 @@ class TickVaryDataIngestor(XIPDataIngestor):
                     (
                         SELECT rowNumberInAllBlocks() + {current_count} as txn_id, *
                         FROM {self.database}.{aux_table}
-                        WHERE toYear(tick_dt) == 2022
+                        WHERE toYear(tick_dt) == {year}
                             AND toMonth(tick_dt) == {month}
                             AND toDayOfMonth(tick_dt) == {day}
                     ) as tmp1
@@ -279,7 +280,7 @@ class TickVaryHourFStoreIngestor(XIPDataIngestor):
 def ingest(nparts: int = 100, seed: int = 0,
            num_months: int = 1, verbose: bool = False):
     """
-    2.2G    ./January2022
+    # first 7 months
     12G     ./February2022 (275M)
     9.7G    ./March2022
     2.8G    ./April2022
@@ -287,8 +288,43 @@ def ingest(nparts: int = 100, seed: int = 0,
     4.0G    ./June2022
     5.7G    ./July2022
     12G     ./August2022
+
+    # other months
+    2.2G    ./January2022
+
+    2.0G    ./December2021
+    1.7G    ./November2021
+    2.1G    ./October2021
+    2.1G    ./September2021
+    1.8G    ./August2021
+    2.3G    ./July2021
+    2.1G    ./June2021
+    2.5G    ./March2021
+    1.8G    ./April2021
+    2.0G    ./May2021
+    1.9G    ./February2021
+    2.0G    ./January2021
+
+    2.0G    ./December2020
+    2.5G    ./November2020
+    2.4G    ./October2020
+    2.9G    ./September2020
+    2.9G    ./August2020
+    3.4G    ./July2020
+    3.3G    ./June2020
+    3.3G    ./April2020
+    2.1G    ./May2020
     99G     .
     """
+    all_months_dirs = ["February2022", "March2022", "April2022", "May2022", "June2022", "July2022", "August2022"]
+    all_months_dirs += ["January2022"]
+    all_months_dirs += ["December2021", "November2021", "October2021", "September2021", "August2021", "July2021", "June2021", "March2021", "April2021", "May2021", "February2021", "January2021"]
+    all_months_dirs += ["December2020", "November2020", "October2020", "September2020", "August2020", "July2020", "June2020", "April2020", "May2020"]
+    date_list = ["2022-2", "2022-3", "2022-4", "2022-5", "2022-6", "2022-7", "2022-8"]
+    date_list += ["2022-1"]
+    date_list += ["2021-12", "2021-11", "2021-10", "2021-9", "2021-8", "2021-7", "2021-6", "2021-3", "2021-4", "2021-5", "2021-2", "2021-1"]
+    date_list += ["2020-12", "2020-11", "2020-10", "2020-9", "2020-8", "2020-7", "2020-6", "2020-4", "2020-5"]
+
     dsrc_type = "user_files_dir"
     possible_dsrcs = [
         "/opt/nfs_dcc/ckchang/dataset/user_files/tick-data",
@@ -305,14 +341,11 @@ def ingest(nparts: int = 100, seed: int = 0,
             break
     if dsrc is None:
         raise RuntimeError("no valid dsrc!")
-    all_months = ["February2022", "March2022", "April2022", "May2022",
-                  "June2022", "July2022", "August2022"]
-    selected_months = all_months[:num_months]
     # check if the data directory exists
-    for month in selected_months:
+    for month in all_months_dirs[:num_months]:
         assert os.path.exists(os.path.join(dsrc, month)), f"{month} does not exist!"
 
-    month_ids = [f"{i}" for i in range(2, num_months + 2)]
+    month_ids = [date_list[i] for i in range(num_months)]
     ingestor = TickVaryDataIngestor(
         dsrc_type=dsrc_type,
         dsrc=dsrc,
@@ -320,7 +353,7 @@ def ingest(nparts: int = 100, seed: int = 0,
         table=f"tickvary_{num_months}_{nparts}",
         nparts=nparts,
         seed=seed,
-        monthes=month_ids
+        year_months=month_ids
     )
     ingestor.run()
 

@@ -61,6 +61,7 @@ do
     cp -r /home/ckchang/.cache/apxinf/xip/final/tickvaryNM1 /home/ckchang/.cache/apxinf/xip/final/tickvaryNM$nm
     rm -rf /home/ckchang/.cache/apxinf/xip/final/tickvaryNM$nm/seed-0/online/lr/ncores-1/ldnthreads-0/nparts-100/ncfgs-100
 done
+for nm in {2..29}; do python run.py --example tickvaryNM$nm --stage ingest --task final/tickvaryNM$nm --nparts 100; done
 for nm in {2..29}; do python evaluate_all.py --exp tickvaryNM$nm --model lr --ncores 1 --loading_mode 0 --interpreter python --skip_shared; done
 
 # vary size of window for tripsfeast

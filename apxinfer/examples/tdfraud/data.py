@@ -52,7 +52,7 @@ class TDFraudTxnsIngestor(XIPDataIngestor):
             pid UInt32 -- partition key, used for sampling
         ) ENGINE = MergeTree()
         PARTITION BY pid
-        ORDER BY click_time
+        ORDER BY (ip, app, os, click_time)
         SETTINGS index_granularity = 32
         """
         self.db_client.command(sql)

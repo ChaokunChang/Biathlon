@@ -124,3 +124,31 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
 
     def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
         return super().get_features(requests)
+
+
+class TDFraudRandomPrepareWorker(TDFraudPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        req_path = os.path.join(self.working_dir, "requests.csv")
+        if os.path.exists(req_path):
+            self.logger.info(f"Loading requests from {req_path}")
+            requests = pd.read_csv(req_path)
+            return requests
+        self.logger.info("Getting requests")
+        clkh_db_dir = "/mnt/hddraid/clickhouse-data/user_files"
+        sample_path = os.path.join(clkh_db_dir, "talkingdata/adtracking-fraud/train_sample.csv")
+        train_samples = pd.read_csv(sample_path)
+        requests = train_samples.drop(columns=["is_attributed", "attributed_time"])
+        # add a column called txn_id, which is the row number, on the first column
+        requests.insert(0, "txn_id", range(len(requests)))
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def get_labels(self, requests: pd.DataFrame) -> pd.Series:
+        self.logger.info(f"Getting labels for {len(requests)}x requests")
+        clkh_db_dir = "/mnt/hddraid/clickhouse-data/user_files"
+        sample_path = os.path.join(clkh_db_dir, "talkingdata/adtracking-fraud/train_sample.csv")
+        train_samples = pd.read_csv(sample_path)
+        labels_pds = train_samples["is_attributed"]
+        labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
+        return labels_pds

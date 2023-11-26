@@ -5,7 +5,7 @@ from tap import Tap
 
 ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2"]
 ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
-                 "ccfraud", "machinerymulti", "tdfraud"]
+                 "ccfraud", "machinerymulti", "tdfraud", "tdfraudrandom"]
 
 MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 9)]

@@ -35,6 +35,11 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # for each user, we extract the most recent 5 fraudlent transaction
         # and 5 non-fraudulent transaction
+        req_path = os.path.join(self.working_dir, "requests.csv")
+        if os.path.exists(req_path):
+            self.logger.info(f"Loading requests from {req_path}")
+            requests = pd.read_csv(req_path)
+            return requests
         self.logger.info("Getting requests")
         sql = f"""
             SELECT *
@@ -91,6 +96,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
                 else:
                     requests = pd.concat([requests, df], axis=0, ignore_index=True)
         self.logger.info(f"Got {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "all_requests.csv"), index=False)
 
         if self.max_requests > 0 and self.max_requests < len(requests):
             # select max_requests in the middle

@@ -19,11 +19,11 @@ class TDFraudQP0(XIPQueryProcessor):
                  "req_channel", "req_click_time"]
         dcol_aggs = [
             [lambda x: int(x[0][0])],
-            [lambda x: int(x[0][0])],
+            [lambda x: int(x[0][1])],
             [lambda x: int(x[0][2])],
             [lambda x: int(x[0][3])],
-            [lambda x: pd.to_datetime(x[0][0]).hour,
-             lambda x: pd.to_datetime(x[0][0]).day],
+            [lambda x: pd.to_datetime(x[0][4]).hour,
+             lambda x: pd.to_datetime(x[0][4]).day],
         ]
         qops = [
             XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])

@@ -148,7 +148,12 @@ class XIPQInfEstimatorSobol(XIPQInfEstimator):
         }
         calc_second_order = False
         seed = self.pred_estimator.seed
-        param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=seed)
+        N = 100
+        if self.pred_estimator.n_samples != 1000:
+            n_samples = self.pred_estimator.n_samples
+            # n_samples = N(k + 2), where k=len(group)=num_queries
+            N = int(n_samples / (fextractor.num_queries + 2))
+        param_values = sobol_sample.sample(problem, N, calc_second_order=calc_second_order, seed=seed)
         preds = model.predict(param_values)
         Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
         qinfs = Si["S1"]

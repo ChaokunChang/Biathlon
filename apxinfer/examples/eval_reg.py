@@ -38,6 +38,7 @@ class EvalArgs(Tap):
     nocache: bool = False
     seed: int = 0
     min_confs: list[float] = [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    pest_nsamples: int = 1000
 
     def process_args(self):
         assert self.task_name is not None
@@ -69,6 +70,7 @@ policy = args.policy
 scheduler_init = args.scheduler_init
 scheduler_batch = args.scheduler_batch
 seed = args.seed
+pest_nsamples = args.pest_nsamples
 
 offline_nreqs = 100
 if nparts >= 20:
@@ -157,8 +159,8 @@ else:
         cmd_prefix += (
             f" --scheduler {policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
         )
-        command = f"{cmd_prefix} --pest_constraint error --pest_seed {seed} --max_error {max_error} --min_conf {min_conf}"
-        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-1000-{seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+        command = f"{cmd_prefix} --pest_constraint error --pest_seed {seed} --pest_nsamples {pest_nsamples} --max_error {max_error} --min_conf {min_conf}"
+        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-{pest_nsamples}-{seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
         if args.nocache or (not os.path.exists(eval_path)):
             os.system(command=command)
         evals.append(
@@ -173,8 +175,9 @@ else:
         os.makedirs(evals_dir, exist_ok=True)
 
     # conver evals to pd.DataFrame and save as csv
+    if pest_nsamples == 1000:
+        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
+    else:
+        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}-{pest_nsamples}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
     evals = pd.DataFrame(evals)
-    evals.to_csv(
-        f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
-        index=False,
-    )
+    evals.to_csv(csv_path, index=False)

@@ -65,6 +65,7 @@ class XIPPredictionEstimator:
         self.constraint_value = constraint_value
         self.seed = seed
         self.verbose = verbose
+        self.n_samples = 1000
 
         self.logger = logging.getLogger("XIPPredictionEstimator")
         if self.verbose:

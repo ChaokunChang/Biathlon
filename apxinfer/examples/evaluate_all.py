@@ -453,7 +453,8 @@ def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
             cmd = get_eval_vary_cmd(
                 args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
-            os.system(cmd)
+            for nsamples in [100, 1000, 5000, 10000, 50000]:
+                os.system(f"{cmd} --pest_nsamples {nsamples}")
 
 
 def run_tick_price(args: ExpArgs):
@@ -479,6 +480,39 @@ def run_tick_price(args: ExpArgs):
                 scheduler_init,
                 scheduler_batch,
                 max_error,
+            )
+            os.system(cmd)
+
+
+def run_vary_nsamples(args: ExpArgs):
+    """
+    args.exp = varynsamples_{task_name}
+    """
+    task_name = args.exp.split('-')[1]
+    agg_qids = None
+    if task_name == "tripsfeast":
+        agg_qids = "1 2"
+        max_errors = [1.0, 1.66]
+    elif task_name in ["tickv2", "tickvaryNM1"]:
+        agg_qids = "6"
+        max_errors = [0.01, 0.04]
+    elif task_name == "machinery":
+        agg_qids = "0 1 2 3 4 5 6 7"
+        max_errors = [0.0]
+    elif task_name == "machinerymulti":
+        agg_qids = "0 1 2 3 4 5 6 7"
+        max_errors = [0.0]
+    elif task_name == "tdfraud":
+        agg_qids = "1 2 3"
+        max_errors = [0.0]
+    else:
+        raise ValueError(f"invalid task_name {task_name}")
+    model = args.model
+    cfgs = get_scheduler_vary_cfgs(args, 1)
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_vary_cmd(
+                args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
             os.system(cmd)
 
@@ -529,5 +563,7 @@ if __name__ == "__main__":
         run_tdfraud(args)
     elif args.exp == "tdfraudrandom":
         run_tdfraudrandom(args)
+    elif args.exp.startswith('varynsamples'):
+        run_vary_nsamples(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

@@ -176,8 +176,8 @@ else:
 
     # conver evals to pd.DataFrame and save as csv
     if pest_nsamples == 1000:
-        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
+        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv"
     else:
-        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}-{pest_nsamples}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv",
+        csv_path = f"{evals_dir}/{TASK_NAME}_{qinf}-{policy}-{scheduler_init}-{scheduler_batch}-{pest_nsamples}_{model}_{nparts}_{ncfgs}_{ncores}_{max_error}.csv"
     evals = pd.DataFrame(evals)
     evals.to_csv(csv_path, index=False)

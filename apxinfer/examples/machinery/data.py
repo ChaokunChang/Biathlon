@@ -242,7 +242,6 @@ class MSensorsIngestor(XIPDataIngestor):
 
 def get_ingestor(nparts: int = 100, seed: int = 0):
     possible_dsrcs = [
-        "/opt/nfs_dcc/ckchang/dataset/user_files/user_files/machinery",
         "/public/ckchang/db/clickhouse/user_files/machinery",
         "/mnt/sdb/dataset/machinery",
         "/mnt/hddraid/clickhouse-data/user_files/machinery",

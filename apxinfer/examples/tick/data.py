@@ -248,7 +248,6 @@ class TickHourFStoreIngestor(XIPDataIngestor):
 def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     dsrc_type = "user_files_dir"
     possible_dsrcs = [
-        "/opt/nfs_dcc/ckchang/dataset/user_files/tick-data/February2022",
         "/public/ckchang/db/clickhouse/user_files/tick-data/February2022",
         "/mnt/sdb/dataset/tick-data/February2022",
         "/mnt/hddraid/clickhouse-data/user_files/tick-data/February2022",

@@ -330,7 +330,6 @@ def ingest(nparts: int = 100, seed: int = 0,
 
     dsrc_type = "user_files_dir"
     possible_dsrcs = [
-        "/opt/nfs_dcc/ckchang/dataset/user_files/tick-data",
         "/public/ckchang/db/clickhouse/user_files/tick-data",
         "/mnt/sdb/dataset/tick-data",
         "/mnt/hddraid/clickhouse-data/user_files/tick-data",

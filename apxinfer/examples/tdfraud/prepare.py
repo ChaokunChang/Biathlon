@@ -129,7 +129,6 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
 class TDFraudRandomPrepareWorker(TDFraudPrepareWorker):
     def get_train_samples(self) -> pd.DataFrame:
         possible_dsrcs = [
-            "/opt/nfs_dcc/ckchang/dataset/user_files/talkingdata/adtracking-fraud",
             "/public/ckchang/db/clickhouse/user_files/talkingdata/adtracking-fraud",
             "/mnt/sdb/dataset/talkingdata/adtracking-fraud",
             "/mnt/hddraid/clickhouse-data/user_files/talkingdata/adtracking-fraud",

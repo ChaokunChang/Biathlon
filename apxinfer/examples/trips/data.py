@@ -113,7 +113,6 @@ class TripsIngestor(XIPDataIngestor):
             """
 
         # possible_dsrcs = [
-        #     "/opt/nfs_dcc/ckchang/dataset/user_files/taxi-2015/trips_{0..19}.gz",
         #     "/public/ckchang/db/clickhouse/user_files/taxi-2015/trips_{0..19}.gz",
         #     "/var/lib/clickhouse/user_files/taxi-2015/trips_{0..19}.gz",
         # ]

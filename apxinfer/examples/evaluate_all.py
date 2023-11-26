@@ -453,8 +453,7 @@ def run_tripsfeast_vary_window_size(args: ExpArgs, nmonths: int):
             cmd = get_eval_vary_cmd(
                 args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
-            for nsamples in [100, 1000, 5000, 10000, 50000]:
-                os.system(f"{cmd} --pest_nsamples {nsamples}")
+            os.system(cmd)
 
 
 def run_tick_price(args: ExpArgs):
@@ -486,7 +485,7 @@ def run_tick_price(args: ExpArgs):
 
 def run_vary_nsamples(args: ExpArgs):
     """
-    args.exp = varynsamples_{task_name}
+    args.exp = varynsamples-{task_name}
     """
     task_name = args.exp.split('-')[1]
     agg_qids = None
@@ -514,7 +513,8 @@ def run_vary_nsamples(args: ExpArgs):
             cmd = get_eval_vary_cmd(
                 args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
             )
-            os.system(cmd)
+            for nsamples in [100, 1000, 5000, 10000, 50000]:
+                os.system(f"{cmd} --pest_nsamples {nsamples}")
 
 
 if __name__ == "__main__":

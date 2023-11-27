@@ -70,9 +70,16 @@ for nw in 2 4 8 24 48; do python evaluate_all.py --exp tripsfeastw$nw --model lg
 
 # new must piplines
 ```bash
-python evaluate_all.py --exp prepare --prep_single tdfraudrandom --seed xxx
+scp -r numa:/public/ckchang/db/clickhouse/user_files/talkingdata /var/lib/clickhouse/user_files/
+# use three seeds
+# python evaluate_all.py --exp prepare --prep_single tdfraudrandom --seed xxx # too slow
+scp -r numa:/home/ckchang/.cache/apxinf/xip/final/tdfraudrandom /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom
+mv /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-0 /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-xxx
 python evaluate_all.py --exp tdfraudrandom --model lgbm --ncores 1 --loading_mode 0 --seed xxx
 
-python evaluate_all.py --exp prepare --prep_single tdfraud --seed xxx
+# use two seeds
+# python evaluate_all.py --exp prepare --prep_single tdfraud --seed xxx # too slow
+scp -r numa:/home/ckchang/.cache/apxinf/xip/final/tdfraud /home/ckchang/.cache/apxinf/xip/final/tdfraud
+mv /home/ckchang/.cache/apxinf/xip/final/tdfraud/seed-0 /home/ckchang/.cache/apxinf/xip/final/tdfraud/seed-xxx
 python evaluate_all.py --exp tdfraud --model lgbm --ncores 1 --loading_mode 0 --seed xxx
 ```

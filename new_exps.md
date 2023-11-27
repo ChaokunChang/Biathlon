@@ -76,13 +76,13 @@ sudo /home/ckchang/anaconda3/envs/apx/bin/python run.py --example tdfraud --stag
 scp -r numa:/home/ckchang/.cache/apxinf/xip/final/tdfraud /home/ckchang/.cache/apxinf/xip/final/tdfraud
 mv /home/ckchang/.cache/apxinf/xip/final/tdfraud/seed-0 /home/ckchang/.cache/apxinf/xip/final/tdfraud/seed-xxx
 # python evaluate_all.py --exp prepare --prep_single tdfraud --seed xxx # too slow
-python evaluate_all.py --exp tdfraud --model lgbm --ncores 1 --loading_mode 0 --seed xxx
+python evaluate_all.py --exp tdfraud --model xgb --ncores 1 --loading_mode 0 --seed xxx
 
 # use two seeds
 sudo /home/ckchang/anaconda3/envs/apx/bin/python run.py --example tdfraudrandom --stage ingest --task final/tdfraudrandom --nparts 100 --seed xxx
 scp -r numa:/home/ckchang/.cache/apxinf/xip/final/tdfraudrandom /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom
 mv /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-0 /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-xxx
 # python evaluate_all.py --exp prepare --prep_single tdfraudrandom --seed xxx # too slow
-python evaluate_all.py --exp tdfraudrandom --model lgbm --ncores 1 --loading_mode 0 --seed xxx
+python evaluate_all.py --exp tdfraudrandom --model xgb --ncores 1 --loading_mode 0 --seed xxx
 
 ```

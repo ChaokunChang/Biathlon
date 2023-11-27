@@ -76,13 +76,17 @@ def merge_csv(args: EvalArgs):
             cols = cols[-3:] + cols[:-3]
             df_tmp = df_tmp[cols]
 
+            if "pest_nsamples" not in df_tmp.columns:
+                df_tmp["pest_nsamples"] = 1000
+
             # set accuracy
             if task_name in ["tick-v1", "tick-v2",]:
                 acc_type = "r2"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]
                     df_tmp['similarity'] = df_tmp[f"similarity-{acc_type}"]
-            if task_name in ['cheaptrips', "machinery-v1", "machinery-v2", "machinery-v3"]:
+            if task_name in ['cheaptrips', "machinery-v1", "machinery-v2",
+                            "machinery-v3", "tdfraud"]:
                 acc_type = "f1"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]
@@ -112,7 +116,7 @@ def main():
                 'qinf', 'policy', 'nparts', 'ncfgs',
                 'ncores', 'loading_mode',
                 'scheduler_batch', 'scheduler_init',
-                'max_error', 'min_conf']
+                'max_error', 'min_conf', 'pest_nsamples']
         df = df.groupby(keys).mean().reset_index()
 
     # add columns "avg_sample_query", "avg_qtime_query" back

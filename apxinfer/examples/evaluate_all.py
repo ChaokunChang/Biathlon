@@ -271,7 +271,7 @@ def run_tripsfeast(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 2)
-    max_errors = [0.5, 1.0, 1.66, 2.0, 3.0]
+    max_errors = [0.5, 1.0, 1.66, 2.0, 3.0, 5.0]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -496,6 +496,33 @@ def run_tick_price(args: ExpArgs):
             os.system(cmd)
 
 
+def run_tick_price_middle(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickvaryNM8"
+    agg_qids = "6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 1)
+    max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
+
+
 def run_vary_nsamples(args: ExpArgs):
     """
     args.exp = varynsamples-{task_name}
@@ -580,5 +607,7 @@ if __name__ == "__main__":
         run_vary_nsamples(args)
     elif args.exp == "tdfraudkaggle":
         run_tdfraudkaggle(args)
+    elif args.exit == "tickpricemiddle":
+        run_tick_price_middle(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

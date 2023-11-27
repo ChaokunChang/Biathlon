@@ -26,6 +26,10 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df['BD:Others'] = df['avg_latency'] - df['BD:AFC'] - df['BD:AMI'] - df['BD:Sobol']
     df['alpha'] = df['scheduler_init'] / df['ncfgs']
     df['beta'] = df['scheduler_batch'] / df['ncfgs']
+    if args.beta_of_all:
+        df["beta"] /= df['naggs']
+        df = df[df['beta'] <= 1.0]
+        df = df[df['beta'] >= 0.001]
 
     # special handling for profiling results
     def handler_soboltime(df: pd.DataFrame) -> pd.DataFrame:
@@ -57,7 +61,8 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
 
 
 tasks = [
-    "trips",
+    # "trips",
+    "tripsfeast",
     # "tick-v1",
     "Tick-Price",
     # "cheaptrips",
@@ -68,7 +73,8 @@ tasks = [
 ]
 
 reg_tasks = [
-    "trips",
+    # "trips",
+    "tripsfeast",
     # "tick-v1",
     "Tick-Price",
 ]
@@ -85,6 +91,10 @@ shared_default_settings = {
 }
 task_default_settings = {
     "trips": {
+        "model_name": "lgbm",
+        "max_error": 1.0
+    },
+    "tripsfeast": {
         "model_name": "lgbm",
         "max_error": 1.0
     },
@@ -358,7 +368,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Confidence Level")
+        axes[i].set_xlabel("Confidence Level $\tau$")
         axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="lower left")
 
@@ -421,7 +431,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Error Bound")
+        axes[i].set_xlabel("Error Bound $\delta$")
         axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
@@ -485,7 +495,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Initial Sampling Ratio")
+        axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
         axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
@@ -522,8 +532,6 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    if args.beta_of_all:
-        selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
@@ -551,8 +559,16 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Step Size")
-        axes[i].set_ylabel("Speedup", color="royalblue")
+        axes[i].set_xlabel("Step Size $\gamma$")
+        axes[i].set_ylabel("Speedup", color="royalblue")\
+
+        # set xtick labels as (beta, $\sum N_j$)
+        axes[i].set_xticks(ticks=df_tmp["beta"])
+        # only show the first, the middle, and last xtick labels
+        xticklabels = [f"{beta:.3f}$\sum N_j$" for beta in df_tmp["beta"]]
+        xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
+        axes[i].set_xticklabels(labels=xticklabels)
+
         # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
@@ -584,8 +600,6 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    if args.beta_of_all:
-        selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "alpha", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
@@ -889,7 +903,6 @@ def main(args: EvalArgs):
     plot_vary_max_error(df, args)
     plot_vary_alpha(df, args)
     plot_vary_beta(df, args)
-    vary_alpha_beta(df, args)
     vary_num_agg(df, args)
     vary_datasize(df, args)
 

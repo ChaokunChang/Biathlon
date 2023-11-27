@@ -24,6 +24,8 @@ class EvalArgs(Tap):
 def load_df(args: EvalArgs) -> pd.DataFrame:
     df = pd.read_csv(os.path.join(args.home_dir, args.filename))
     df['BD:Others'] = df['avg_latency'] - df['BD:AFC'] - df['BD:AMI'] - df['BD:Sobol']
+    df['alpha'] = df['scheduler_init'] / df['ncfgs']
+    df['beta'] = df['scheduler_batch'] / df['ncfgs']
 
     # special handling for profiling results
     def handler_soboltime(df: pd.DataFrame) -> pd.DataFrame:
@@ -456,7 +458,6 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    selected_df['alpha'] = selected_df['scheduler_init'] / selected_df['ncfgs']
     required_cols = ["task_name", "alpha", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
@@ -521,7 +522,6 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    selected_df['beta'] = selected_df['scheduler_batch'] / selected_df['ncfgs']
     if args.beta_of_all:
         selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "beta", "speedup", "similarity",
@@ -584,8 +584,6 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    selected_df['alpha'] = selected_df['scheduler_init'] / selected_df['ncfgs']
-    selected_df['beta'] = selected_df['scheduler_batch'] / selected_df['ncfgs']
     if args.beta_of_all:
         selected_df["beta"] /= selected_df['naggs']
     required_cols = ["task_name", "alpha", "beta", "speedup", "similarity",

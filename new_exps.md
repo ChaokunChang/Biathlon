@@ -68,3 +68,11 @@ for nm in 2 8 16 29; do python evaluate_all.py --exp tickvaryNM$nm --model lr --
 for nw in 2 4 8 24 48; do python evaluate_all.py --exp tripsfeastw$nw --model lgbm --ncores 1 --loading_mode 0; done
 ```
 
+# new must piplines
+```bash
+python evaluate_all.py --exp prepare --prep_single tdfraudrandom --seed xxx
+python evaluate_all.py --exp tdfraudrandom --model lgbm --ncores 1 --loading_mode 0 --seed xxx
+
+python evaluate_all.py --exp prepare --prep_single tdfraud --seed xxx
+python evaluate_all.py --exp tdfraud --model lgbm --ncores 1 --loading_mode 0 --seed xxx
+```

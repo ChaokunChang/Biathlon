@@ -208,7 +208,7 @@ def run_tdfraudrandom(args: ExpArgs):
     """
     must models = ["xgb"]
     """
-    task_name = "tdfraudradom"
+    task_name = "tdfraudrandom"
     agg_qids = "1 2 3"
     model = args.model
     if not args.skip_shared:

@@ -65,6 +65,6 @@ for nm in 2 8 16 29; do python run.py --example tickvaryNM$nm --stage ingest --t
 for nm in 2 8 16 29; do python evaluate_all.py --exp tickvaryNM$nm --model lr --ncores 1 --loading_mode 0 --skip_shared; done
 
 # vary size of window for tripsfeast
-for nw in 2 4 8 24 48 98; do python evaluate_all.py --exp tripsfeastw$nw --model lgbm --ncores 1 --loading_mode 0; done
+for nw in 2 4 8 24 48; do python evaluate_all.py --exp tripsfeastw$nw --model lgbm --ncores 1 --loading_mode 0; done
 ```
 

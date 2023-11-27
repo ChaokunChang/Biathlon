@@ -191,7 +191,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     # xticklabels = default_df['task_name'].values
     xticklabels = PIPELINE_NAME
 
-    width = 0.3
+    width = 0.4
     x = [i for i in range(len(tasks))]
     x1 = [i - width for i in x]
     x2 = [(x[i] + x1[i]) / 2 for i in range(len(x))]
@@ -247,7 +247,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     for i, (rect, task_name) in enumerate(zip(bar2, default_df["task_name"])):
         height = rect.get_height()
         similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
-        ax.text(rect.get_x() + rect.get_width() / 2.0, height, f'{similarity*100:.2f}%', ha='center', va='bottom')
+        ax.text(rect.get_x() + rect.get_width() / 2.0, height, f'{similarity*100:.2f}%', ha='center', va='bottom', size=10)
 
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Accuracy")

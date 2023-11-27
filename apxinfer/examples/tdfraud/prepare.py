@@ -168,3 +168,47 @@ class TDFraudRandomPrepareWorker(TDFraudPrepareWorker):
         labels_pds = train_samples["is_attributed"]
         labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels_pds
+
+
+class TDFraudKagglePrepareWorker(TDFraudPrepareWorker):
+    def get_train_samples(self) -> pd.DataFrame:
+        possible_dsrcs = [
+            "/public/ckchang/db/clickhouse/user_files/talkingdata/adtracking-fraud",
+            "/mnt/sdb/dataset/talkingdata/adtracking-fraud",
+            "/mnt/hddraid/clickhouse-data/user_files/talkingdata/adtracking-fraud",
+            "/var/lib/clickhouse/user_files/talkingdata/adtracking-fraud",
+        ]
+        dsrc = None
+        for src in possible_dsrcs:
+            if os.path.exists(src):
+                dsrc = src
+                print(f"dsrc path: {dsrc}")
+                break
+        if dsrc is None:
+            raise RuntimeError("no valid dsrc!")
+        clkh_db_dir = dsrc
+        sample_path = os.path.join(clkh_db_dir, "train_sample.csv")
+        train_samples = pd.read_csv(sample_path)
+        return train_samples
+
+    def get_requests(self) -> pd.DataFrame:
+        req_path = os.path.join(self.working_dir, "requests.csv")
+        if os.path.exists(req_path):
+            self.logger.info(f"Loading requests from {req_path}")
+            requests = pd.read_csv(req_path)
+            return requests
+        self.logger.info("Getting requests")
+        train_samples = self.get_train_samples()
+        requests = train_samples.drop(columns=["is_attributed", "attributed_time"])
+        # add a column called txn_id, which is the row number, on the first column
+        requests.insert(0, "txn_id", range(len(requests)))
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def get_labels(self, requests: pd.DataFrame) -> pd.Series:
+        self.logger.info(f"Getting labels for {len(requests)}x requests")
+        train_samples = self.get_train_samples()
+        labels_pds = train_samples["is_attributed"]
+        labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
+        return labels_pds

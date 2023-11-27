@@ -108,3 +108,49 @@ class TDFraudQP3(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+
+class TDFraudKaggleQP0(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ["req_app", "req_device", "req_os",
+                 "req_channel", "req_click_time"]
+        dcol_aggs = [
+            [lambda x: int(x[0][0])],
+            [lambda x: int(x[0][1])],
+            [lambda x: int(x[0][2])],
+            [lambda x: int(x[0][3])],
+            [lambda x: pd.to_datetime(x[0][4]).day_of_week,
+             lambda x: pd.to_datetime(x[0][4]).day_of_year],
+        ]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+class TDFraudKaggleQP1(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
+                 fnames: List[str] = None, verbose: bool = False) -> None:
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
+
+    def get_query_condition(self, request: TDFraudRequest) -> str:
+        req_dt = pd.to_datetime(request["req_click_time"])
+        ip = request["req_ip"]
+        and_list = [f"ip = {ip}",
+                    f"click_time < '{req_dt}'"]
+        qcond = " AND ".join(and_list)
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = ['channel']
+        dcol_aggs = [["count"]]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops

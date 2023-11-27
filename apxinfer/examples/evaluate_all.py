@@ -222,6 +222,24 @@ def run_tdfraudrandom(args: ExpArgs):
         os.system(cmd)
 
 
+def run_tdfraudkaggle(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraudkaggle"
+    agg_qids = "1"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 4)
+    for scheduler_init, scheduler_batch in cfgs:
+        cmd = get_eval_cmd(
+            args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
+        )
+        os.system(cmd)
+
+
 def run_trips(args: ExpArgs):
     """
     must models = ["lgbm"]
@@ -565,5 +583,7 @@ if __name__ == "__main__":
         run_tdfraudrandom(args)
     elif args.exp.startswith('varynsamples'):
         run_vary_nsamples(args)
+    elif args.exp == "tdfraudkaggle":
+        run_tdfraudkaggle(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

@@ -86,3 +86,15 @@ python evaluate_all.py --exp prepare --prep_single tdfraudrandom --seed xxx # to
 python evaluate_all.py --exp tdfraudrandom --model xgb --ncores 1 --loading_mode 0 --seed xxx
 
 ```
+
+# complementary experiments
+```bash
+# make sure that the experiment has been run on the server before, otherwise will be slow
+# and I recommend to use 3 or 2 seeds to reduce the time for waiting.
+python evaluate_all.py --exp tripsfeast --model lgbm --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+python evaluate_all.py --exp machinery --model mlp --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+python evaluate_all.py --exp tdfraud --model xgb --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+python evaluate_all.py --exp tickvaryNM8 --model lr --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+python evaluate_all.py --exp machinery --model knn --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+python evaluate_all.py --exp machinerymulti --model svm --ncores 1 --loading_mode 0 --skip_shared --seed xxx 
+```

@@ -80,13 +80,14 @@ def merge_csv(args: EvalArgs):
                 df_tmp["pest_nsamples"] = 1000
 
             # set accuracy
-            if task_name in ["tick-v1", "tick-v2",]:
+            if task_name in ["tick-v1", "tick-v2",
+                             "Tick-Price", "tripsfeast"]:
                 acc_type = "r2"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]
                     df_tmp['similarity'] = df_tmp[f"similarity-{acc_type}"]
             if task_name in ['cheaptrips', "machinery-v1", "machinery-v2",
-                            "machinery-v3", "tdfraud"]:
+                            "machinery-v3", "machinerymulti", "tdfraud"]:
                 acc_type = "f1"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]

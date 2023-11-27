@@ -29,25 +29,17 @@ class ExpArgs(Tap):
             assert self.loading_mode is not None
 
 
-def get_scheduler_cfgs(args: ExpArgs, naggs: int = None):
-    ncfgs = args.ncfgs
-    if naggs is None:
-        inits, batches = [1, 5, 10, 20], [1, 5, 10, 20]
-    elif ncfgs == 100:
-        inits = [1, 5, 10, 20]
-        max_batch = naggs * ncfgs
-        batches = [1, 5, 10, 20, 50]
-        batches = batches + [i for i in range(100, max_batch + 1, 50)]
-    else:
-        raise ValueError(f"invalid ncfgs {ncfgs}")
-    # create scheduler configs as pairs of (init, batch)
-    cfgs = []
-    for init in inits:
-        for batch in batches:
-            cfgs.append((init, batch))
-    # move (5, 5), (5, 10), (10, 10), (10, 5) to the front
-    cfgs = [(5, 5), (5, 10), (10, 10), (10, 5)] + [cfg for cfg in cfgs if cfg not in [(5, 5), (5, 10), (10, 10), (10, 5)]]
-    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 2*naggs), (5, 1*naggs), (3, 3*naggs), (2, 2*naggs), (1, 1*naggs)] + cfgs
+def get_scheduler_cfgs(args: ExpArgs, naggs: int):
+    quantiles = [1, 2, 5] + [i for i in range(10, 100, 10)] + [100]
+    default_quantiles = [1, 2, 5]
+    cfgs = [(5, 5)]
+    # default beta and vary alpha
+    for beta in default_quantiles:
+        for alpha in quantiles[:-1]:
+            cfgs.append((alpha, beta*naggs))
+    for alpha in default_quantiles:
+        for beta in quantiles:
+            cfgs.append((alpha, beta*naggs))
     return cfgs
 
 
@@ -196,7 +188,7 @@ def run_tdfraud(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    cfgs = get_scheduler_cfgs(args, 4)
+    cfgs = get_scheduler_cfgs(args, 3)
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
@@ -214,7 +206,7 @@ def run_tdfraudrandom(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    cfgs = get_scheduler_cfgs(args, 4)
+    cfgs = get_scheduler_cfgs(args, 3)
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
@@ -232,7 +224,7 @@ def run_tdfraudkaggle(args: ExpArgs):
     if not args.skip_shared:
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
-    cfgs = get_scheduler_cfgs(args, 4)
+    cfgs = get_scheduler_cfgs(args, 3)
     for scheduler_init, scheduler_batch in cfgs:
         cmd = get_eval_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
@@ -367,8 +359,11 @@ def run_tick_v2(args: ExpArgs):
 
 
 def get_scheduler_vary_cfgs(args: ExpArgs, naggs: int):
-    cfgs = [(5, 5*naggs), (5, 3*naggs), (5, 1*naggs), (3, 3*naggs), (1, 1*naggs)]
-    cfgs += [(5, 5), (5, 10), (5, 3), (5, 1)]
+    default_quantiles = [1, 2, 5]
+    cfgs = [(5, 5)]
+    for beta in default_quantiles:
+        for alpha in default_quantiles:
+            cfgs.append((alpha, beta*naggs))
     return cfgs
 
 

@@ -6,7 +6,7 @@ MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
 MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 9)]
 TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 30)]
-TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 30)]
+TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 1000)]
 
 
 class ExpArgs(Tap):

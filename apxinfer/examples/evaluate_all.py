@@ -607,7 +607,7 @@ if __name__ == "__main__":
         run_vary_nsamples(args)
     elif args.exp == "tdfraudkaggle":
         run_tdfraudkaggle(args)
-    elif args.exit == "tickpricemiddle":
+    elif args.exp == "tickpricemiddle":
         run_tick_price_middle(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

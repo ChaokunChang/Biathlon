@@ -9,6 +9,7 @@ import json
 from tap import Tap
 
 PJNAME = "Biathlon"
+PIPELINE_NAME = ["Trip-Fare", "Tick-Price", "Bearing-Imbalance 1", "Bearing-Imbalance 2"]
 YLIM_ACC = [0.9, 1.01]
 
 
@@ -185,56 +186,70 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     print(default_df)
 
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(figsize=(10, 8), nrows=2, ncols=1, sharex=True, sharey=False)
+    fig, axes = plt.subplots(figsize=(6, 6), nrows=2, ncols=1, sharex=False, sharey=False)
 
-    xticklabels = default_df['task_name'].values
+    # xticklabels = default_df['task_name'].values
+    xticklabels = PIPELINE_NAME
 
-    width = 0.35
+    width = 0.3
     x = [i for i in range(len(tasks))]
     x1 = [i - width for i in x]
+    x2 = [(x[i] + x1[i]) / 2 for i in range(len(x))]
 
     ax = axes[0]  # latency comparison
-    ax.set_xticks(x)
-    ax.set_xticklabels(xticklabels)
+    ax.set_xticks(ticks=x2, labels=xticklabels) # center the xticks with the bars
+    ax.tick_params(axis='x', rotation=10)
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
     ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-AFC")
-    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
+    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
     # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
     # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
 
     # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
-    ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
-    ax.bar(x, default_df['BD:AMI'], width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
-    ax.bar(x, default_df['BD:Sobol'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'], label=f"{PJNAME}-Planner")
+    tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
+    bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
+    bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
+    bar3 = ax.bar(x, default_df['BD:Sobol'] + 0.03, width, bottom=default_df['BD:AFC'] + tweaked_height, label=f"{PJNAME}-Planner")
     # ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
 
     # add speedup on top of the bar of PJNAME
-    for i, task_name in enumerate(default_df['task_name']):
+    # for i, task_name in enumerate(default_df['task_name']):
+    #     lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+    #     speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+    #     ax.text(i, lat + 0.01, "{:.2f}x".format(speedup), ha="center")
+    for i, (rect0, rect1, rect2, task_name) in enumerate(zip(bar1, bar2, bar3, default_df["task_name"])):
+        height = rect0.get_height() + rect1.get_height() + rect2.get_height()
         lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
         speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
-        ax.text(i, lat + 0.01, "{:.2f}x".format(speedup), ha="center")
+        ax.text(rect2.get_x() + rect2.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
 
-    ax.set_xlabel("Task Name")
-    ax.set_ylabel("Latency (s)")
+    # ax.set_xlabel("Task Name")
+    ax.set_ylabel("Latency / s")
     ax.set_title("Latency Comparison with Default Settings")
-    ax.legend()
+    ax.legend(loc='best')
 
     ax = axes[1]  # similarity comparison
-    ax.set_xticks(x)
-    ax.set_xticklabels(xticklabels)
+    ax.set_xticks(x2, xticklabels) # center the xticks with the bars
+    ax.tick_params(axis='x', rotation=10)
+    ax.set_ylim(ymin=0.9, ymax=1.01)
+    ax.set_yticks(ticks=np.arange(0.9, 1.01, 0.02), labels=list(f"{i}%" for i in range(90, 101, 2)))
 
     # draw baseline on x1, similarity
-    ax.bar(x1, baseline_df['similarity'], width, label="Baseline")
+    bar1 = ax.bar(x1, baseline_df['similarity'], width, label="Baseline")
     # draw default on x, similarity
-    ax.bar(x, default_df['similarity'], width, label=f"{PJNAME}")
+    bar2 = ax.bar(x, default_df['similarity'], width, label=f"{PJNAME}")
 
     # add acc_loss on top of the bar of PJNAME
-    for i, task_name in enumerate(default_df['task_name']):
+    # for i, task_name in enumerate(default_df['task_name']):
+    #     similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
+    #     ax.text(i, similarity + 0.01, "{:.2f}%".format(similarity*100), ha="center")
+    for i, (rect, task_name) in enumerate(zip(bar2, default_df["task_name"])):
+        height = rect.get_height()
         similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
-        ax.text(i, similarity + 0.01, "{:.2f}%".format(similarity*100), ha="center")
+        ax.text(rect.get_x() + rect.get_width() / 2.0, height, f'{similarity*100:.2f}%', ha='center', va='bottom')
 
-    ax.set_xlabel("Task Name")
+    # ax.set_xlabel("Task Name")
     ax.set_ylabel("Accuracy")
     ax.set_title("Accuracy Comparison with Default Settings")
     ax.legend(loc="lower right")
@@ -250,6 +265,8 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     For every task, plot the latency breakdown with default settings.
     """
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     selected_df = get_evals_with_default_settings(df)
 
     # plot one figure, where
@@ -261,13 +278,24 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     selected_df["sns_Sobol"] = selected_df["BD:Sobol"] + selected_df["sns_AMI"]
     # selected_df["sns_Others"] = selected_df["BD:Others"] + selected_df["sns_Sobol"]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(5, 4))
     # sns.barplot(x="task_name", y="sns_Others", data=selected_df, ax=ax, label="Others")
-    sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner")
-    sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI")
-    sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=ax, label="Executor:AFC")
-    ax.set_xlabel("Task Name")
-    ax.set_ylabel("Latency (s)")
+    # sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner", color="orange")
+    # sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI", color="blue")
+    # sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=ax, label="Executor:AFC", color="green")
+
+    # xticklabels = selected_df['task_name'].values
+    xticklabels = PIPELINE_NAME
+    x = [i for i in range(len(tasks))]
+    ax.set_xticks(ticks=x, labels=xticklabels)
+    width = 0.4
+    ax.bar(x, selected_df["sns_Sobol"], width, label="Planner")
+    ax.bar(x, selected_df["sns_AMI"], width, label="Executor:AMI")
+    ax.bar(x, selected_df["sns_AFC"], width, label="Executor:AFC")
+
+    ax.tick_params(axis='x', rotation=10)
+    ax.set_xlabel("")
+    ax.set_ylabel("Latency / s")
     ax.set_title("Latency Breakdown with Default Settings")
     ax.legend()
     plt.tight_layout()
@@ -295,8 +323,10 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     sns.set_theme(style="whitegrid")
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
     elif len(tasks) in [5, 6]:
         fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
     else:
@@ -309,20 +339,24 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange")
-        axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        plot1 = axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="blue")
-        twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
 
-        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Min Confidence")
         axes[i].set_ylabel("Speedup", color="orange")
-        axes[i].legend(loc="upper left")
+        # axes[i].legend(loc="lower left")
 
         twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
-        twnx.legend(loc="upper right")
+        # twnx.legend(loc="lower left")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower left")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_min_conf.pdf"))
     # plt.show()
@@ -335,6 +369,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     For each task,
     Plot the accuracy and speedup with different max_error.
     """
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     df = get_evals_basic(df)
     selected_df = []
     for task_name in reg_tasks:
@@ -354,7 +390,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(reg_tasks) == 2:
-        fig, axes = plt.subplots(figsize=(12, 6), nrows=1, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 3), nrows=1, ncols=2, sharex=False, sharey=True)
     elif len(reg_tasks) > 2:
         fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
     else:
@@ -365,20 +401,24 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
 
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="orange")
-        axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="blue")
-        twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        plot2 = twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
 
-        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Max Error")
         axes[i].set_ylabel("Speedup", color="orange")
-        axes[i].legend(loc="upper left")
+        # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
-        twnx.legend(loc="upper right")
+        # twnx.legend(loc="upper right")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_max_error.pdf"))
     # plt.show()
@@ -389,6 +429,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
 def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     """ alpha = scheduler_init / ncfgs
     """
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     df = get_evals_basic(df)
 
     selected_df = []
@@ -410,7 +452,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
     elif len(tasks) in [5, 6]:
         fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
     else:
@@ -423,20 +465,24 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange")
-        axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue")
-        twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
 
-        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Percentage")
         axes[i].set_ylabel("Speedup", color="orange")
-        axes[i].legend(loc="upper left")
+        # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
-        twnx.legend(loc="upper right")
+        # twnx.legend(loc="upper right")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower left")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_alpha.pdf"))
     # plt.show()
@@ -447,6 +493,8 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     """ beta = scheduler_batch / ncfgs
     """
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     df = get_evals_basic(df)
 
     selected_df = []
@@ -470,7 +518,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
     elif len(tasks) in [5, 6]:
         fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
     else:
@@ -483,20 +531,24 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.reset_index(drop=True)
 
         axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange")
-        axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="blue")
-        twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
 
-        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Beta")
         axes[i].set_ylabel("Speedup", color="orange")
-        axes[i].legend(loc="upper left")
+        # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
         twnx.set_ylabel("Accuracy", color="blue")
-        twnx.legend(loc="upper right")
+        # twnx.legend(loc="upper right")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_beta.pdf"))
     # plt.show()
@@ -556,7 +608,7 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
             twnx.scatter(df_tmp_beta["alpha"], df_tmp_beta[acc_metric], marker='+', color=color)
             twnx.plot(df_tmp_beta["alpha"], df_tmp_beta[acc_metric], marker='+', color=color, label=f"Accuracy")
 
-        axes[i].set_title("Task: {}".format(task_name))
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Percentage")
         axes[i].set_ylabel("Speedup")
         axes[i].legend(loc="upper left")
@@ -572,6 +624,8 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
 
 
 def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     required_cols = ["task_name", "naggs", "speedup", "similarity",
                      "avg_latency", "accuracy"]
     selected_tasks = [f'machineryxf{i}' for i in range(1, 8)] + ['Bearing-MLP']
@@ -628,21 +682,25 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: naggs
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(7, 3))
     ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange")
-    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+    plot1 = ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
 
     twnx = ax.twinx()
     twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue")
-    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+    plot2 = twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
 
     ax.set_xlabel("Number of Aggregation Operators")
     ax.set_ylabel("Speedup", color="orange")
-    ax.legend(loc="upper left")
+    # ax.legend(loc="upper left")
 
     twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="blue")
-    twnx.legend(loc="upper right")
+    # twnx.legend(loc="upper right")
+
+    plots = plot1 + plot2
+    labels = [l.get_label() for l in plots]
+    ax.legend(plots, labels, loc="lower right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_agg.pdf"))
     # plt.show()
@@ -775,22 +833,26 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: num_months
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(5, 5))
     ax.scatter(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange")
-    ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+    plot1 = ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
 
     twnx = ax.twinx()
     twnx.scatter(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue")
-    twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+    plot2 = twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
 
     ax.set_xlabel("Number of Months")
     ax.set_ylabel("Speedup", color="orange")
-    ax.legend(loc="upper left")
+    # ax.legend(loc="upper left")
 
     # set range for y-axis
     twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="blue")
-    twnx.legend(loc="upper right")
+    # twnx.legend(loc="upper right")
+
+    plots = plot1 + plot2
+    labels = [l.get_label() for l in plots]
+    ax.legend(plots, labels, loc="lower right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_nm.pdf"))
     # plt.show()
@@ -799,6 +861,9 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
 
 
 def main(args: EvalArgs):
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.serif"] = ["Times New Roman"]
+    plt.rcParams["font.size"] = 40
     df = load_df(args)
     plot_lat_comparsion_w_breakdown(df, args)
     plot_lat_breakdown(df, args)

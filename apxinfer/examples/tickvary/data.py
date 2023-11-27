@@ -125,13 +125,14 @@ class TickVaryDataIngestor(XIPDataIngestor):
                     break
             prev_id -= 1
         prev_table = f"{tb_prefix}_{prev_id}_{tb_nparts}"
-        # load data from the previous table to the current table
-        sql = f"""
-            INSERT INTO {self.database}.{self.table}
-            SELECT *
-            FROM {self.database}.{prev_table}
-        """
-        self.db_client.command(sql)
+        if prev_id > 0:
+            # load data from the previous table to the current table
+            sql = f"""
+                INSERT INTO {self.database}.{self.table}
+                SELECT *
+                FROM {self.database}.{prev_table}
+            """
+            self.db_client.command(sql)
 
         remaining = [self.year_months[i] for i in range(prev_id, len(self.year_months))]
         # we then insert the remaining data into the main table

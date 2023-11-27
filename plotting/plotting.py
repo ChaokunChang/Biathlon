@@ -225,7 +225,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
         ax.text(rect2.get_x() + rect2.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
 
     # ax.set_xlabel("Task Name")
-    ax.set_ylabel("Latency / s")
+    ax.set_ylabel("Latency (s)")
     ax.set_title("Latency Comparison with Default Settings")
     ax.legend(loc='best')
 
@@ -280,9 +280,9 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     fig, ax = plt.subplots(figsize=(5, 4))
     # sns.barplot(x="task_name", y="sns_Others", data=selected_df, ax=ax, label="Others")
-    # sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner", color="orange")
-    # sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI", color="blue")
-    # sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=ax, label="Executor:AFC", color="green")
+    # sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner", color="tomato")
+    # sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI", color="royalblue")
+    # sns.barplot(x="task_name", y="sns_AFC", data=selected_df, ax=ax, label="Executor:AFC", color="tomato")
 
     # xticklabels = selected_df['task_name'].values
     xticklabels = PIPELINE_NAME
@@ -295,7 +295,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     ax.tick_params(axis='x', rotation=10)
     ax.set_xlabel("")
-    ax.set_ylabel("Latency / s")
+    ax.set_ylabel("Latency (s)")
     ax.set_title("Latency Breakdown with Default Settings")
     ax.legend()
     plt.tight_layout()
@@ -338,20 +338,20 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange")
-        plot1 = axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="blue")
-        plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        twnx.scatter(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Min Confidence")
-        axes[i].set_ylabel("Speedup", color="orange")
+        axes[i].set_xlabel("Confidence Level")
+        axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="lower left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="blue")
+        twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="lower left")
 
         plots = plot1 + plot2
@@ -400,20 +400,20 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     for i, task_name in enumerate(reg_tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
 
-        axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="orange")
-        plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="blue")
-        plot2 = twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        twnx.scatter(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Max Error")
-        axes[i].set_ylabel("Speedup", color="orange")
+        axes[i].set_xlabel("Error Bound")
+        axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="blue")
+        twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="upper right")
 
         plots = plot1 + plot2
@@ -464,20 +464,20 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange")
-        plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue")
-        plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Initial Sampling Percentage")
-        axes[i].set_ylabel("Speedup", color="orange")
+        axes[i].set_xlabel("Initial Sampling Ratio")
+        axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="blue")
+        twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="upper right")
 
         plots = plot1 + plot2
@@ -530,20 +530,20 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange")
-        plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="orange", label="Speedup")
+        axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="blue")
-        plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="blue", label="Accuracy")
+        twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Beta")
-        axes[i].set_ylabel("Speedup", color="orange")
+        axes[i].set_xlabel("Step Size")
+        axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="blue")
+        twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="upper right")
 
         plots = plot1 + plot2
@@ -609,7 +609,7 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
             twnx.plot(df_tmp_beta["alpha"], df_tmp_beta[acc_metric], marker='+', color=color, label=f"Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Initial Sampling Percentage")
+        axes[i].set_xlabel("Initial Sampling Ratio")
         axes[i].set_ylabel("Speedup")
         axes[i].legend(loc="upper left")
 
@@ -682,20 +682,20 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: naggs
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(7, 3))
-    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange")
-    plot1 = ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+    fig, ax = plt.subplots(figsize=(4.5, 4))
+    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue")
+    plot1 = ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
 
     twnx = ax.twinx()
-    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue")
-    plot2 = twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato")
+    plot2 = twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
 
-    ax.set_xlabel("Number of Aggregation Operators")
-    ax.set_ylabel("Speedup", color="orange")
+    ax.set_xlabel("Number of Approximated Aggregation Features")
+    ax.set_ylabel("Speedup", color="royalblue")
     # ax.legend(loc="upper left")
 
     twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.set_ylabel("Accuracy", color="tomato")
     # twnx.legend(loc="upper right")
 
     plots = plot1 + plot2
@@ -758,19 +758,19 @@ def vary_num_nf(df: pd.DataFrame, args: EvalArgs):
     # x-axis: naggs
     # y-axis: speedup and similarity
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange")
-    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue")
+    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
 
     twnx = ax.twinx()
-    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue")
-    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato")
+    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
 
     ax.set_xlabel("Number of Aggregation Operators")
-    ax.set_ylabel("Speedup", color="orange")
+    ax.set_ylabel("Speedup", color="royalblue")
     ax.legend(loc="upper left")
     
     twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.set_ylabel("Accuracy", color="tomato")
     twnx.legend(loc="upper right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_nf.pdf"))
@@ -833,21 +833,21 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: num_months
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(5, 5))
-    ax.scatter(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange")
-    plot1 = ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="orange", label="Speedup")
+    fig, ax = plt.subplots(figsize=(4.5, 4))
+    ax.scatter(selected_df["num_months"], selected_df["speedup"], marker='o', color="royalblue")
+    plot1 = ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
 
     twnx = ax.twinx()
-    twnx.scatter(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue")
-    plot2 = twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="blue", label="Accuracy")
+    twnx.scatter(selected_df["num_months"], selected_df["similarity"], marker='+', color="tomato")
+    plot2 = twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
 
     ax.set_xlabel("Number of Months")
-    ax.set_ylabel("Speedup", color="orange")
+    ax.set_ylabel("Speedup", color="royalblue")
     # ax.legend(loc="upper left")
 
     # set range for y-axis
     twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="blue")
+    twnx.set_ylabel("Accuracy", color="tomato")
     # twnx.legend(loc="upper right")
 
     plots = plot1 + plot2

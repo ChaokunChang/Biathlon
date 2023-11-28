@@ -553,7 +553,7 @@ def run_vary_nsamples(args: ExpArgs):
         raise ValueError(f"invalid task_name {task_name}")
     model = args.model
     cfgs = get_scheduler_vary_cfgs(args, naggs)
-    nsamples_list = [50, 100, 500, 1000, 1024, 5000, 10000, 50000]
+    nsamples_list = [50, 100, 256, 500, 768, 1000, 1024, 2048]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_vary_cmd(

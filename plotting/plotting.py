@@ -19,6 +19,7 @@ class EvalArgs(Tap):
     loading_mode: int = 0
     ncores: int = 1
     only: str = None
+    task_name: str = None
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -794,7 +795,10 @@ def vary_m(df: pd.DataFrame, args: EvalArgs):
     required_cols = ["task_name", "pest_nsamples", "speedup", "similarity",
                      "sampling_rate",
                      "avg_latency", "accuracy"]
-    selected_tasks = ['Bearing-MLP']
+    if args.task_name is None:
+        selected_tasks = ['Bearing-MLP']
+    else:
+        selected_tasks = [args.task_name]
     selected_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
@@ -808,12 +812,15 @@ def vary_m(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     selected_df = selected_df.sort_values(by=["pest_nsamples"])
     selected_df = selected_df[required_cols]
+    # deduplicate
+    selected_df = selected_df.drop_duplicates(subset=["task_name", "pest_nsamples"], keep="first")
     print(selected_df)
 
     # plot as a scatter line chart
-    # x-axis: pest_nsamples
+    # x-axis: pest_nsamples, log scale
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(15, 10))
+
     ax.scatter(selected_df["pest_nsamples"], selected_df["speedup"], marker='o', color="royalblue")
     plot1 = ax.plot(selected_df["pest_nsamples"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
 
@@ -828,6 +835,12 @@ def vary_m(df: pd.DataFrame, args: EvalArgs):
     twnx.set_ylim(YLIM_ACC)
     twnx.set_ylabel("Accuracy", color="tomato")
     # twnx.legend(loc="upper right")
+
+    ax.set_xscale("log")
+    # set xtick labels as value of pest_nsamples
+    xticklabels = selected_df["pest_nsamples"].values
+    ax.set_xticks(ticks=xticklabels)
+    ax.set_xticklabels(labels=xticklabels)
 
     plots = plot1 + plot2
     labels = [l.get_label() for l in plots]

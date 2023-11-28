@@ -82,7 +82,7 @@ python evaluate_all.py --exp tdfraud --model xgb --ncores 1 --loading_mode 0 --s
 sudo /home/ckchang/anaconda3/envs/apx/bin/python run.py --example tdfraudrandom --stage ingest --task final/tdfraudrandom --nparts 100 --seed xxx
 scp -r numa:/home/ckchang/.cache/apxinf/xip/final/tdfraudrandom /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom
 mv /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-0 /home/ckchang/.cache/apxinf/xip/final/tdfraudrandom/seed-xxx
-/home/ckchang/anaconda3/envs/apx/bin/python run.py  --example tdfraudrandom --stage prepare --task final/tdfraudrandom --nparts 100 --skip_dataset --train_ratio 0.9 --valid_ratio 0.099 --seed xxx
+/home/ckchang/anaconda3/envs/apx/bin/python run.py  --example tdfraudrandom --stage prepare --task final/tdfraudrandom --nparts 100 --skip_dataset --train_ratio 0.9 --valid_ratio 0.095 --seed xxx
 /home/ckchang/anaconda3/envs/apx/bin/python run.py --example tdfraudrandom --stage train --task final/tdfraudrandom --model xgb --nparts 100 --seed xxx
 python evaluate_all.py --exp tdfraudrandom --model xgb --ncores 1 --loading_mode 0 --seed xxx
 

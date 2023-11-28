@@ -368,7 +368,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Confidence Level $\tau$")
+        axes[i].set_xlabel("Confidence Level $\\tau$")
         axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="lower left")
 

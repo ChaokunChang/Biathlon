@@ -222,7 +222,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.tick_params(axis='x', rotation=10)
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
-    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-AFC")
+    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-FC")
     ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
     # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
     # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
@@ -565,7 +565,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         # set xtick labels as (beta, $\sum N_j$)
         axes[i].set_xticks(ticks=df_tmp["beta"])
         # only show the first, the middle, and last xtick labels
-        xticklabels = [f"{beta:.3f}$\sum N_j$" for beta in df_tmp["beta"]]
+        xticklabels = [f"{beta*100}%" for beta in df_tmp["beta"]]
         xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
         axes[i].set_xticklabels(labels=xticklabels)
 

@@ -201,11 +201,10 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     baseline_df = get_evals_baseline(df)
     default_df = get_evals_with_default_settings(df)
-    baseline_df[baseline_df['task_name'] == 'tickvaryNM1'].to_csv("tmp.csv")
-    print(baseline_df[baseline_df['task_name'] == 'tickvaryNM1'])
     assert len(baseline_df) == len(default_df)
     required_cols = ["task_name", "avg_latency", "speedup",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate",
                      "similarity", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     baseline_df = baseline_df[required_cols]
     default_df = default_df[required_cols]

@@ -18,6 +18,7 @@ class EvalArgs(Tap):
     filename: str = "evals.csv"
     loading_mode: int = 0
     ncores: int = 1
+    only: str = None
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -127,12 +128,14 @@ task_default_settings = {
 }
 
 
-def shared_filter(df_tmp: pd.DataFrame, task_name: str, args: EvalArgs = None) -> pd.DataFrame:
+def shared_filter(df_tmp: pd.DataFrame, task_name: str,
+                  args: EvalArgs, pest_nsamples: bool = True) -> pd.DataFrame:
     df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
     df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
     df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
     df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-    df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
+    if pest_nsamples:
+        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
     df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
     return df_tmp
 
@@ -786,19 +789,73 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     plt.close("all")
 
 
+def vary_m(df: pd.DataFrame, args: EvalArgs):
+    # plot the performance with different m.
+    required_cols = ["task_name", "pest_nsamples", "speedup", "similarity",
+                     "sampling_rate",
+                     "avg_latency", "accuracy"]
+    selected_tasks = ['Bearing-MLP']
+    selected_df = []
+    for task_name in selected_tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args, pest_nsamples=False)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
+        df_tmp = df_tmp.sort_values(by=["pest_nsamples"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    selected_df = selected_df.sort_values(by=["pest_nsamples"])
+    selected_df = selected_df[required_cols]
+    print(selected_df)
+
+    # plot as a scatter line chart
+    # x-axis: pest_nsamples
+    # y-axis: speedup and similarity
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.scatter(selected_df["pest_nsamples"], selected_df["speedup"], marker='o', color="royalblue")
+    plot1 = ax.plot(selected_df["pest_nsamples"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
+
+    twnx = ax.twinx()
+    twnx.scatter(selected_df["pest_nsamples"], selected_df["similarity"], marker='+', color="tomato")
+    plot2 = twnx.plot(selected_df["pest_nsamples"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
+
+    ax.set_xlabel("Number of Feature Samples $m$")
+    ax.set_ylabel("Speedup", color="royalblue")
+    # ax.legend(loc="upper left")
+
+    twnx.set_ylim(YLIM_ACC)
+    twnx.set_ylabel("Accuracy", color="tomato")
+    # twnx.legend(loc="upper right")
+
+    plots = plot1 + plot2
+    labels = [l.get_label() for l in plots]
+
+    ax.legend(plots, labels, loc="lower right")
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_m.pdf"))
+
+    plt.close("all")
+
+
 def main(args: EvalArgs):
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.serif"] = ["Times New Roman"]
     plt.rcParams["font.size"] = 40
     df = load_df(args)
-    plot_lat_comparsion_w_breakdown(df, args)
-    plot_lat_breakdown(df, args)
-    plot_vary_min_conf(df, args)
-    plot_vary_max_error(df, args)
-    plot_vary_alpha(df, args)
-    plot_vary_beta(df, args)
-    vary_num_agg(df, args)
-    # vary_datasize(df, args)
+
+    if args.only is None:
+        plot_lat_comparsion_w_breakdown(df, args)
+        plot_lat_breakdown(df, args)
+        plot_vary_min_conf(df, args)
+        plot_vary_max_error(df, args)
+        plot_vary_alpha(df, args)
+        plot_vary_beta(df, args)
+        vary_num_agg(df, args)
+        vary_datasize(df, args)
+    elif args.only == "varym":
+        vary_m(df, args)
 
 
 if __name__ == "__main__":

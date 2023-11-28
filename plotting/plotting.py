@@ -536,9 +536,9 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
     elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
     else:
         raise NotImplementedError
     axes = axes.flatten()
@@ -550,6 +550,9 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
         axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        if i != len(tasks) - 1:
+            axes[i].set_yticks(np.arange(4, 16, 2))
+            axes[i].set_ylim(3, 15)
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")

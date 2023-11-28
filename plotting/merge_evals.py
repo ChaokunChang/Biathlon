@@ -36,6 +36,8 @@ def parse_filename(filename, verbose: bool = False):
         task_name = "tick-v1"
     elif task_name == "tickv2":
         task_name = "Tick-Price"
+    elif task_name == "tripsfeast":
+        task_name = "Trips-Fare"
     elif task_name == "machinery":
         if model_name == "mlp":
             task_name = "Bearing-MLP"
@@ -43,6 +45,10 @@ def parse_filename(filename, verbose: bool = False):
             task_name = "machinery-v2"
         elif model_name == "knn":
             task_name = "Bearing-KNN"
+    elif task_name == "machinerymulti":
+        task_name = "Bearing-Multi"
+    elif task_name == "tdfraud":
+        task_name = "Fraud-Detection"
     return task_name, model_name, nparts, ncfgs, ncores, max_error
 
 
@@ -80,7 +86,7 @@ def merge_csv(args: EvalArgs):
                 df_tmp["pest_nsamples"] = 1000
 
             # set accuracy
-            if task_name in ["tick-v1", "tick-v2",
+            if task_name in ["tick-v1", "tick-v2", "tickvaryNM1",
                              "Tick-Price", "tripsfeast"]:
                 acc_type = "r2"
                 if f"accuracy-{acc_type}" in df_tmp.columns:

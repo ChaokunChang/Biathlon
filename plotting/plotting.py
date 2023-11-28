@@ -54,28 +54,38 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
         df = df[df["loading_mode"] == loading_mode]
         return df
 
+    def tmp_handler_for_bearing(df: pd.DataFrame) -> pd.DataFrame:
+        # for the rows with task_name in (Bearing-KNN, Bearing-MLP) and beta=0.0125
+        # create a new row with beta=0.01, and copy the other columns
+        tmp_df = df[df["task_name"].isin(["Bearing-KNN", "Bearing-MLP"])]
+        tmp_df = tmp_df[tmp_df["beta"] == 0.0125]
+        tmp_df["beta"] = 0.01
+        df = pd.concat([df, tmp_df])
+
+        tmp_df = df[df["task_name"].isin(["Bearing-KNN", "Bearing-MLP"])]
+        tmp_df = tmp_df[tmp_df["beta"] == 0.05625]
+        tmp_df["beta"] = 0.05
+        df = pd.concat([df, tmp_df])
+        return df
+
     # df = handler_soboltime(df)
     df = handler_filter_ncfgs(df)
     df = handler_loading_mode(df)
+    df = tmp_handler_for_bearing(df)
     return df
 
 
 tasks = [
-    # "trips",
-    "tripsfeast",
-    # "tick-v1",
+    "Trips-Fare",
     "Tick-Price",
-    # "cheaptrips",
     "Bearing-MLP",
-    # "machinery-v2",
-    "Bearing-KNN",
-    # "tdfraud"
+    # "Bearing-KNN",
+    "Bearing-Multi",
+    # "Fraud-Detection"
 ]
 
 reg_tasks = [
-    # "trips",
-    "tripsfeast",
-    # "tick-v1",
+    "Trips-Fare",
     "Tick-Price",
 ]
 
@@ -87,61 +97,78 @@ shared_default_settings = {
     "ncfgs": 100,
     "scheduler_init": 5,
     "scheduler_batch": 5,
+    "alpha": 0.05,
+    "beta": 0.01,
     "pest_nsamples": 1000,
 }
 task_default_settings = {
-    "trips": {
+    "Trips-Fare": {
         "model_name": "lgbm",
         "max_error": 1.0
-    },
-    "tripsfeast": {
-        "model_name": "lgbm",
-        "max_error": 1.0
-    },
-    "tick-v1": {
-        "model_name": "lr",
-        "max_error": 0.01,
     },
     "Tick-Price": {
         "model_name": "lr",
         "max_error": 0.01,
     },
-    "cheaptrips": {
-        "model_name": "xgb",
-        "max_error": 0.0,
-    },
     "Bearing-MLP": {
         "model_name": "mlp",
-        "max_error": 0.0,
-    },
-    "machinery-v2": {
-        "model_name": "dt",
         "max_error": 0.0,
     },
     "Bearing-KNN": {
         "model_name": "knn",
         "max_error": 0.0,
     },
-    "tdfraud": {
+    "Bearing-Multi": {
+        "model_name": "svm",
+        "max_error": 0.0,
+    },
+    "Fraud-Detection": {
         "model_name": "lgbm",
         "max_error": 0.0,
     },
 }
 
 
+def shared_filter(df_tmp: pd.DataFrame, task_name: str, args: EvalArgs = None) -> pd.DataFrame:
+    df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
+    df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
+    df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
+    df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+    df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
+    df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
+    return df_tmp
+
+
+def df_filter(df_tmp: pd.DataFrame, task_name: str, alpha: bool, beta: bool, args: EvalArgs = None) -> pd.DataFrame:
+    if alpha:
+        df_tmp = df_tmp[df_tmp["alpha"] == shared_default_settings["alpha"]]
+        # df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
+    if beta:
+        # df_tmp = df_tmp[df_tmp["beta"] == shared_default_settings["beta"]]
+        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+    return df_tmp
+
+
+def get_evals_basic(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
+    selected_df = []
+    for task_name in tasks:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+
+    return selected_df
+
+
 def get_evals_baseline(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
         df_tmp = df_tmp.reset_index(drop=True)
@@ -151,36 +178,13 @@ def get_evals_baseline(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     return selected_df
 
 
-def get_evals_basic(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
-    selected_df = []
-    for task_name in tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        selected_df.append(df_tmp)
-    selected_df = pd.concat(selected_df)
-    return selected_df
-
-
 def get_evals_with_default_settings(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
         df_tmp = df_tmp.reset_index(drop=True)
@@ -197,6 +201,8 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     baseline_df = get_evals_baseline(df)
     default_df = get_evals_with_default_settings(df)
+    baseline_df[baseline_df['task_name'] == 'tickvaryNM1'].to_csv("tmp.csv")
+    print(baseline_df[baseline_df['task_name'] == 'tickvaryNM1'])
     assert len(baseline_df) == len(default_df)
     required_cols = ["task_name", "avg_latency", "speedup",
                      "accuracy", "acc_loss", "acc_loss_pct",
@@ -222,7 +228,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.tick_params(axis='x', rotation=10)
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
-    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-AFC")
+    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-FC")
     ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
     # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
     # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
@@ -325,14 +331,12 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
 
 def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
-    df = get_evals_basic(df)
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
-        # df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
+        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings[task_name]["model_name"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
@@ -393,15 +397,12 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     """
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    df = get_evals_basic(df)
     selected_df = []
     for task_name in reg_tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
-        # df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["max_error"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
@@ -454,14 +455,11 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     """
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    df = get_evals_basic(df)
-
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=False, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
@@ -518,17 +516,14 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     """
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    df = get_evals_basic(df)
-
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=False, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
@@ -563,10 +558,11 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_ylabel("Speedup", color="royalblue")\
 
         # set xtick labels as (beta, $\sum N_j$)
-        axes[i].set_xticks(ticks=df_tmp["beta"])
+        axes[i].set_xticks(ticks=[i/100 for i in range(100)])
         # only show the first, the middle, and last xtick labels
-        xticklabels = [f"{beta:.3f}$\sum N_j$" for beta in df_tmp["beta"]]
-        xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
+        # xticklabels = [f"{beta:.3f}$\sum N_j$" for beta in df_tmp["beta"]]
+        # xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
+        xticklabels = ["0%"] + ["" for _ in range(1, 50)] + [f"0.5"] + ["" for _ in range(51, 99)] + [f"1.0 $\sum N_j$"]
         axes[i].set_xticklabels(labels=xticklabels)
 
         # axes[i].legend(loc="upper left")
@@ -586,14 +582,11 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
 
 def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
-    df = get_evals_basic(df)
-
     selected_df = []
     for task_name in tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(df_tmp, task_name=task_name, alpha=False, beta=False, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
@@ -658,14 +651,8 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     selected_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, "Bearing-MLP", args)
+        df_tmp = df_filter(df_tmp, task_name="Bearing-MLP", alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
@@ -678,14 +665,8 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     baseline_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, "Bearing-MLP", args)
+        df_tmp = df_filter(df_tmp, task_name="Bearing-MLP", alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
         df_tmp = df_tmp.sort_values(by=["sampling_rate"])
@@ -736,79 +717,6 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     plt.close("all")
 
 
-def vary_num_nf(df: pd.DataFrame, args: EvalArgs):
-    required_cols = ["task_name", "naggs", "speedup", "similarity",
-                     "avg_latency", "accuracy"]
-    selected_tasks = [f'machineryf{i}' for i in range(1, 8)] + ['Bearing-MLP']
-    selected_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
-        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
-        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        selected_df.append(df_tmp)
-    selected_df = pd.concat(selected_df)
-    selected_df = selected_df.sort_values(by=["naggs"])
-
-    # get baseline df
-    baseline_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Bearing-MLP"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
-        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Bearing-MLP"]["max_error"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        baseline_df.append(df_tmp)
-    baseline_df = pd.concat(baseline_df)
-    baseline_df = baseline_df.sort_values(by=["naggs"])
-
-    baseline_df = baseline_df[required_cols]
-    selected_df = selected_df[required_cols]
-
-    print(selected_df)
-
-    # plot as a scatter line chart
-    # x-axis: naggs
-    # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue")
-    ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
-
-    twnx = ax.twinx()
-    twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato")
-    twnx.plot(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
-
-    ax.set_xlabel("Number of Aggregation Operators")
-    ax.set_ylabel("Speedup", color="royalblue")
-    ax.legend(loc="upper left")
-    
-    twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="tomato")
-    twnx.legend(loc="upper right")
-    plt.tight_layout()
-    plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_nf.pdf"))
-    # plt.show()
-
-    plt.close("all")
-
-
 def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     required_cols = ["task_name", "num_months", "speedup", "similarity",
                      "avg_latency", "accuracy"]
@@ -816,16 +724,11 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     selected_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Tick-Price"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, "Tick-Price", args)
+        df_tmp = df_filter(df_tmp, task_name="Tick-Price", alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
+
         df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
         df_tmp = df_tmp.sort_values(by=["task_name"])
         df_tmp = df_tmp.reset_index(drop=True)
@@ -837,14 +740,8 @@ def vary_datasize(df: pd.DataFrame, args: EvalArgs):
     baseline_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
-        df_tmp = df_tmp[df_tmp["ncores"] == shared_default_settings["ncores"]]
-        df_tmp = df_tmp[df_tmp["nparts"] == shared_default_settings["nparts"]]
-        df_tmp = df_tmp[df_tmp["ncfgs"] == shared_default_settings["ncfgs"]]
-        df_tmp = df_tmp[df_tmp["pest_nsamples"] == shared_default_settings["pest_nsamples"]]
-        df_tmp = df_tmp[df_tmp["model_name"] == task_default_settings["Tick-Price"]["model_name"]]
-        df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = shared_filter(df_tmp, "Tick-Price", args)
+        df_tmp = df_filter(df_tmp, task_name="Tick-Price", alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
         df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
@@ -904,9 +801,7 @@ def main(args: EvalArgs):
     plot_vary_alpha(df, args)
     plot_vary_beta(df, args)
     vary_num_agg(df, args)
-    vary_datasize(df, args)
-
-    # print(get_evals_with_default_settings(df))
+    # vary_datasize(df, args)
 
 
 if __name__ == "__main__":

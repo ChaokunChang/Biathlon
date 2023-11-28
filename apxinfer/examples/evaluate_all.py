@@ -30,7 +30,7 @@ class ExpArgs(Tap):
 
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
-    quantiles = [1, 2, 5] + [i for i in range(10, 100, 10)] + [100]
+    quantiles = [1, 2, 5] + [i for i in range(10, 100, 30)] + [100]
     default_quantiles = [1, 2, 5]
     cfgs = [(5, 5)]
     # default beta and vary alpha

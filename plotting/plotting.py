@@ -472,9 +472,9 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
     elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
     else:
         raise NotImplementedError
     axes = axes.flatten()
@@ -486,6 +486,9 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 
         axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        if i != len(tasks) - 1:
+            axes[i].set_yticks(np.arange(4, 16, 2))
+            axes[i].set_ylim(3, 15)
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
@@ -502,7 +505,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="lower left")
+        axes[i].legend(plots, labels, loc="center right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_alpha.pdf"))
     # plt.show()
@@ -561,7 +564,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         # only show the first, the middle, and last xtick labels
         # xticklabels = [f"{beta*100}%" for beta in df_tmp["beta"]]
         # xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
-        xticklabels = ["0%"] + ["" for _ in range(1, 50)] + [f"0.5"] + ["" for _ in range(51, 99)] + [f"1.0 $\sum N_j$"]
+        xticklabels = ["0%"] + ["" for _ in range(1, 50)] + [f"50%"] + ["" for _ in range(51, 99)] + [f"100%"]
         axes[i].set_xticklabels(labels=xticklabels)
 
         # axes[i].legend(loc="upper left")
@@ -572,7 +575,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="lower right")
+        axes[i].legend(plots, labels, loc="center right")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_beta.pdf"))
     # plt.show()

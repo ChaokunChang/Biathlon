@@ -9,7 +9,7 @@ import json
 from tap import Tap
 
 PJNAME = "Biathlon"
-PIPELINE_NAME = ["Trip-Fare", "Tick-Price", "Bearing-Imbalance 1", "Bearing-Imbalance 2"]
+PIPELINE_NAME = ["Trip-Fare", "Tick-Price", "Bearing-Imbalance 1", "Fraud-Detection"]
 YLIM_ACC = [0.9, 1.01]
 
 
@@ -80,8 +80,8 @@ tasks = [
     "Tick-Price",
     "Bearing-MLP",
     # "Bearing-KNN",
-    "Bearing-Multi",
-    # "Fraud-Detection"
+    # "Bearing-Multi",
+    "Fraud-Detection"
 ]
 
 reg_tasks = [

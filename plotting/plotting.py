@@ -18,7 +18,6 @@ class EvalArgs(Tap):
     filename: str = "evals.csv"
     loading_mode: int = 0
     ncores: int = 1
-    beta_of_all: bool = False
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -26,10 +25,9 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df['BD:Others'] = df['avg_latency'] - df['BD:AFC'] - df['BD:AMI'] - df['BD:Sobol']
     df['alpha'] = df['scheduler_init'] / df['ncfgs']
     df['beta'] = df['scheduler_batch'] / df['ncfgs']
-    if args.beta_of_all:
-        df["beta"] /= df['naggs']
-        df = df[df['beta'] <= 1.0]
-        df = df[df['beta'] >= 0.001]
+    df["beta"] /= df['naggs']
+    df = df[df['beta'] <= 1.0]
+    df = df[df['beta'] >= 0.001]
 
     # special handling for profiling results
     def handler_soboltime(df: pd.DataFrame) -> pd.DataFrame:

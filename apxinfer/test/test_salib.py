@@ -55,13 +55,24 @@ def compute_sobol_main_effect_index(fvals: list, fdists: list, fests: list,
         "sampling_time": sampling_time,
         "prediction_time": prediction_time,
         "analysis_time": analysis_time,
-        "total_time": sampling_time + prediction_time + analysis_time
+        "total_time": sampling_time + prediction_time + analysis_time,
+        "param_values": len(param_values)
     })
 
     return Si["S1"]
 
 
 if __name__ == "__main__":
+    """
+        python test_salib.py --task final/tripsfeast --model lgbm
+        python test_salib.py --task final/tickv2 --model lr
+        python test_salib.py --task final/tdfraud --model xgb
+        python test_salib.py --task final/machinery --model mlp
+        python test_salib.py --task final/machinery --model knn
+        python test_salib.py --task final/machinerymulti --model svm
+        python -m cProfile -s cumtime -o ./test_salib.pstats test_salib.py --task final/trips --model lgbm
+        gprof2dot -f pstats ./test_salib.pstats | dot -Tsvg -o ./test_salib.svg
+    """
     args = OnlineArgs().parse_args(known_only=True)
     model: XIPModel = LoadingHelper.load_model(args)
 
@@ -94,18 +105,19 @@ if __name__ == "__main__":
             fdists.append("fixed")
             fests.append(0)
 
-    qinfs = compute_sobol_main_effect_index(fvals, fdists, fests,
-                                            groups, model,
-                                            N=args.pest_nsamples,
-                                            seed=args.seed,
-                                            calc_second_order=False)
-    print(f"qinfs = {qinfs}")
+    # qinfs = compute_sobol_main_effect_index(fvals, fdists, fests,
+    #                                         groups, model,
+    #                                         N=args.pest_nsamples,
+    #                                         seed=args.seed,
+    #                                         calc_second_order=False)
+    # print(f"qinfs = {qinfs}")
 
     profiles = []
-    for N in [100, 200, 300, 500, 1000, 2000, 5000]:
+    # for N in [1<<6, 1<<7, 1<<8, 1<<9, 1<<10, 1<<11, 1<<12]:
+    for N in [args.pest_nsamples]*10:
         qinfs = compute_sobol_main_effect_index(fvals, fdists, fests,
                                                 groups, model,
-                                                N=args.pest_nsamples,
+                                                N=N,
                                                 seed=args.seed,
                                                 calc_second_order=False)
         print(f"qinfs = {qinfs}")
@@ -114,3 +126,23 @@ if __name__ == "__main__":
     # sort by N
     profile_df = profile_df.sort_values(by='N')
     print(profile_df)
+
+    # calculate mean of each time, and print their percentage
+    mean_df = profile_df.mean(axis=0)
+    # percentage
+    mean_df = mean_df / mean_df['total_time'] * 100
+    print(mean_df)
+
+    # scaling factor
+    profile_df['sampling_time'] *= 0.3
+    profile_df['prediction_time'] *= 8
+    profile_df['analysis_time'] *= 0.75
+    profile_df['total_time'] = profile_df['sampling_time'] + \
+        profile_df['prediction_time'] + profile_df['analysis_time']
+    print(profile_df)
+
+    # calculate mean of each time, and print their percentage
+    mean_df = profile_df.mean(axis=0)
+    # percentage
+    mean_df = mean_df / mean_df['total_time'] * 100
+    print(mean_df)

@@ -471,12 +471,14 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
-    elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
-    else:
-        raise NotImplementedError
+    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=5, sharex=False, sharey=False)
+
+    # if len(tasks) == 4:
+    #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
+    # elif len(tasks) in [5, 6]:
+    #     fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
+    # else:
+    #     raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):
@@ -535,12 +537,14 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
-    elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
-    else:
-        raise NotImplementedError
+    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=5, sharex=False, sharey=False)
+
+    # if len(tasks) == 4:
+    #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
+    # elif len(tasks) in [5, 6]:
+    #     fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
+    # else:
+    #     raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):

@@ -531,24 +531,29 @@ def run_vary_nsamples(args: ExpArgs):
     agg_qids = None
     if task_name == "tripsfeast":
         agg_qids = "1 2"
+        naggs = 2
         max_errors = [1.0, 1.66]
     elif task_name in ["tickv2", "tickvaryNM1"]:
         agg_qids = "6"
+        naggs = 1
         max_errors = [0.01, 0.04]
     elif task_name == "machinery":
         agg_qids = "0 1 2 3 4 5 6 7"
+        naggs = 8
         max_errors = [0.0]
     elif task_name == "machinerymulti":
         agg_qids = "0 1 2 3 4 5 6 7"
+        naggs = 8
         max_errors = [0.0]
     elif task_name == "tdfraud":
         agg_qids = "1 2 3"
+        naggs = 3
         max_errors = [0.0]
     else:
         raise ValueError(f"invalid task_name {task_name}")
     model = args.model
-    cfgs = get_scheduler_vary_cfgs(args, 1)
-    nsamples_list = [100, 500, 1000, 1024, 5000, 10000, 50000]
+    cfgs = get_scheduler_vary_cfgs(args, naggs)
+    nsamples_list = [50, 100, 500, 1000, 1024, 5000, 10000, 50000]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_vary_cmd(

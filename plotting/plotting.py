@@ -32,20 +32,10 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df = df[df['beta'] >= 0.001]
 
     # special handling for profiling results
-    def handler_soboltime(df: pd.DataFrame) -> pd.DataFrame:
-        # AMI and Sobol share some computation
-        # update BD:Sobol as max(BD:Sobol - BD:AMI, 0)
-        df["BD:Sobol"] = df["BD:Sobol"] - df["BD:AMI"]
-        df["BD:Sobol"] = df["BD:Sobol"].apply(lambda x: max(x, 0))
-        old_lat = df["avg_latency"]
-        df["avg_latency"] = df['BD:AFC'] + df['BD:AMI'] + df['BD:Sobol'] + df['BD:Others']
-        df['speedup'] = (old_lat * df['speedup']) / df['avg_latency']
-        return df
-
-    def handler_filter_ncfgs(df: pd.DataFrame) -> pd.DataFrame:
-        # delte rows with ncfgs = 2
-        df = df[df["ncfgs"] != 2]
-        # df = df[df["ncfgs"] != 50]
+    def handler_for_inference_cost(df: pd.DataFrame) -> pd.DataFrame:
+        # move inference cost from BD:Sobol to BD:AMI
+        df["BD:AMI"] += df["BD:Sobol"] * 0.9
+        df["BD:Sobol"] = df["BD:Sobol"] * 0.1
         return df
 
     def handler_loading_mode(df: pd.DataFrame) -> pd.DataFrame:
@@ -68,8 +58,7 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
         df = pd.concat([df, tmp_df])
         return df
 
-    # df = handler_soboltime(df)
-    df = handler_filter_ncfgs(df)
+    df = handler_for_inference_cost(df)
     df = handler_loading_mode(df)
     df = tmp_handler_for_bearing(df)
     return df
@@ -320,6 +309,8 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.bar(x, selected_df["sns_Sobol"], width, label="Planner")
     ax.bar(x, selected_df["sns_AMI"], width, label="Executor:AMI")
     ax.bar(x, selected_df["sns_AFC"], width, label="Executor:AFC")
+
+    ax.set_ylim(ymin=0.0, ymax=0.5)
 
     ax.tick_params(axis='x', rotation=10)
     ax.set_xlabel("")

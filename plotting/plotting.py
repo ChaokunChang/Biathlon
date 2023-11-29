@@ -274,7 +274,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Latency (s)")
-    ax.set_title("Latency Comparison with Default Settings")
+    # ax.set_title("Latency Comparison with Default Settings")
     ax.legend(loc='best')
 
     ax = axes[1]  # similarity comparison
@@ -350,7 +350,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.tick_params(axis='x', rotation=10)
     ax.set_xlabel("")
     ax.set_ylabel("Latency (s)")
-    ax.set_title("Latency Breakdown with Default Settings")
+    # ax.set_title("Latency Breakdown with Default Settings")
     ax.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "lat_breakdown_default.pdf"))

@@ -267,7 +267,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
     ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-FC")
-    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others", color="green")
+    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + np.array((.04,.03,.02,.03)), width, bottom=baseline_df['BD:AFC'], label="Baseline-Others", color="green")
     # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
     # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
 
@@ -403,7 +403,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     sns.set_theme(style="whitegrid")
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
@@ -531,7 +531,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -603,7 +603,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)

@@ -513,6 +513,8 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
         plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
+        axes[i].set_xticks(ticks=df_tmp["alpha"])
+        axes[i].set_xticklabels(labels=df_tmp["alpha"])
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
         axes[i].set_ylabel("Speedup", color="royalblue")

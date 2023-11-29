@@ -31,11 +31,28 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df = df[df['beta'] <= 1.0]
     df = df[df['beta'] >= 0.001]
 
+    # if avg_nrounds is nan, compute as sampling_rate / beta
+    # df.loc[df["avg_nrounds"].isna(), "avg_nrounds"] = 1 + ((df["sampling_rate"] - df["alpha"]) / df["beta"])
+    # if min_conf=1.0, set avg_nrounds=1.0
+    # df.loc[df["min_conf"] == 1.0, "avg_nrounds"] = 1.0
+
     # special handling for profiling results
     def handler_for_inference_cost(df: pd.DataFrame) -> pd.DataFrame:
         # move inference cost from BD:Sobol to BD:AMI
-        df["BD:AMI"] += df["BD:Sobol"] * 0.9
-        df["BD:Sobol"] = df["BD:Sobol"] * 0.1
+        scaling_factors = {
+            "Trips-Fare": 0.17,
+            "Tick-Price": 0.67,
+            "Fraud-Detection": 0.35,
+            "Bearing-MLP": 0.12,
+            "Bearing-KNN": 0.01,
+            "Bearing-Multi": 0.05,
+        }
+        for task_name in scaling_factors:
+            df.loc[df["task_name"] == task_name, "BD:AMI"] += df["BD:Sobol"] * (1 - scaling_factors[task_name])
+            df.loc[df["task_name"] == task_name, "BD:Sobol"] *= scaling_factors[task_name]
+
+        # df["BD:AMI"] += df["BD:Sobol"] * 0.9
+        # df["BD:Sobol"] = df["BD:Sobol"] * 0.1
         return df
 
     def handler_loading_mode(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,9 +75,16 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
         df = pd.concat([df, tmp_df])
         return df
 
+    def handler_for_num_inference_call(df: pd.DataFrame) -> pd.DataFrame:
+        # add a new column called num_inference_call
+        # which is equal to avg_nrounds * naggs
+        df["num_inference_call"] = df["avg_nrounds"] * 1000
+        return df
+
     df = handler_for_inference_cost(df)
     df = handler_loading_mode(df)
     df = tmp_handler_for_bearing(df)
+    df = handler_for_num_inference_call(df)
     return df
 
 
@@ -195,7 +219,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     assert len(baseline_df) == len(default_df)
     required_cols = ["task_name", "avg_latency", "speedup",
                      "accuracy", "acc_loss", "acc_loss_pct",
-                     "sampling_rate",
+                     "sampling_rate", "avg_nrounds",
                      "similarity", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     baseline_df = baseline_df[required_cols]
     default_df = default_df[required_cols]

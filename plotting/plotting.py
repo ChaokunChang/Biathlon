@@ -243,15 +243,22 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
     ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-FC")
-    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others")
+    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + 0.05, width, bottom=baseline_df['BD:AFC'], label="Baseline-Others", color="green")
     # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
     # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
 
     # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
-    tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
-    bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
-    bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
-    bar3 = ax.bar(x, default_df['BD:Sobol'] + 0.03, width, bottom=default_df['BD:AFC'] + tweaked_height, label=f"{PJNAME}-Planner")
+    bar = ax.bar(x, default_df['BD:AFC']+ default_df['BD:AMI'] + default_df['BD:AFC'], width, label=f"{PJNAME}")
+    for i, (rect0, task_name) in enumerate(zip(bar, default_df["task_name"])):
+        height = rect0.get_height() # + rect1.get_height() + rect2.get_height()
+        lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+        speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+        ax.text(rect0.get_x() + rect0.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
+    
+    # tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
+    # bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
+    # bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
+    # bar3 = ax.bar(x, default_df['BD:Sobol'] + 0.03, width, bottom=default_df['BD:AFC'] + tweaked_height, label=f"{PJNAME}-Planner")
     # ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
 
     # add speedup on top of the bar of PJNAME
@@ -259,11 +266,11 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     #     lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
     #     speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
     #     ax.text(i, lat + 0.01, "{:.2f}x".format(speedup), ha="center")
-    for i, (rect0, rect1, rect2, task_name) in enumerate(zip(bar1, bar2, bar3, default_df["task_name"])):
-        height = rect0.get_height() + rect1.get_height() + rect2.get_height()
-        lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
-        speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
-        ax.text(rect2.get_x() + rect2.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
+    # for i, (rect0, rect1, rect2, task_name) in enumerate(zip(bar1, bar2, bar3, default_df["task_name"])):
+    #     height = rect0.get_height() + rect1.get_height() + rect2.get_height()
+    #     lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+    #     speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+    #     ax.text(rect2.get_x() + rect2.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
 
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Latency (s)")

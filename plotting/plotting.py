@@ -367,12 +367,14 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     sns.set_theme(style="whitegrid")
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
-    elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
-    else:
-        raise NotImplementedError
+    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=5, sharex=False, sharey=False)
+
+    # if len(tasks) == 4:
+    #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
+    # elif len(tasks) in [5, 6]:
+    #     fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+    # else:
+    #     raise NotImplementedError
     axes = axes.flatten()
     acc_metric = "similarity"
     for i, task_name in enumerate(tasks):

@@ -299,7 +299,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Accuracy")
-    ax.set_title("Accuracy Comparison with Default Settings")
+    # ax.set_title("Accuracy Comparison with Default Settings")
     ax.legend(loc="lower right")
 
     plt.tight_layout()

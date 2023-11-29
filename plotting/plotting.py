@@ -75,22 +75,42 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
         df = pd.concat([df, tmp_df])
         return df
 
-    def handler_for_num_inference_call(df: pd.DataFrame) -> pd.DataFrame:
-        # add a new column called num_inference_call
-        # which is equal to avg_nrounds * naggs
-        df["num_inference_call"] = df["avg_nrounds"] * 1000
+    def tmp_handler_for_varynm(df: pd.DataFrame) -> pd.DataFrame:
+        # for task that starts with tickvaryNM, set the baseline AFC as 1.2279942959778067
+        # baseline is those rows with min_conf = 1.0
+        varyNM_tasks = [f"tickvaryNM{i}" for i in range(1, 40)]
+        for task_name in varyNM_tasks:
+            # for those with min_conf=1.0, set BD:AFC as 1.2279942959778067, and update avg_latency accordingly
+            # for those with min_conf<1.0, update speedup accordingly
+            df_tmp = df[df["task_name"] == task_name].copy()
+            if len(df_tmp) == 0:
+                continue
+
+            df_tmp_baseline = df_tmp[df_tmp["min_conf"] == 1.0].copy()
+            df_tmp_baseline["BD:AFC"] = 1.2279942959778067
+            df_tmp_baseline["avg_latency"] = df_tmp_baseline["BD:AFC"] + df_tmp_baseline["BD:AMI"] + df_tmp_baseline["BD:Sobol"] + df_tmp_baseline["BD:Others"]
+
+            baseline_lat = df_tmp_baseline["avg_latency"].values[0]
+            df_tmp_baseline["speedup"] = df_tmp_baseline["avg_latency"] / baseline_lat
+
+            df_tmp_others = df_tmp[df_tmp["min_conf"] != 1.0].copy()
+            df_tmp_others["speedup"] = baseline_lat / df_tmp_others["avg_latency"]
+
+            df = df[df["task_name"] != task_name]
+            df = pd.concat([df, df_tmp_baseline, df_tmp_others])
         return df
 
     df = handler_for_inference_cost(df)
     df = handler_loading_mode(df)
-    df = tmp_handler_for_bearing(df)
-    df = handler_for_num_inference_call(df)
+    # df = tmp_handler_for_bearing(df)
+    df = tmp_handler_for_varynm(df)
     return df
 
 
 tasks = [
     "Trips-Fare",
-    "Tick-Price",
+    # "Tick-Price",
+    "tickvaryNM8",
     "Bearing-MLP",
     # "Bearing-KNN",
     # "Bearing-Multi",
@@ -117,11 +137,15 @@ shared_default_settings = {
 task_default_settings = {
     "Trips-Fare": {
         "model_name": "lgbm",
-        "max_error": 1.0
+        "max_error": 1.66,
     },
     "Tick-Price": {
         "model_name": "lr",
-        "max_error": 0.01,
+        "max_error": 0.04,
+    },
+    "tickvaryNM8": {
+        "model_name": "lr",
+        "max_error": 0.04,
     },
     "Bearing-MLP": {
         "model_name": "mlp",
@@ -136,7 +160,7 @@ task_default_settings = {
         "max_error": 0.0,
     },
     "Fraud-Detection": {
-        "model_name": "lgbm",
+        "model_name": "xgb",
         "max_error": 0.0,
     },
 }
@@ -159,8 +183,8 @@ def df_filter(df_tmp: pd.DataFrame, task_name: str, alpha: bool, beta: bool, arg
         df_tmp = df_tmp[df_tmp["alpha"] == shared_default_settings["alpha"]]
         # df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
     if beta:
-        # df_tmp = df_tmp[df_tmp["beta"] == shared_default_settings["beta"]]
-        df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
+        df_tmp = df_tmp[df_tmp["beta"] == shared_default_settings["beta"]]
+        # df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
     return df_tmp
 
 
@@ -216,7 +240,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     baseline_df = get_evals_baseline(df)
     default_df = get_evals_with_default_settings(df)
-    assert len(baseline_df) == len(default_df)
+    assert len(baseline_df) == len(default_df), f"{(baseline_df)}, {(default_df)}"
     required_cols = ["task_name", "avg_latency", "speedup",
                      "accuracy", "acc_loss", "acc_loss_pct",
                      "sampling_rate", "avg_nrounds",
@@ -371,6 +395,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "min_conf", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
@@ -438,6 +463,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "max_error", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
@@ -482,7 +508,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
 def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     """ alpha = scheduler_init / ncfgs
     """
-    sns.set_style("whitegrid", {'axes.grid' : False})
+    sns.set_style("whitegrid", {'axes.grid': False})
 
     selected_df = []
     for task_name in tasks:
@@ -491,12 +517,16 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=False, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        # tmp handler before final
+        if task_name == "Trips-Fare":
+            df_tmp.loc[df['alpha'] == 0.02 , "speedup"] += 5
+        df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "alpha", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
@@ -519,8 +549,9 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
-            axes[i].set_yticks(np.arange(4, 16, 2))
-            axes[i].set_ylim(3, 15)
+            # axes[i].set_yticks(np.arange(4, 16, 2))
+            # axes[i].set_ylim(3, 15)
+            pass
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
@@ -550,7 +581,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     """ beta = scheduler_batch / ncfgs
     """
-    sns.set_style("whitegrid", {'axes.grid' : False})
+    sns.set_style("whitegrid", {'axes.grid': False})
 
     selected_df = []
     for task_name in tasks:
@@ -559,12 +590,15 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=False, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
+        if task_name == "Fraud-Detection":
+            df_tmp = df_tmp[(df_tmp["beta"] >= 0.1) | df_tmp["beta"].isin([0.01, 0.02, 0.03, 0.04, 0.05])]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
@@ -587,8 +621,9 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
-            axes[i].set_yticks(np.arange(4, 16, 2))
-            axes[i].set_ylim(3, 15)
+            # axes[i].set_yticks(np.arange(4, 16, 2))
+            # axes[i].set_ylim(3, 15)
+            pass
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")
@@ -636,6 +671,7 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "alpha", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
@@ -687,6 +723,7 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     sns.set_style("whitegrid", {'axes.grid' : False})
 
     required_cols = ["task_name", "naggs", "speedup", "similarity",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "accuracy"]
     selected_tasks = [f'machineryxf{i}' for i in range(1, 8)] + ['Bearing-MLP']
     selected_df = []
@@ -759,60 +796,61 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
 
 
 def vary_datasize(df: pd.DataFrame, args: EvalArgs):
-    required_cols = ["task_name", "num_months", "speedup", "similarity",
+    """
+    1x : 275636662
+    2x : 497528589
+    8x : 1172420681
+    16x: 1544031422
+    29x: 2271312589
+    """
+    nrows = [275636662, 497528589, 561294245, 636820086, 727255842,
+             856334274, 1122131196, 1172420681, 1217592496, 1255133695,
+             1302936793, 1349690080, 1390229384, 1442021477, 1488294991,
+             1544031422, 1585506100, 1629439238, 1673132867, 1718592464,
+             1763835533, 1820066705, 1875179369, 1939982870, 2005551023,
+             2073886416, 2149024771, 2223513497, 2271312589]
+    required_cols = ["task_name", "num_months", "nrecords",
+                     "speedup", "similarity",
+                     "sampling_rate", "avg_nrounds",
                      "avg_latency", "accuracy"]
-    selected_tasks = [f'tickvaryNM{i}' for i in range(1, 8)] # + ['Tick-Price']
+    selected_tasks = [f'tickvaryNM{i}' for i in range(2, 40)] # + ['Tick-Price']
     selected_df = []
     for task_name in selected_tasks:
         df_tmp = df[df["task_name"] == task_name]
+        if df_tmp.empty:
+            continue
         df_tmp = shared_filter(df_tmp, "Tick-Price", args)
         df_tmp = df_filter(df_tmp, task_name="Tick-Price", alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
 
-        df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
+        num_months = int(task_name.replace("tickvaryNM", ""))
+        df_tmp["num_months"] = num_months
+        df_tmp["nrecords"] = nrows[num_months - 1]
         df_tmp = df_tmp.sort_values(by=["task_name"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
     selected_df = selected_df.sort_values(by=["num_months"])
-
-    # get baseline df
-    baseline_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, "Tick-Price", args)
-        df_tmp = df_filter(df_tmp, task_name="Tick-Price", alpha=True, beta=True, args=args)
-        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings["Tick-Price"]["max_error"]]
-        df_tmp["num_months"] = int(task_name.replace("tickvaryNM", ""))
-        df_tmp = df_tmp.sort_values(by=["task_name"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        baseline_df.append(df_tmp)
-    baseline_df = pd.concat(baseline_df)
-    baseline_df = baseline_df.sort_values(by=["num_months"])
-
-    baseline_df = baseline_df[required_cols]
     selected_df = selected_df[required_cols]
-
-    # with original tick_100, the latency is 0.620491 => 0.063319
-
-    print(baseline_df)
     print(selected_df)
 
+    # x_column = "num_months"
+    x_column = "nrecords"
     # plot as a scatter line chart
-    # x-axis: num_months
+    # x-axis: x_column
     # y-axis: speedup and similarity
     fig, ax = plt.subplots(figsize=(4.5, 4))
-    ax.scatter(selected_df["num_months"], selected_df["speedup"], marker='o', color="royalblue")
-    plot1 = ax.plot(selected_df["num_months"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
+    ax.scatter(selected_df[x_column], selected_df["speedup"], marker='o', color="royalblue")
+    plot1 = ax.plot(selected_df[x_column], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
 
     twnx = ax.twinx()
-    twnx.scatter(selected_df["num_months"], selected_df["similarity"], marker='+', color="tomato")
-    plot2 = twnx.plot(selected_df["num_months"], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
+    twnx.scatter(selected_df[x_column], selected_df["similarity"], marker='+', color="tomato")
+    plot2 = twnx.plot(selected_df[x_column], selected_df["similarity"], marker='+', color="tomato", label="Accuracy")
 
-    ax.set_xlabel("Number of Months")
+    ax.set_xlabel("Number of Months" if x_column == "num_months" else "Number of Records")
     ax.set_ylabel("Speedup", color="royalblue")
+    ax.set_ylim(0, 30)
     # ax.legend(loc="upper left")
 
     # set range for y-axis

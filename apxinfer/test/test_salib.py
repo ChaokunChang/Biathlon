@@ -56,10 +56,11 @@ def compute_sobol_main_effect_index(fvals: list, fdists: list, fests: list,
         "prediction_time": prediction_time,
         "analysis_time": analysis_time,
         "total_time": sampling_time + prediction_time + analysis_time,
-        "param_values": len(param_values)
+        "param_values": len(param_values),
+        "preds_var": np.var(preds),
     })
 
-    return Si["S1"]
+    return np.where(Si["S1"] > 0, Si["S1"], 0)
 
 
 if __name__ == "__main__":
@@ -73,6 +74,7 @@ if __name__ == "__main__":
         python -m cProfile -s cumtime -o ./test_salib.pstats test_salib.py --task final/trips --model lgbm
         gprof2dot -f pstats ./test_salib.pstats | dot -Tsvg -o ./test_salib.svg
     """
+    test_global = False
     args = OnlineArgs().parse_args(known_only=True)
     model: XIPModel = LoadingHelper.load_model(args)
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
         groups.append(group)
         # val is the mean of that feature column in dataset
         fvals.append(dataset[fcol].mean())
-        if ftype == "AGG":
+        if ftype == "AGG" or test_global:
             # dist is normal, and est is the std of that feature column in dataset
             fdists.append("normal")
             fests.append(dataset[fcol].std())
@@ -110,7 +112,9 @@ if __name__ == "__main__":
     #                                         N=args.pest_nsamples,
     #                                         seed=args.seed,
     #                                         calc_second_order=False)
-    # print(f"qinfs = {qinfs}")
+    # print(f"qinfs = {[f'{inf:.3f}' for inf in qinfs]}")
+    # print(profiles)
+    # print(fvals, fests)
 
     profiles = []
     # for N in [1<<6, 1<<7, 1<<8, 1<<9, 1<<10, 1<<11, 1<<12]:
@@ -120,7 +124,6 @@ if __name__ == "__main__":
                                                 N=N,
                                                 seed=args.seed,
                                                 calc_second_order=False)
-        print(f"qinfs = {qinfs}")
 
     profile_df = pd.DataFrame(profiles)
     # sort by N

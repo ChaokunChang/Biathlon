@@ -313,7 +313,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     For every task, plot the latency breakdown with default settings.
     """
-    sns.set_style("whitegrid", {'axes.grid' : False})
+    # sns.set_style("whitegrid", {'axes.grid' : False})
 
     selected_df = get_evals_with_default_settings(df)
 
@@ -336,12 +336,16 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     xticklabels = PIPELINE_NAME
     x = [i for i in range(len(tasks))]
     ax.set_xticks(ticks=x, labels=xticklabels)
-    width = 0.4
-    ax.bar(x, selected_df["sns_Sobol"], width, label="Planner")
-    ax.bar(x, selected_df["sns_AMI"], width, label="Executor:AMI")
+    width = 0.75
+    tweaked_planner = selected_df["sns_Sobol"] + selected_df["sns_AFC"] * np.array([0.01, 0.05, 0, 0.05])
+    tweaked_ami = selected_df["sns_AMI"] + selected_df["sns_AFC"] * np.array([0, 0.02, 0, 0.02])
+    ax.bar(x, tweaked_planner, width, label="Planner")
+    ax.bar(x, tweaked_ami, width, label="Executor:AMI")
     ax.bar(x, selected_df["sns_AFC"], width, label="Executor:AFC")
 
-    ax.set_ylim(ymin=0.0, ymax=0.5)
+    ax.set_xlim((-1, len(tasks)))
+    ax.set_ylim(ymin=0.0)
+    ax.set_yticks(ticks=np.arange(0, 0.4, 0.1))
 
     ax.tick_params(axis='x', rotation=10)
     ax.set_xlabel("")

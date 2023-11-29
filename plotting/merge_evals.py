@@ -95,6 +95,7 @@ def merge_csv(args: EvalArgs):
                     df_tmp['similarity'] = df_tmp[f"similarity-{acc_type}"]
             if task_name in ['cheaptrips', "machinery-v1", "machinery-v2",
                              "machinery-v3", "machinerymulti", "tdfraud",
+                             "tdfraudrandom",
                              "Fraud-Detection", "Bearing-MLP",
                              "Bearing-Multi", "Bearing-KNN",]:
                 acc_type = "f1"

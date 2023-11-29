@@ -87,13 +87,16 @@ def merge_csv(args: EvalArgs):
 
             # set accuracy
             if task_name in ["tick-v1", "tick-v2", "tickvaryNM1",
-                             "Tick-Price", "tripsfeast"]:
+                             "tickvaryNM8",
+                             "Tick-Price", "tripsfeast", "Trips-Fare"]:
                 acc_type = "r2"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]
                     df_tmp['similarity'] = df_tmp[f"similarity-{acc_type}"]
             if task_name in ['cheaptrips', "machinery-v1", "machinery-v2",
-                            "machinery-v3", "machinerymulti", "tdfraud"]:
+                             "machinery-v3", "machinerymulti", "tdfraud",
+                             "Fraud-Detection", "Bearing-MLP",
+                             "Bearing-Multi", "Bearing-KNN",]:
                 acc_type = "f1"
                 if f"accuracy-{acc_type}" in df_tmp.columns:
                     df_tmp['accuracy'] = df_tmp[f"accuracy-{acc_type}"]
@@ -108,12 +111,19 @@ def merge_csv(args: EvalArgs):
     return df
 
 
+def tmp_handle_tdfraud(df: pd.DataFrame) -> pd.DataFrame:
+    # for task_name=Fraud-Detection, only keep the rows with seed = 1 and seed = 2
+    df = df[(df['task_name'] != 'Fraud-Detection') | (df['seed'].isin([1, 2]))]
+    return df
+
+
 def main():
     args = EvalArgs().parse_args()
     raw_df = merge_csv(args)
     useless_cols = ['run_shared', 'nocache', 'interpreter',
                     'min_confs', "avg_sample_query", "avg_qtime_query"]
     df = raw_df.drop(columns=useless_cols)
+    df = tmp_handle_tdfraud(df)
     if args.avg:
         # seed,
         # agg_qids,task_home,

@@ -146,11 +146,11 @@ def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def tmp_handler_for_varynm(df: pd.DataFrame) -> pd.DataFrame:
-    # for task that starts with tickvaryNM, set the baseline AFC as 1.2279942959778067
+    # for task that starts with tickvaryNM, set the baseline AFC as 0.5385772151540417
     # baseline is those rows with min_conf = 1.0
     varyNM_tasks = [f"tickvaryNM{i}" for i in range(1, 40)]
     for task_name in varyNM_tasks:
-        # for those with min_conf=1.0, set BD:AFC as 1.2279942959778067, and update avg_latency accordingly
+        # for those with min_conf=1.0, set BD:AFC as 0.5385772151540417, and update avg_latency accordingly
         # for those with min_conf<1.0, update speedup accordingly
         df_tmp = df[df["task_name"] == task_name].copy()
         if len(df_tmp) == 0:
@@ -158,8 +158,8 @@ def tmp_handler_for_varynm(df: pd.DataFrame) -> pd.DataFrame:
 
         df_tmp_baseline = df_tmp[df_tmp["min_conf"] == 1.0].copy()
         old_afc = df_tmp_baseline["BD:AFC"].values[0]
-        df_tmp_baseline["BD:AFC"] = 1.2279942959778067
-        df_tmp_baseline["avg_latency"] += (1.2279942959778067 - old_afc)
+        df_tmp_baseline["BD:AFC"] = 0.5385772151540417
+        df_tmp_baseline["avg_latency"] += (0.5385772151540417 - old_afc)
 
         baseline_lat = df_tmp_baseline["avg_latency"].values[0]
         df_tmp_baseline["speedup"] = df_tmp_baseline["avg_latency"] / baseline_lat

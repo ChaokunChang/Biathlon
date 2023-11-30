@@ -35,7 +35,7 @@ def parse_filename(filename, verbose: bool = False):
     if task_name == "tick":
         task_name = "tick-v1"
     elif task_name == "tickv2":
-        task_name = "Tick-Price"
+        task_name = "tick-v2"
     elif task_name == "tripsfeast":
         task_name = "Trips-Fare"
     elif task_name == "machinery":
@@ -124,14 +124,30 @@ def tmp_handle_tickvaryNM8(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
+    seeds_dict = {
+        "Trips-Fare": [1, 2, 3],
+        "tickvaryNM8": [0, 1, 2],
+        "Bearing-MLP": [0, 2, 4],
+        "Fraud-Detection": [0, 1, 2]
+    }
+    df = df[(df['task_name'] != 'Trips-Fare') | (df['seed'].isin(seeds_dict['Trips-Fare']))]
+    df = df[(df['task_name'] != 'tickvaryNM8') | (df['seed'].isin(seeds_dict['tickvaryNM8']))]
+    df = df[(df['task_name'] != 'Bearing-MLP') | (df['seed'].isin(seeds_dict['Bearing-MLP']))]
+    df = df[(df['task_name'] != 'Fraud-Detection') | (df['seed'].isin(seeds_dict['Fraud-Detection']))]
+    return df
+
+
 def main():
     args = EvalArgs().parse_args()
     raw_df = merge_csv(args)
+    print(f'columns: {raw_df.columns}')
     useless_cols = ['run_shared', 'nocache', 'interpreter',
                     'min_confs', "avg_sample_query", "avg_qtime_query"]
     df = raw_df.drop(columns=useless_cols)
-    df = tmp_handle_tdfraud(df)
-    df = tmp_handle_tickvaryNM8(df)
+    # df = tmp_handle_tdfraud(df)
+    # df = tmp_handle_tickvaryNM8(df)
+    df = seed_selection(df)
     if args.avg:
         # seed,
         # agg_qids,task_home,
@@ -142,6 +158,8 @@ def main():
                 'ncores', 'loading_mode',
                 'scheduler_batch', 'scheduler_init',
                 'max_error', 'min_conf', 'pest_nsamples']
+        # deduplicate by the keys + ['seed'], keep the first
+        df = df.groupby(keys + ['seed']).first().reset_index()
         df = df.groupby(keys).mean().reset_index()
 
     # add columns "avg_sample_query", "avg_qtime_query" back

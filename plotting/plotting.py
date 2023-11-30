@@ -495,9 +495,6 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=False, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
-        # tmp handler before final
-        if task_name == "Trips-Fare":
-            df_tmp.loc[df['alpha'] == 0.02 , "speedup"] += 5
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
@@ -527,10 +524,6 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
-        if i != len(tasks) - 1:
-            # axes[i].set_yticks(np.arange(4, 16, 2))
-            # axes[i].set_ylim(3, 15)
-            pass
 
         twnx = axes[i].twinx()
         twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
@@ -570,8 +563,6 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=False, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
-        if task_name == "tickvaryNM8":
-            df_tmp = df_tmp[~df_tmp["beta"].isin([0.4])]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)

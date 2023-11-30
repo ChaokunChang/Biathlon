@@ -546,29 +546,7 @@ def run_tick_price_middle(args: ExpArgs):
                 scheduler_batch,
                 max_error,
             )
-            cmd = f"{cmd} --min_confs 0.95 0.99"
             os.system(cmd)
-    for max_error in max_errors:
-        cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    5,
-                    1,
-                    max_error,
-                )
-        os.system(cmd)
-        cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    1,
-                    1,
-                    max_error,
-                )
-        os.system(cmd)
 
 
 def run_vary_nsamples(args: ExpArgs):

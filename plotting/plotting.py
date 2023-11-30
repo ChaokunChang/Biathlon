@@ -591,10 +591,11 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
-        betas = [0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 1.0]
+        # betas = [0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 1.0]
+        betas = [0.01, 0.05, 0.1, 0.4, 0.7, 1.0]
         if task_name == "Fraud-Detection":
             df_tmp = df_tmp[df_tmp["scheduler_batch"].isin([int(beta*100*3) for beta in betas])]
-        elif len(df_tmp) > 9:
+        else:
             # betas = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
             df_tmp = df_tmp[df_tmp["beta"].isin(betas)]
         ticks = np.arange(len(df_tmp["beta"]))

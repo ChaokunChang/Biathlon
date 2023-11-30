@@ -31,16 +31,30 @@ class ExpArgs(Tap):
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
     quantiles = [1, 2, 5] + [i for i in range(10, 100, 30)] + [100]
-    default_quantiles = [1, 2, 5]
-    cfgs = [(5, 5)]
+    # default_quantiles = [1, 2, 5]
+    cfgs = []
     # default beta and vary alpha
-    for beta in default_quantiles:
+    for beta in [1]:
         for alpha in quantiles[:-1]:
             cfgs.append((alpha, beta*naggs))
-    for alpha in default_quantiles:
+    for alpha in [5]:
         for beta in quantiles:
             cfgs.append((alpha, beta*naggs))
     return cfgs
+
+
+# def get_scheduler_cfgs(args: ExpArgs, naggs: int):
+#     quantiles = [1, 2, 5] + [i for i in range(10, 100, 30)] + [100]
+#     default_quantiles = [1, 2, 5]
+#     cfgs = [(5, 5)]
+#     # default beta and vary alpha
+#     for beta in default_quantiles:
+#         for alpha in quantiles[:-1]:
+#             cfgs.append((alpha, beta*naggs))
+#     for alpha in default_quantiles:
+#         for beta in quantiles:
+#             cfgs.append((alpha, beta*naggs))
+#     return cfgs
 
 
 def run_prepare(args: ExpArgs):

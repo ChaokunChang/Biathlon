@@ -138,15 +138,13 @@ if args.run_shared:
     command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
     print(command)
     qcm_path = f"{results_prefix}/offline/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
-    if not os.path.exists(qcm_path):
-        os.system(command=command)
+    os.system(command=command)
 
     # exact
     command = f"{cmd_prefix} --ncores {ncores} --exact"
     print(command)
     exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/exact/evals_exact.json"
-    if not os.path.exists(exact_path):
-        os.system(command=command)
+    os.system(command=command)
 else:
     evals = []
     path_prefix = (

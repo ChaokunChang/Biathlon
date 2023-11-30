@@ -178,6 +178,11 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df = handler_loading_mode(df)
     # df = tmp_handler_for_bearing(df)
     df = tmp_handler_for_varynm(df)
+
+    # deduplicate
+    df = df.drop_duplicates(subset=["task_name", "policy", "ncores", "nparts","ncfgs",
+                                    "alpha", "beta", "pest_nsamples",
+                                    "min_conf", "max_error"])
     return df
 
 
@@ -605,6 +610,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
         if task_name == "Fraud-Detection":
             df_tmp = df_tmp[(df_tmp["beta"] >= 0.1) | df_tmp["beta"].isin([0.01, 0.02, 0.03, 0.04, 0.05])]
+        if task_name == "tickvaryNM8":
+            df_tmp = df_tmp[~df_tmp["beta"].isin([0.4])]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)

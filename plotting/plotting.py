@@ -462,7 +462,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if task_name == "tickvaryNM8":
-            axes[i].set_ylim(22, 23)
+            axes[i].set_ylim(8, 12)
         else:
             axes[i].set_ylim(2, 20)
 
@@ -610,7 +610,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if task_name == "tickvaryNM8":
-            axes[i].set_ylim(20, 25)
+            axes[i].set_ylim(8, 12)
 
         twnx = axes[i].twinx()
         twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")

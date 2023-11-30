@@ -643,9 +643,13 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
-
-        axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue")
-        plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        if len(df_tmp) > 9:
+            betas = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
+            df_tmp = df_tmp[df_tmp["beta"].isin(betas)]
+        ticks = np.arange(len(df_tmp["beta"]))
+        # ticks = np.linspace(min(df_tmp["beta"]), max(df_tmp["beta"]), len(df_tmp["beta"]), endpoint=True)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
             # axes[i].set_yticks(np.arange(4, 16, 2))
             # axes[i].set_ylim(3, 15)
@@ -654,19 +658,19 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
                 axes[i].set_ylim(22, 23)
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")
-        plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
+        twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Step Size $\gamma$")
         axes[i].set_ylabel("Speedup", color="royalblue")\
 
         # set xtick labels as (beta, $\sum N_j$)
-        axes[i].set_xticks(ticks=[i/100 for i in range(100)])
+        axes[i].set_xticks(ticks=ticks)
         # only show the first, the middle, and last xtick labels
         # xticklabels = [f"{beta*100}%" for beta in df_tmp["beta"]]
         # xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
-        xticklabels = ["0%"] + ["" for _ in range(1, 50)] + [f"50%"] + ["" for _ in range(51, 99)] + [f"100%"]
+        xticklabels = [f"{int(label*100)}" + "%" for label in df_tmp["beta"].to_list()]
         axes[i].set_xticklabels(labels=xticklabels)
 
         # axes[i].legend(loc="upper left")

@@ -12,6 +12,68 @@ PJNAME = "Biathlon"
 PIPELINE_NAME = ["Trip-Fare", "Tick-Price", "Bearing-Imbalance", "Fraud-Detection"]
 YLIM_ACC = [0.9, 1.01]
 
+tasks = [
+    "Trips-Fare",
+    # "Tick-Price",
+    "tickvaryNM8",
+    "Bearing-MLP",
+    # "Bearing-KNN",
+    # "Bearing-Multi",
+    "Fraud-Detection"
+    # "tdfraudrandom"
+]
+
+reg_tasks = [
+    "Trips-Fare",
+    # "Tick-Price",
+    "tickvaryNM8",
+]
+
+shared_default_settings = {
+    "policy": "optimizer",
+    "ncores": None,
+    "min_conf": 0.95,
+    "nparts": 100,
+    "ncfgs": 100,
+    "alpha": 0.05,
+    "beta": 0.01,
+    "pest_nsamples": 1000,
+}
+task_default_settings = {
+    "Trips-Fare": {
+        "model_name": "lgbm",
+        "max_error": 1.66,
+    },
+    "Tick-Price": {
+        "model_name": "lr",
+        "max_error": 0.04,
+    },
+    "tickvaryNM8": {
+        "model_name": "lr",
+        "max_error": 0.04,
+    },
+    "Bearing-MLP": {
+        "model_name": "mlp",
+        "max_error": 0.0,
+    },
+    "Bearing-KNN": {
+        "model_name": "knn",
+        "max_error": 0.0,
+    },
+    "Bearing-Multi": {
+        "model_name": "svm",
+        "max_error": 0.0,
+    },
+    "Fraud-Detection": {
+        "model_name": "xgb",
+        "max_error": 0.0,
+    },
+    "tdfraudrandom": {
+        "model_name": "xgb",
+        "max_error": 0.0,
+    },
+}
+
 
 class EvalArgs(Tap):
     home_dir: str = "./cache"
@@ -20,6 +82,8 @@ class EvalArgs(Tap):
     ncores: int = 1
     only: str = None
     task_name: str = None
+    cls_score: str = "f1"
+    reg_score: str = "r2"
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -30,6 +94,16 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df["beta"] /= df['naggs']
     df = df[df['beta'] <= 1.0]
     df = df[df['beta'] >= 0.001]
+
+    for task_name in tasks:
+        if task_name in reg_tasks:
+            reg_score = args.reg_score
+            df.loc[df["task_name"] == task_name, "similarity"] = df[f"similarity-{reg_score}"]
+            df.loc[df["task_name"] == task_name, "accuracy"] = df[f"accuracy-{reg_score}"]
+        else:
+            cls_score = args.cls_score
+            df.loc[df["task_name"] == task_name, "similarity"] = df[f"similarity-{cls_score}"]
+            df.loc[df["task_name"] == task_name, "accuracy"] = df[f"accuracy-{cls_score}"]
 
     # if avg_nrounds is nan, compute as sampling_rate / beta
     # df.loc[df["avg_nrounds"].isna(), "avg_nrounds"] = 1 + ((df["sampling_rate"] - df["alpha"]) / df["beta"])
@@ -107,65 +181,6 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     return df
 
 
-tasks = [
-    "Trips-Fare",
-    # "Tick-Price",
-    "tickvaryNM8",
-    "Bearing-MLP",
-    # "Bearing-KNN",
-    # "Bearing-Multi",
-    "Fraud-Detection"
-]
-
-reg_tasks = [
-    "Trips-Fare",
-    "Tick-Price",
-]
-
-shared_default_settings = {
-    "policy": "optimizer",
-    "ncores": None,
-    "min_conf": 0.95,
-    "nparts": 100,
-    "ncfgs": 100,
-    "scheduler_init": 5,
-    "scheduler_batch": 5,
-    "alpha": 0.05,
-    "beta": 0.01,
-    "pest_nsamples": 1000,
-}
-task_default_settings = {
-    "Trips-Fare": {
-        "model_name": "lgbm",
-        "max_error": 1.66,
-    },
-    "Tick-Price": {
-        "model_name": "lr",
-        "max_error": 0.04,
-    },
-    "tickvaryNM8": {
-        "model_name": "lr",
-        "max_error": 0.04,
-    },
-    "Bearing-MLP": {
-        "model_name": "mlp",
-        "max_error": 0.0,
-    },
-    "Bearing-KNN": {
-        "model_name": "knn",
-        "max_error": 0.0,
-    },
-    "Bearing-Multi": {
-        "model_name": "svm",
-        "max_error": 0.0,
-    },
-    "Fraud-Detection": {
-        "model_name": "xgb",
-        "max_error": 0.0,
-    },
-}
-
-
 def shared_filter(df_tmp: pd.DataFrame, task_name: str,
                   args: EvalArgs, pest_nsamples: bool = True) -> pd.DataFrame:
     df_tmp = df_tmp[df_tmp["policy"] == shared_default_settings["policy"]]
@@ -181,10 +196,8 @@ def shared_filter(df_tmp: pd.DataFrame, task_name: str,
 def df_filter(df_tmp: pd.DataFrame, task_name: str, alpha: bool, beta: bool, args: EvalArgs = None) -> pd.DataFrame:
     if alpha:
         df_tmp = df_tmp[df_tmp["alpha"] == shared_default_settings["alpha"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_init"] == shared_default_settings["scheduler_init"]]
     if beta:
         df_tmp = df_tmp[df_tmp["beta"] == shared_default_settings["beta"]]
-        # df_tmp = df_tmp[df_tmp["scheduler_batch"] == shared_default_settings["scheduler_batch"]]
     return df_tmp
 
 
@@ -401,7 +414,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     sns.set_theme(style="whitegrid")
-    sns.set_style("whitegrid", {'axes.grid' : False})
+    sns.set_style("whitegrid", {'axes.grid': False})
 
     fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 

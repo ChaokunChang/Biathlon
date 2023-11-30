@@ -124,7 +124,7 @@ def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
         "Trips-Fare": [1, 2, 3],
         "tickvaryNM8": [0, 1, 2],
         "Bearing-MLP": [0, 2, 4],
-        "Fraud-Detection": [1, 2]
+        "Fraud-Detection": [0, 1, 2]
     }
     df = df[(df['task_name'] != 'Trips-Fare') | (df['seed'].isin(seeds_dict['Trips-Fare']))]
     df = df[(df['task_name'] != 'tickvaryNM8') | (df['seed'].isin(seeds_dict['tickvaryNM8']))]

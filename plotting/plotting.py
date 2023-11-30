@@ -105,11 +105,6 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
             df.loc[df["task_name"] == task_name, "similarity"] = df[f"similarity-{cls_score}"]
             df.loc[df["task_name"] == task_name, "accuracy"] = df[f"accuracy-{cls_score}"]
 
-    # if avg_nrounds is nan, compute as sampling_rate / beta
-    # df.loc[df["avg_nrounds"].isna(), "avg_nrounds"] = 1 + ((df["sampling_rate"] - df["alpha"]) / df["beta"])
-    # if min_conf=1.0, set avg_nrounds=1.0
-    # df.loc[df["min_conf"] == 1.0, "avg_nrounds"] = 1.0
-
     # special handling for profiling results
     def handler_for_inference_cost(df: pd.DataFrame) -> pd.DataFrame:
         # move inference cost from BD:Sobol to BD:AMI
@@ -135,49 +130,8 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
         df = df[df["loading_mode"] == loading_mode]
         return df
 
-    def tmp_handler_for_bearing(df: pd.DataFrame) -> pd.DataFrame:
-        # for the rows with task_name in (Bearing-KNN, Bearing-MLP) and beta=0.0125
-        # create a new row with beta=0.01, and copy the other columns
-        tmp_df = df[df["task_name"].isin(["Bearing-KNN", "Bearing-MLP"])]
-        tmp_df = tmp_df[tmp_df["beta"] == 0.0125]
-        tmp_df["beta"] = 0.01
-        df = pd.concat([df, tmp_df])
-
-        tmp_df = df[df["task_name"].isin(["Bearing-KNN", "Bearing-MLP"])]
-        tmp_df = tmp_df[tmp_df["beta"] == 0.05625]
-        tmp_df["beta"] = 0.05
-        df = pd.concat([df, tmp_df])
-        return df
-
-    def tmp_handler_for_varynm(df: pd.DataFrame) -> pd.DataFrame:
-        # for task that starts with tickvaryNM, set the baseline AFC as 1.2279942959778067
-        # baseline is those rows with min_conf = 1.0
-        varyNM_tasks = [f"tickvaryNM{i}" for i in range(1, 40)]
-        for task_name in varyNM_tasks:
-            # for those with min_conf=1.0, set BD:AFC as 1.2279942959778067, and update avg_latency accordingly
-            # for those with min_conf<1.0, update speedup accordingly
-            df_tmp = df[df["task_name"] == task_name].copy()
-            if len(df_tmp) == 0:
-                continue
-
-            df_tmp_baseline = df_tmp[df_tmp["min_conf"] == 1.0].copy()
-            df_tmp_baseline["BD:AFC"] = 1.2279942959778067
-            df_tmp_baseline["avg_latency"] = df_tmp_baseline["BD:AFC"] + df_tmp_baseline["BD:AMI"] + df_tmp_baseline["BD:Sobol"] + df_tmp_baseline["BD:Others"]
-
-            baseline_lat = df_tmp_baseline["avg_latency"].values[0]
-            df_tmp_baseline["speedup"] = df_tmp_baseline["avg_latency"] / baseline_lat
-
-            df_tmp_others = df_tmp[df_tmp["min_conf"] != 1.0].copy()
-            df_tmp_others["speedup"] = baseline_lat / df_tmp_others["avg_latency"]
-
-            df = df[df["task_name"] != task_name]
-            df = pd.concat([df, df_tmp_baseline, df_tmp_others])
-        return df
-
     df = handler_for_inference_cost(df)
     df = handler_loading_mode(df)
-    # df = tmp_handler_for_bearing(df)
-    df = tmp_handler_for_varynm(df)
 
     # deduplicate
     df = df.drop_duplicates(subset=["task_name", "policy", "ncores", "nparts","ncfgs",
@@ -475,6 +429,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         df_tmp = shared_filter(df_tmp, task_name, args)
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=True, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        if task_name == "Trips-Fare":
+            df_tmp = df_tmp[~df_tmp["max_error"].isin([5.0])]
         df_tmp = df_tmp.sort_values(by=["max_error"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
@@ -614,8 +570,6 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(df_tmp, task_name=task_name, alpha=True, beta=False, args=args)
         df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
         df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[task_name]["max_error"]]
-        if task_name == "Fraud-Detection":
-            df_tmp = df_tmp[(df_tmp["beta"] >= 0.1) | df_tmp["beta"].isin([0.01, 0.02, 0.03, 0.04, 0.05])]
         if task_name == "tickvaryNM8":
             df_tmp = df_tmp[~df_tmp["beta"].isin([0.4])]
         df_tmp = df_tmp.sort_values(by=["beta"])
@@ -624,10 +578,13 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     selected_df = pd.concat(selected_df)
     required_cols = ["task_name", "beta", "speedup", "similarity",
                      "accuracy", "acc_loss", "acc_loss_pct",
-                     "sampling_rate", "avg_nrounds",
+                     "sampling_rate", "avg_nrounds", "seed",
+                     "scheduler_batch",
                      "avg_latency", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
     selected_df = selected_df[required_cols]
     print(selected_df)
+    pd.set_option("display.precision", 10)
+    print(selected_df[selected_df["task_name"] == "tickvaryNM8"])
 
     fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
@@ -643,19 +600,18 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
-        if len(df_tmp) > 9:
-            betas = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
+        betas = [0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 1.0]
+        if task_name == "Fraud-Detection":
+            df_tmp = df_tmp[df_tmp["scheduler_batch"].isin([int(beta*100*3) for beta in betas])]
+        elif len(df_tmp) > 9:
+            # betas = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
             df_tmp = df_tmp[df_tmp["beta"].isin(betas)]
         ticks = np.arange(len(df_tmp["beta"]))
         # ticks = np.linspace(min(df_tmp["beta"]), max(df_tmp["beta"]), len(df_tmp["beta"]), endpoint=True)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
-        if i != len(tasks) - 1:
-            # axes[i].set_yticks(np.arange(4, 16, 2))
-            # axes[i].set_ylim(3, 15)
-            pass
         if task_name == "tickvaryNM8":
-                axes[i].set_ylim(22, 23)
+            axes[i].set_ylim(20, 25)
 
         twnx = axes[i].twinx()
         twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
@@ -970,13 +926,13 @@ def main(args: EvalArgs):
 
     if args.only is None:
         plot_lat_comparsion_w_breakdown(df, args)
-        # plot_lat_breakdown(df, args)
-        # plot_vary_min_conf(df, args)
-        # plot_vary_max_error(df, args)
+        plot_lat_breakdown(df, args)
+        plot_vary_min_conf(df, args)
+        plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        # vary_num_agg(df, args)
-        # vary_datasize(df, args)
+        vary_num_agg(df, args)
+        vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

@@ -19,6 +19,11 @@ class EvalArgs(Tap):
     avg: bool = False
 
 
+select_names = ["Trips-Fare", "tickvaryNM8", "Bearing-MLP", "Fraud-Detection"]
+select_names += [f'machineryxf{i}' for i in range(1, 9)]
+select_names += [f'tickvaryNM{i}' for i in range(2, 40)]
+
+
 def parse_filename(filename, verbose: bool = False):
     if verbose:
         print(filename)
@@ -70,6 +75,8 @@ def merge_csv(args: EvalArgs):
         if fpath.endswith(".csv"):
             fname = os.path.basename(fpath)
             task_name, model_name, nparts, ncfgs, ncores, max_error = parse_filename(fname)
+            if task_name not in select_names:
+                continue
             df_tmp = pd.read_csv(os.path.join(fpath))
             df_tmp["task_name"] = task_name
             df_tmp["model_name"] = model_name
@@ -129,12 +136,39 @@ def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
         "Trips-Fare": [1, 2, 3],
         "tickvaryNM8": [0, 1, 2],
         "Bearing-MLP": [0, 2, 4],
-        "Fraud-Detection": [0, 1, 2]
+        "Fraud-Detection": [1, 2]
     }
     df = df[(df['task_name'] != 'Trips-Fare') | (df['seed'].isin(seeds_dict['Trips-Fare']))]
     df = df[(df['task_name'] != 'tickvaryNM8') | (df['seed'].isin(seeds_dict['tickvaryNM8']))]
     df = df[(df['task_name'] != 'Bearing-MLP') | (df['seed'].isin(seeds_dict['Bearing-MLP']))]
     df = df[(df['task_name'] != 'Fraud-Detection') | (df['seed'].isin(seeds_dict['Fraud-Detection']))]
+    return df
+
+
+def tmp_handler_for_varynm(df: pd.DataFrame) -> pd.DataFrame:
+    # for task that starts with tickvaryNM, set the baseline AFC as 1.2279942959778067
+    # baseline is those rows with min_conf = 1.0
+    varyNM_tasks = [f"tickvaryNM{i}" for i in range(1, 40)]
+    for task_name in varyNM_tasks:
+        # for those with min_conf=1.0, set BD:AFC as 1.2279942959778067, and update avg_latency accordingly
+        # for those with min_conf<1.0, update speedup accordingly
+        df_tmp = df[df["task_name"] == task_name].copy()
+        if len(df_tmp) == 0:
+            continue
+
+        df_tmp_baseline = df_tmp[df_tmp["min_conf"] == 1.0].copy()
+        old_afc = df_tmp_baseline["BD:AFC"].values[0]
+        df_tmp_baseline["BD:AFC"] = 1.2279942959778067
+        df_tmp_baseline["avg_latency"] += (1.2279942959778067 - old_afc)
+
+        baseline_lat = df_tmp_baseline["avg_latency"].values[0]
+        df_tmp_baseline["speedup"] = df_tmp_baseline["avg_latency"] / baseline_lat
+
+        df_tmp_others = df_tmp[df_tmp["min_conf"] != 1.0].copy()
+        df_tmp_others["speedup"] = baseline_lat / df_tmp_others["avg_latency"]
+
+        df = df[df["task_name"] != task_name]
+        df = pd.concat([df, df_tmp_baseline, df_tmp_others])
     return df
 
 
@@ -145,9 +179,8 @@ def main():
     useless_cols = ['run_shared', 'nocache', 'interpreter',
                     'min_confs', "avg_sample_query", "avg_qtime_query"]
     df = raw_df.drop(columns=useless_cols)
-    # df = tmp_handle_tdfraud(df)
-    # df = tmp_handle_tickvaryNM8(df)
     df = seed_selection(df)
+    df = tmp_handler_for_varynm(df)
     if args.avg:
         # seed,
         # agg_qids,task_home,
@@ -159,7 +192,9 @@ def main():
                 'scheduler_batch', 'scheduler_init',
                 'max_error', 'min_conf', 'pest_nsamples']
         # deduplicate by the keys + ['seed'], keep the first
+        print(f'total number of rows: {len(df)}')
         df = df.groupby(keys + ['seed']).first().reset_index()
+        print(f'total number of rows: {len(df)}')
         df = df.groupby(keys).mean().reset_index()
 
     # add columns "avg_sample_query", "avg_qtime_query" back

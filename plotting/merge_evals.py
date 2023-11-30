@@ -119,18 +119,6 @@ def merge_csv(args: EvalArgs):
     return df
 
 
-def tmp_handle_tdfraud(df: pd.DataFrame) -> pd.DataFrame:
-    # for task_name=Fraud-Detection, only keep the rows with seed = 1 and seed = 2
-    df = df[(df['task_name'] != 'Fraud-Detection') | (df['seed'].isin([1, 2]))]
-    return df
-
-
-def tmp_handle_tickvaryNM8(df: pd.DataFrame) -> pd.DataFrame:
-    # for task_name=Fraud-Detection, only keep the rows with seed = 1 and seed = 2
-    df = df[(df['task_name'] != 'tickvaryNM8') | (df['seed'].isin([0, 1, 2]))]
-    return df
-
-
 def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
     seeds_dict = {
         "Trips-Fare": [1, 2, 3],

@@ -455,7 +455,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         if task_name == "Trips-Fare":
             errors = [0.5, 1.66, 6, 8, 10]
             df_tmp = df_tmp[np.isclose(df_tmp['max_error'].values[:, None], errors, atol=.1).any(axis=1)]
-            axes[i].set_xticks(ticks=[0.5, 5, 10], label=["0.5", "5", "10"])
+            axes[i].set_xticks(ticks=[0.5, 5, 10], labels=["0.5", "5", "10"])
         else:
             axes[i].set_xticks(ticks=[0.001, 0.05, 0.1], labels=["0.001", "0.05", "0.1"])
 

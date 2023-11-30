@@ -50,7 +50,7 @@ task_default_settings = {
     },
     "tickvaryNM8": {
         "model_name": "lr",
-        "max_error": 0.01,
+        "max_error": 0.04,
     },
     "Bearing-MLP": {
         "model_name": "mlp",
@@ -701,9 +701,9 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(tasks) == 4:
-        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=False)
     elif len(tasks) in [5, 6]:
-        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(12, 8), nrows=2, ncols=3, sharex=False, sharey=False)
     else:
         raise NotImplementedError
     axes = axes.flatten()

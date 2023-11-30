@@ -452,6 +452,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     acc_metric = "similarity"
     for i, task_name in enumerate(reg_tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
+        if task_name == "Trips-Fare":
+            df_tmp = df_tmp[df_tmp["max_error"] <= 10.01]
 
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
@@ -521,6 +523,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
 
+        df_tmp = df_tmp[:11]
         ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
@@ -629,7 +632,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="center right")
+        axes[i].legend(plots, labels, loc="lower left")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_beta.pdf"))
     # plt.show()

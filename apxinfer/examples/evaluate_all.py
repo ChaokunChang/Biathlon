@@ -524,7 +524,7 @@ def run_tick_price_middle(args: ExpArgs):
     cfgs = get_scheduler_cfgs(args, 1)
     max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
     for scheduler_init, scheduler_batch in cfgs:
-        for max_error in [0.01, 0.04, 0.001]:
+        for max_error in [0.04]:
             cmd = get_eval_cmd(
                 args,
                 task_name,
@@ -536,7 +536,7 @@ def run_tick_price_middle(args: ExpArgs):
             )
             cmd = f"{cmd} --min_confs 0.95"
             os.system(cmd)
-    for max_error in [0.01, 0.04, 0.001]:
+    for max_error in [0.04]:
         cmd = get_eval_cmd(
                     args,
                     task_name,

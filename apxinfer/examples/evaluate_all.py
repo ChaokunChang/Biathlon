@@ -20,6 +20,7 @@ class ExpArgs(Tap):
     seed: int = 0
     skip_shared: bool = False
     prep_single: str = None
+    complementary: bool = False
 
     def process_args(self):
         assert self.exp is not None
@@ -32,7 +33,7 @@ class ExpArgs(Tap):
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
     quantiles = [1, 2, 5] + [i for i in range(10, 100, 20)] + [100]
     # default_quantiles = [1, 2, 5]
-    cfgs = [7, 11] # for warm up
+    cfgs = [(7, 11)] # for warm up
     # default beta and vary alpha
     for beta in [1]:
         for alpha in quantiles[:-1]:
@@ -133,6 +134,8 @@ def run_machinery(args: ExpArgs):
         cmd = get_eval_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
+        if args.complementary:
+            cmd = f"{cmd} --min_confs 0.95"
         os.system(cmd)
 
 
@@ -207,6 +210,8 @@ def run_tdfraud(args: ExpArgs):
         cmd = get_eval_cmd(
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
+        if args.complementary:
+            cmd = f"{cmd} --min_confs 0.95"
         os.system(cmd)
 
 
@@ -298,6 +303,8 @@ def run_tripsfeast(args: ExpArgs):
         cmd = f"{cmd} --min_confs 0.95 0.99"
         os.system(cmd)
     max_errors = [0.5, 1.0, 1.66, 2.0, 3.0, 5.0]
+    if args.complementary:
+        max_errors = [1.66]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -309,6 +316,8 @@ def run_tripsfeast(args: ExpArgs):
                 scheduler_batch,
                 max_error,
             )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.95"
             os.system(cmd)
 
 
@@ -535,6 +544,8 @@ def run_tick_price_middle(args: ExpArgs):
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 1)
     max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
+    if args.complementary:
+        max_errors = [0.04]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
             cmd = get_eval_cmd(
@@ -546,6 +557,8 @@ def run_tick_price_middle(args: ExpArgs):
                 scheduler_batch,
                 max_error,
             )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.95"
             os.system(cmd)
 
 

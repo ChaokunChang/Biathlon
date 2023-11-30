@@ -462,7 +462,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if task_name == "tickvaryNM8":
-            axes[i].set_ylim(8, 12)
+            axes[i].set_ylim(22, 23)
         else:
             axes[i].set_ylim(2, 20)
 
@@ -471,7 +471,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Error Bound $\delta$")
+        axes[i].set_xlabel("Error Bound $\\delta$")
         axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
 
@@ -527,7 +527,8 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        df_tmp = df_tmp[:11]
+        alphas = [0.01, 0.05, 0.2, 0.4, 0.6, 0.8]
+        df_tmp = df_tmp[np.isclose(df_tmp['alpha'].values[:, None], alphas, atol=.01).any(axis=1)]
         ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
@@ -537,7 +538,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_xticks(ticks=ticks)
-        labels = [f"{label:.2f}".lstrip('0').rstrip('0') for label in  df_tmp["alpha"].to_list()]
+        labels = [f"{int(label*100)}%" for label in  df_tmp["alpha"].to_list()]
         axes[i].set_xticklabels(labels=labels)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
@@ -617,8 +618,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Step Size $\gamma$")
-        axes[i].set_ylabel("Speedup", color="royalblue")\
+        axes[i].set_xlabel("Step Size $\\gamma$")
+        axes[i].set_ylabel("Speedup", color="royalblue")
 
         # set xtick labels as (beta, $\sum N_j$)
         axes[i].set_xticks(ticks=ticks)

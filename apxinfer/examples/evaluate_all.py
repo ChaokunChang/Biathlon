@@ -553,7 +553,7 @@ def run_tick_price_middle(args: ExpArgs):
                     task_name,
                     model,
                     agg_qids,
-                    1,
+                    5,
                     1,
                     max_error,
                 )

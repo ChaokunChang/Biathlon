@@ -453,7 +453,11 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     for i, task_name in enumerate(reg_tasks):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
         if task_name == "Trips-Fare":
-            df_tmp = df_tmp[df_tmp["max_error"] <= 10.01]
+            errors = [0.5, 1.66, 6, 8, 10]
+            df_tmp = df_tmp[np.isclose(df_tmp['max_error'].values[:, None], errors, atol=.1).any(axis=1)]
+            axes[i].set_xticks(ticks=[0.5, 5, 10], label=["0.5", "5", "10"])
+        else:
+            axes[i].set_xticks(ticks=[0.001, 0.05, 0.1], labels=["0.001", "0.05", "0.1"])
 
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")

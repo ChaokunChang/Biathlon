@@ -534,6 +534,17 @@ def run_tick_price_middle(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 1)
+    for max_errors in [0.0001, 0.0005]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            os.system(cmd)
     max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:
@@ -547,6 +558,41 @@ def run_tick_price_middle(args: ExpArgs):
                 max_error,
             )
             os.system(cmd)
+
+
+def run_extreme_tick_price(args: ExpArgs):
+    """
+    must models = ["lr"]
+    """
+    task_name = "tickvaryNM8"
+    agg_qids = "6"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    for max_error in [0.0001, 0.0005]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                5,
+                1,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.95 0.99"
+        os.system(cmd)
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                1,
+                1,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.95 0.99"
+        os.system(cmd)
 
 
 def run_vary_nsamples(args: ExpArgs):
@@ -642,5 +688,7 @@ if __name__ == "__main__":
         run_tdfraudkaggle(args)
     elif args.exp == "tickpricemiddle":
         run_tick_price_middle(args)
+    elif args.exp == "extremetickprice":
+        run_extreme_tick_price(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

@@ -553,7 +553,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(16, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -568,19 +568,21 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue")
-        plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
             # axes[i].set_yticks(np.arange(4, 16, 2))
             # axes[i].set_ylim(3, 15)
             pass
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
-        plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
+        twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
-        axes[i].set_xticks(ticks=df_tmp["alpha"])
-        axes[i].set_xticklabels(labels=df_tmp["alpha"])
+        axes[i].set_xticks(ticks=ticks)
+        labels = [f"{label:.2f}".lstrip('0').rstrip('0') for label in  df_tmp["alpha"].to_list()]
+        axes[i].set_xticklabels(labels=labels)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
         axes[i].set_ylabel("Speedup", color="royalblue")
@@ -641,9 +643,13 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
         df_tmp = df_tmp.sort_values(by=["beta"])
         df_tmp = df_tmp.reset_index(drop=True)
-
-        axes[i].scatter(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue")
-        plot1 = axes[i].plot(df_tmp["beta"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        if len(df_tmp) > 9:
+            betas = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0]
+            df_tmp = df_tmp[df_tmp["beta"].isin(betas)]
+        ticks = np.arange(len(df_tmp["beta"]))
+        # ticks = np.linspace(min(df_tmp["beta"]), max(df_tmp["beta"]), len(df_tmp["beta"]), endpoint=True)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
             # axes[i].set_yticks(np.arange(4, 16, 2))
             # axes[i].set_ylim(3, 15)
@@ -652,19 +658,19 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
                 axes[i].set_ylim(22, 23)
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")
-        plot2 = twnx.plot(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
+        twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Step Size $\gamma$")
         axes[i].set_ylabel("Speedup", color="royalblue")\
 
         # set xtick labels as (beta, $\sum N_j$)
-        axes[i].set_xticks(ticks=[i/100 for i in range(100)])
+        axes[i].set_xticks(ticks=ticks)
         # only show the first, the middle, and last xtick labels
         # xticklabels = [f"{beta*100}%" for beta in df_tmp["beta"]]
         # xticklabels[1:-1] = ["" for _ in range(len(xticklabels[1:-1]))]
-        xticklabels = ["0%"] + ["" for _ in range(1, 50)] + [f"50%"] + ["" for _ in range(51, 99)] + [f"100%"]
+        xticklabels = [f"{int(label*100)}" + "%" for label in df_tmp["beta"].to_list()]
         axes[i].set_xticklabels(labels=xticklabels)
 
         # axes[i].legend(loc="upper left")
@@ -964,13 +970,13 @@ def main(args: EvalArgs):
 
     if args.only is None:
         plot_lat_comparsion_w_breakdown(df, args)
-        plot_lat_breakdown(df, args)
-        plot_vary_min_conf(df, args)
-        plot_vary_max_error(df, args)
+        # plot_lat_breakdown(df, args)
+        # plot_vary_min_conf(df, args)
+        # plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        vary_num_agg(df, args)
-        vary_datasize(df, args)
+        # vary_num_agg(df, args)
+        # vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

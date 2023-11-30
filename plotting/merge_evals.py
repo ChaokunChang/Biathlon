@@ -118,6 +118,12 @@ def tmp_handle_tdfraud(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def tmp_handle_tickvaryNM8(df: pd.DataFrame) -> pd.DataFrame:
+    # for task_name=Fraud-Detection, only keep the rows with seed = 1 and seed = 2
+    df = df[(df['task_name'] != 'tickvaryNM8') | (df['seed'].isin([0, 1, 2]))]
+    return df
+
+
 def main():
     args = EvalArgs().parse_args()
     raw_df = merge_csv(args)
@@ -125,6 +131,7 @@ def main():
                     'min_confs', "avg_sample_query", "avg_qtime_query"]
     df = raw_df.drop(columns=useless_cols)
     df = tmp_handle_tdfraud(df)
+    df = tmp_handle_tickvaryNM8(df)
     if args.avg:
         # seed,
         # agg_qids,task_home,

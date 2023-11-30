@@ -50,7 +50,7 @@ task_default_settings = {
     },
     "tickvaryNM8": {
         "model_name": "lr",
-        "max_error": 0.04,
+        "max_error": 0.01,
     },
     "Bearing-MLP": {
         "model_name": "mlp",
@@ -487,9 +487,9 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     print(selected_df)
 
     if len(reg_tasks) == 2:
-        fig, axes = plt.subplots(figsize=(7, 3), nrows=1, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(7, 3), nrows=1, ncols=2, sharex=False, sharey=False)
     elif len(reg_tasks) > 2:
-        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=True)
+        fig, axes = plt.subplots(figsize=(12, 12), nrows=2, ncols=2, sharex=False, sharey=False)
     else:
         raise NotImplementedError
     axes = axes.flatten()
@@ -499,6 +499,10 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
 
         axes[i].scatter(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["max_error"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        if task_name == "tickvaryNM8":
+            axes[i].set_ylim(22, 23)
+        else:
+            axes[i].set_ylim(2, 20)
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["max_error"], df_tmp[acc_metric], marker='+', color="tomato")

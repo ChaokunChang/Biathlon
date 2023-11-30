@@ -553,7 +553,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(16, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -568,19 +568,21 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["alpha"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].scatter(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue")
-        plot1 = axes[i].plot(df_tmp["alpha"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         if i != len(tasks) - 1:
             # axes[i].set_yticks(np.arange(4, 16, 2))
             # axes[i].set_ylim(3, 15)
             pass
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato")
-        plot2 = twnx.plot(df_tmp["alpha"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
+        twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
-        axes[i].set_xticks(ticks=df_tmp["alpha"])
-        axes[i].set_xticklabels(labels=df_tmp["alpha"])
+        axes[i].set_xticks(ticks=ticks)
+        labels = [f"{label:.2f}".lstrip('0').rstrip('0') for label in  df_tmp["alpha"].to_list()]
+        axes[i].set_xticklabels(labels=labels)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
         axes[i].set_ylabel("Speedup", color="royalblue")
@@ -964,13 +966,13 @@ def main(args: EvalArgs):
 
     if args.only is None:
         plot_lat_comparsion_w_breakdown(df, args)
-        plot_lat_breakdown(df, args)
-        plot_vary_min_conf(df, args)
-        plot_vary_max_error(df, args)
+        # plot_lat_breakdown(df, args)
+        # plot_vary_min_conf(df, args)
+        # plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        vary_num_agg(df, args)
-        vary_datasize(df, args)
+        # vary_num_agg(df, args)
+        # vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

@@ -285,6 +285,18 @@ def run_tripsfeast(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 2)
+    for max_error in [6.0, 8.0, 10.0, 12.0, 14.0]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                5,
+                2,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.95 0.99"
+        os.system(cmd)
     max_errors = [0.5, 1.0, 1.66, 2.0, 3.0, 5.0]
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in max_errors:

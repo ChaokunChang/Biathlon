@@ -648,6 +648,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
             # axes[i].set_yticks(np.arange(4, 16, 2))
             # axes[i].set_ylim(3, 15)
             pass
+        if task_name == "tickvaryNM8":
+                axes[i].set_ylim(22, 23)
 
         twnx = axes[i].twinx()
         twnx.scatter(df_tmp["beta"], df_tmp[acc_metric], marker='+', color="tomato")

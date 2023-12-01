@@ -506,7 +506,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     sns.set_theme(style="whitegrid")
     sns.set_style("whitegrid", {'axes.grid': False})
 
-    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(10, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
@@ -521,6 +521,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
 
+        axes[i].set_xticks(ticks=[0, 0.5, 1], labels=["0", "0.5", "1"])
         axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
@@ -529,18 +530,33 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Confidence Level $\\tau$")
-        axes[i].set_ylabel("Speedup", color="royalblue")
+        # axes[i].set_xlabel("Confidence Level $\\tau$")
+        # axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="lower left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="tomato")
+        # twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="lower left")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(tasks) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(tasks) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="lower left")
+
+    fig.text(0.5, 0.01, 'Confidence Level $\\tau$', ha='center')
     plt.tight_layout()
+    plt.subplots_adjust(wspace=0.01)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_min_conf.pdf"))
     # plt.show()
 
@@ -644,7 +660,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(10, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -686,18 +702,33 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         labels[-1] = f"{int(df_tmp['alpha'].to_list()[-1]*100)}%"
         axes[i].set_xticklabels(labels=labels)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
-        axes[i].set_ylabel("Speedup", color="royalblue")
+        # axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
+        # axes[i].set_ylabel("Speedup", color="royalblue")
         # axes[i].legend(loc="upper left")
+        axes[i].set_ylim((0,65))
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="tomato")
+        # twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="upper right")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(tasks) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(tasks) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="center right")
+    fig.text(0.5, 0.01, 'Initial Sampling Ratio $\\alpha$', ha='center')
     plt.tight_layout()
+    plt.subplots_adjust(wspace=.01)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_alpha.pdf"))
     # plt.show()
 
@@ -730,7 +761,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     pd.set_option("display.precision", 10)
     print(selected_df[selected_df["task_name"] == "tickvaryNM8"])
 
-    fig, axes = plt.subplots(figsize=(16, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(10, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -758,20 +789,20 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         # ticks = np.linspace(min(df_tmp["beta"]), max(df_tmp["beta"]), len(df_tmp["beta"]), endpoint=True)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
-        if task_name == "tickvaryNM8":
-            # set ylim for tickvaryNM8
-            axes[i].set_ylim(8, 12)
-        elif task_name == "Fraud-Detection":
-            # set ylim for Fraud-Detection
-            axes[i].set_ylim(15, 20)
+        # if task_name == "tickvaryNM8":
+        #     # set ylim for tickvaryNM8
+        #     axes[i].set_ylim(8, 12)
+        # elif task_name == "Fraud-Detection":
+        #     # set ylim for Fraud-Detection
+        #     axes[i].set_ylim(15, 20)
 
         twnx = axes[i].twinx()
         twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
         plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
-        axes[i].set_xlabel("Step Size $\\gamma$")
-        axes[i].set_ylabel("Speedup", color="royalblue")
+        # axes[i].set_xlabel("Step Size $\\gamma$")
+        # axes[i].set_ylabel("Speedup", color="royalblue")
 
         # set xtick labels as (beta, $\sum N_j$)
         axes[i].set_xticks(ticks=ticks)
@@ -782,17 +813,33 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         xticklabels = [f"{int(label*100)}" for label in df_tmp["beta"].to_list()]
         xticklabels[-1] = f"{int(df_tmp['beta'].to_list()[-1]*100)}%"
         axes[i].set_xticklabels(labels=xticklabels)
+        axes[i].set_ylim((3, 19))
 
         # axes[i].legend(loc="upper left")
 
         twnx.set_ylim(YLIM_ACC)
-        twnx.set_ylabel("Accuracy", color="tomato")
+        # twnx.set_ylabel("Accuracy", color="tomato")
         # twnx.legend(loc="upper right")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+            axes[i].set_yticks([5, 10, 15])
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(tasks) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(tasks) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="lower left")
+    fig.text(0.5, 0.01, 'Step Size $\\gamma$', ha='center')
     plt.tight_layout()
+    plt.subplots_adjust(wspace=.01)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_beta.pdf"))
     # plt.show()
 
@@ -1084,13 +1131,13 @@ def main(args: EvalArgs):
     if args.only is None:
         # plot_lat_comparsion_w_breakdown(df, args)
         plot_lat_comparsion_w_breakdown_split(df, args)
-        plot_lat_breakdown(df, args)
+        # plot_lat_breakdown(df, args)
         plot_vary_min_conf(df, args)
-        plot_vary_max_error(df, args)
+        # plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        vary_num_agg(df, args)
-        vary_datasize(df, args)
+        # vary_num_agg(df, args)
+        # vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

@@ -1131,13 +1131,13 @@ def main(args: EvalArgs):
     if args.only is None:
         # plot_lat_comparsion_w_breakdown(df, args)
         plot_lat_comparsion_w_breakdown_split(df, args)
-        # plot_lat_breakdown(df, args)
+        plot_lat_breakdown(df, args)
         plot_vary_min_conf(df, args)
-        # plot_vary_max_error(df, args)
+        plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        # vary_num_agg(df, args)
-        # vary_datasize(df, args)
+        vary_num_agg(df, args)
+        vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

@@ -108,17 +108,32 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     # special handling for profiling results
     def handler_for_inference_cost(df: pd.DataFrame) -> pd.DataFrame:
         # move inference cost from BD:Sobol to BD:AMI
-        scaling_factors = {
-            "Trips-Fare": 0.17,
-            "Tick-Price": 0.67,
-            "Fraud-Detection": 0.35,
-            "Bearing-MLP": 0.12,
+        """ m = 1000, k * m/2 => m / (m + km / 2) = 2 / (2 + k)
+        """
+        AMI_factors = {
+            "Trips-Fare": 0.5,
+            "Tick-Price": 2.0 / 3,
+            "Bearing-MLP": 0.2,
+            "Fraud-Detection": 0.4,
             "Bearing-KNN": 0.01,
             "Bearing-Multi": 0.05,
         }
-        for task_name in scaling_factors:
-            df.loc[df["task_name"] == task_name, "BD:AMI"] += df["BD:Sobol"] * (1 - scaling_factors[task_name])
-            df.loc[df["task_name"] == task_name, "BD:Sobol"] *= scaling_factors[task_name]
+        for task_name in AMI_factors:
+            total = df["BD:AMI"] + df["BD:Sobol"]
+            df.loc[df["task_name"] == task_name, "BD:AMI"] = total * AMI_factors[task_name]
+            df.loc[df["task_name"] == task_name, "BD:Sobol"] = total * (1 - AMI_factors[task_name])
+
+        # scaling_factors = {
+        #     "Trips-Fare": 0.17,
+        #     "Tick-Price": 0.67,
+        #     "Fraud-Detection": 0.35,
+        #     "Bearing-MLP": 0.12,
+        #     "Bearing-KNN": 0.01,
+        #     "Bearing-Multi": 0.05,
+        # }
+        # for task_name in scaling_factors:
+        #     df.loc[df["task_name"] == task_name, "BD:AMI"] += df["BD:Sobol"] * (1 - scaling_factors[task_name])
+        #     df.loc[df["task_name"] == task_name, "BD:Sobol"] *= scaling_factors[task_name]
 
         # df["BD:AMI"] += df["BD:Sobol"] * 0.9
         # df["BD:Sobol"] = df["BD:Sobol"] * 0.1

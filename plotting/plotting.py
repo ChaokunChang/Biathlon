@@ -513,7 +513,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     selected_df = selected_df[required_cols]
     print(selected_df)
 
-    fig, axes = plt.subplots(figsize=(16, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(17, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)
@@ -599,7 +599,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     pd.set_option("display.precision", 10)
     print(selected_df[selected_df["task_name"] == "tickvaryNM8"])
 
-    fig, axes = plt.subplots(figsize=(15, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(16, 3), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=False)

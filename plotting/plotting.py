@@ -688,7 +688,11 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         # alphas = [0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
         alphas = [0.01, 0.02, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
         df_tmp = df_tmp[np.isclose(df_tmp['alpha'].values[:, None], alphas, atol=.001).any(axis=1)]
-        ticks = np.linspace(min(df_tmp["alpha"]), max(df_tmp["alpha"]), len(df_tmp["alpha"]), endpoint=True)
+        # [1, 2, 5, 10, 30, 50, 70, 90, 100]
+        # ticks = np.array([0.08, 0.12, 0.17, 0.25, 0.24, 0.44, 0.64, 0.84, 1.00])
+        ticks = np.array([0.08, 0.15, 0.23, 0.33, 0.46, 0.59, 0.72, 0.85, 1.00])
+        axes[i].set_xlim(0, 1.05)
+
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
@@ -699,7 +703,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         axes[i].set_xticks(ticks=ticks)
         # labels = [f"{int(label*100)}%" for label in  df_tmp["alpha"].to_list()]
         labels = [f"{int(label*100)}" for label in df_tmp["alpha"].to_list()]
-        labels[-1] = f"{int(df_tmp['alpha'].to_list()[-1]*100)}%"
+        labels[-1] = f" {int(df_tmp['alpha'].to_list()[-1]*100)}% "
         axes[i].set_xticklabels(labels=labels)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         # axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
@@ -725,7 +729,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="center right")
+        axes[i].legend(plots, labels, loc="center right", fontsize=9)
     fig.text(0.5, 0.01, 'Initial Sampling Ratio $\\alpha$', ha='center')
     plt.tight_layout()
     plt.subplots_adjust(wspace=.01)
@@ -787,6 +791,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
             df_tmp = df_tmp[df_tmp["beta"].isin(betas)]
         ticks = np.arange(len(df_tmp["beta"]))
         # ticks = np.linspace(min(df_tmp["beta"]), max(df_tmp["beta"]), len(df_tmp["beta"]), endpoint=True)
+        ticks = np.array([0.08, 0.15, 0.23, 0.33, 0.46, 0.59, 0.72, 0.85, 1.00])
+        axes[i].set_xlim(0, 1.05)
         axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
         plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
         # if task_name == "tickvaryNM8":
@@ -836,7 +842,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="lower left")
+        axes[i].legend(plots, labels, loc="lower left", fontsize=9)
     fig.text(0.5, 0.01, 'Step Size $\\gamma$', ha='center')
     plt.tight_layout()
     plt.subplots_adjust(wspace=.01)
@@ -1131,13 +1137,13 @@ def main(args: EvalArgs):
     if args.only is None:
         # plot_lat_comparsion_w_breakdown(df, args)
         plot_lat_comparsion_w_breakdown_split(df, args)
-        plot_lat_breakdown(df, args)
-        plot_vary_min_conf(df, args)
-        plot_vary_max_error(df, args)
+        # plot_lat_breakdown(df, args)
+        # plot_vary_min_conf(df, args)
+        # plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        vary_num_agg(df, args)
-        vary_datasize(df, args)
+        # vary_num_agg(df, args)
+        # vary_datasize(df, args)
     elif args.only == "varym":
         vary_m(df, args)
 

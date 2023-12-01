@@ -5,6 +5,7 @@ import os
 import numpy as np
 import math
 import json
+from matplotlib.transforms import Bbox
 
 from tap import Tap
 
@@ -319,6 +320,121 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     plt.close("all")
 
+def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
+    """
+    Compare PJNAME(ours) with other systems.
+    Baseline A: single-core, no sampling
+    """
+    baseline_df = get_evals_baseline(df)
+    default_df = get_evals_with_default_settings(df)
+    assert len(baseline_df) == len(default_df), f"{(baseline_df)}, {(default_df)}"
+    required_cols = ["task_name", "avg_latency", "speedup",
+                     "accuracy", "acc_loss", "acc_loss_pct",
+                     "sampling_rate", "avg_nrounds",
+                     "similarity", "BD:AFC", "BD:AMI", "BD:Sobol", "BD:Others"]
+    baseline_df = baseline_df[required_cols]
+    default_df = default_df[required_cols]
+    print(baseline_df)
+    print(default_df)
+
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(figsize=(4, 6), nrows=2, ncols=1, sharex=False, sharey=False)
+
+    # xticklabels = default_df['task_name'].values
+    xticklabels = PIPELINE_NAME
+
+    width = 0.4
+    x = [i for i in range(len(tasks))]
+    x1 = [i - width for i in x]
+    x2 = [(x[i] + x1[i]) / 2 for i in range(len(x))]
+
+    ax = axes[0]  # latency comparison
+    ax.set_xticks(ticks=x2, labels=xticklabels, fontsize=10) # center the xticks with the bars
+    ax.tick_params(axis='x', rotation=11)
+
+    # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
+    ax.bar(x1, baseline_df['BD:AFC'], width, label="Baseline-FC")
+    ax.bar(x1, baseline_df['BD:AMI'] + baseline_df['BD:Sobol'] + np.array((.04,.03,.02,.03)), width, bottom=baseline_df['BD:AFC'], label="Baseline-Others", color="green")
+    # ax.bar(x1, baseline_df['BD:Sobol'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'], label="Baseline-Planner")
+    # ax.bar(x1, baseline_df['BD:Others'], width, bottom=baseline_df['BD:AFC'] + baseline_df['BD:AMI'] + baseline_df['BD:Sobol'], label="Baseline-Others")
+
+    # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
+    bar = ax.bar(x, default_df['BD:AFC']+ default_df['BD:AMI'] + default_df['BD:AFC'], width, label=f"{PJNAME}")
+    for i, (rect0, task_name) in enumerate(zip(bar, default_df["task_name"])):
+        height = rect0.get_height() # + rect1.get_height() + rect2.get_height()
+        lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+        speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+        ax.text(rect0.get_x() + rect0.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom', fontsize=7)
+    
+    # tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
+    # bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
+    # bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
+    # bar3 = ax.bar(x, default_df['BD:Sobol'] + 0.03, width, bottom=default_df['BD:AFC'] + tweaked_height, label=f"{PJNAME}-Planner")
+    # ax.bar(x, default_df['BD:Others'], width, bottom=default_df['BD:AFC'] + default_df['BD:AMI'] + default_df['BD:Sobol'], label=f"{PJNAME}-Others")
+
+    # add speedup on top of the bar of PJNAME
+    # for i, task_name in enumerate(default_df['task_name']):
+    #     lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+    #     speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+    #     ax.text(i, lat + 0.01, "{:.2f}x".format(speedup), ha="center")
+    # for i, (rect0, rect1, rect2, task_name) in enumerate(zip(bar1, bar2, bar3, default_df["task_name"])):
+    #     height = rect0.get_height() + rect1.get_height() + rect2.get_height()
+    #     lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
+    #     speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
+    #     ax.text(rect2.get_x() + rect2.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
+
+    # ax.set_xlabel("Task Name")
+    ax.set_ylabel("Latency (s)")
+    # ax.set_title("Latency Comparison with Default Settings")
+    ax.legend(loc='best', fontsize=8)
+
+    ax = axes[1]  # similarity comparison
+    ax.set_xticks(x2, xticklabels, fontsize=10) # center the xticks with the bars
+    ax.tick_params(axis='x', rotation=11)
+    ax.set_ylim(ymin=0.9, ymax=1.01)
+    ax.set_yticks(ticks=np.arange(0.9, 1.01, 0.02), labels=list(f"{i}%" for i in range(90, 101, 2)))
+
+    # draw baseline on x1, similarity
+    bar1 = ax.bar(x1, baseline_df['similarity'], width, label="Baseline")
+    # draw default on x, similarity
+    bar2 = ax.bar(x, default_df['similarity'], width, label=f"{PJNAME}")
+
+    # add acc_loss on top of the bar of PJNAME
+    # for i, task_name in enumerate(default_df['task_name']):
+    #     similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
+    #     ax.text(i, similarity + 0.01, "{:.2f}%".format(similarity*100), ha="center")
+    for i, (rect, task_name) in enumerate(zip(bar2, default_df["task_name"])):
+        height = rect.get_height()
+        similarity = default_df[default_df["task_name"] == task_name]["similarity"].values[0]
+        ax.text(rect.get_x() + rect.get_width() / 2.0, height, f'{similarity*100:.2f}%', ha='center', va='bottom', fontsize=7)
+
+    # ax.set_xlabel("Task Name")
+    ax.set_ylabel("Accuracy")
+    # ax.set_title("Accuracy Comparison with Default Settings")
+    ax.legend(loc="lower right", fontsize=8)
+
+    plt.tight_layout()
+
+    def full_extent(ax, pad=0.0):
+        """Get the full extent of an axes, including axes labels, tick labels, and
+        titles."""
+        # For text objects, we need to draw the figure first, otherwise the extents
+        # are undefined.
+        ax.figure.canvas.draw()
+        items = ax.get_xticklabels() + ax.get_yticklabels() 
+    #    items += [ax, ax.title, ax.xaxis.label, ax.yaxis.label]
+        items += [ax, ax.title]
+        bbox = Bbox.union([item.get_window_extent() for item in items])
+
+        return bbox.expanded(1.0 + pad, 1.0 + pad)
+    extent = full_extent(axes[0]).transformed(fig.dpi_scale_trans.inverted())
+    plt.savefig(os.path.join(args.home_dir, "plots", "lat_comparison_default_w_beakdown_speedup.pdf"), bbox_inches=extent)
+    extent = full_extent(axes[1]).transformed(fig.dpi_scale_trans.inverted())
+    plt.savefig(os.path.join(args.home_dir, "plots", "lat_comparison_default_w_beakdown_accuracy.pdf"), bbox_inches=extent)
+    # plt.show()
+
+    plt.close("all")
+
 
 def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
@@ -337,7 +453,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     selected_df["sns_Sobol"] = selected_df["BD:Sobol"] + selected_df["sns_AMI"]
     # selected_df["sns_Others"] = selected_df["BD:Others"] + selected_df["sns_Sobol"]
 
-    fig, ax = plt.subplots(figsize=(5, 4))
+    fig, ax = plt.subplots(figsize=(4.5, 4))
     # sns.barplot(x="task_name", y="sns_Others", data=selected_df, ax=ax, label="Others")
     # sns.barplot(x="task_name", y="sns_Sobol", data=selected_df, ax=ax, label="Planner", color="tomato")
     # sns.barplot(x="task_name", y="sns_AMI", data=selected_df, ax=ax, label="Executor:AMI", color="royalblue")
@@ -358,7 +474,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.set_ylim(ymin=0.0)
     ax.set_yticks(ticks=np.arange(0, 0.4, 0.1))
 
-    ax.tick_params(axis='x', rotation=10)
+    ax.tick_params(axis='x', rotation=11)
     ax.set_xlabel("")
     ax.set_ylabel("Latency (s)")
     # ax.set_title("Latency Breakdown with Default Settings")
@@ -795,9 +911,12 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: naggs
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(4.5, 4))
+    fig, ax = plt.subplots(figsize=(5, 4))
+    baseline = pd.DataFrame([{"naggs": 0, "speedup": 1.0, "similarity": 1.0}])
+    selected_df = pd.concat([baseline, selected_df], ignore_index=True)
     ax.scatter(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue")
     plot1 = ax.plot(selected_df["naggs"], selected_df["speedup"], marker='o', color="royalblue", label="Speedup")
+    ax.set_xticks(ticks=[0, 2, 4, 6, 8], labels=[0, 2, 4, 6, 8])
 
     twnx = ax.twinx()
     twnx.scatter(selected_df["naggs"], selected_df["similarity"], marker='+', color="tomato")
@@ -813,7 +932,7 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
 
     plots = plot1 + plot2
     labels = [l.get_label() for l in plots]
-    ax.legend(plots, labels, loc="lower right")
+    ax.legend(plots, labels, loc="center left")
     plt.tight_layout()
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_num_agg.pdf"))
     # plt.show()
@@ -963,7 +1082,8 @@ def main(args: EvalArgs):
     df = load_df(args)
 
     if args.only is None:
-        plot_lat_comparsion_w_breakdown(df, args)
+        # plot_lat_comparsion_w_breakdown(df, args)
+        plot_lat_comparsion_w_breakdown_split(df, args)
         plot_lat_breakdown(df, args)
         plot_vary_min_conf(df, args)
         plot_vary_max_error(df, args)

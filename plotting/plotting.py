@@ -506,7 +506,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     sns.set_theme(style="whitegrid")
     sns.set_style("whitegrid", {'axes.grid': False})
 
-    fig, axes = plt.subplots(figsize=(10, 3), nrows=1, ncols=4, sharex=False, sharey=False)
+    fig, axes = plt.subplots(figsize=(10, 2.5), nrows=1, ncols=4, sharex=False, sharey=False)
 
     # if len(tasks) == 4:
     #     fig, axes = plt.subplots(figsize=(7, 6), nrows=2, ncols=2, sharex=False, sharey=True)
@@ -521,13 +521,16 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        axes[i].set_xticks(ticks=[0, 0.5, 1], labels=["0", "0.5", "1"])
-        axes[i].scatter(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue")
-        plot1 = axes[i].plot(df_tmp["min_conf"], df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
+        ticks = [0, 0.13, 0.25, 0.37, 0.49, 0.61, 0.755, 0.915, 1.02]
+        labels = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1]
+        axes[i].set_xlim(-0.05, 1.05)
+        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=10)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker='o', color="royalblue")
+        plot1 = axes[i].plot(ticks, df_tmp["speedup"], marker='o', color="royalblue", label="Speedup")
 
         twnx = axes[i].twinx()
-        twnx.scatter(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato")
-        plot2 = twnx.plot(df_tmp["min_conf"], df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
+        twnx.scatter(ticks, df_tmp[acc_metric], marker='+', color="tomato")
+        plot2 = twnx.plot(ticks, df_tmp[acc_metric], marker='+', color="tomato", label="Accuracy")
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         # axes[i].set_xlabel("Confidence Level $\\tau$")
@@ -552,11 +555,11 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="lower left")
+        axes[i].legend(plots, labels, loc="lower left", fontsize=10)
 
-    fig.text(0.5, 0.01, 'Confidence Level $\\tau$', ha='center')
+    fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center')
     plt.tight_layout()
-    plt.subplots_adjust(wspace=0.01)
+    plt.subplots_adjust(wspace=0.0)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_min_conf.pdf"))
     # plt.show()
 
@@ -704,7 +707,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         # labels = [f"{int(label*100)}%" for label in  df_tmp["alpha"].to_list()]
         labels = [f"{int(label*100)}" for label in df_tmp["alpha"].to_list()]
         labels[-1] = f" {int(df_tmp['alpha'].to_list()[-1]*100)}% "
-        axes[i].set_xticklabels(labels=labels)
+        axes[i].set_xticklabels(labels=labels, fontsize=10)
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]))
         # axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$")
         # axes[i].set_ylabel("Speedup", color="royalblue")
@@ -717,6 +720,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
 
         if i == 0:
             axes[i].set_ylabel("Speedup", color="royalblue")
+            axes[i].set_yticks(ticks=np.array([1, 10, 20, 30, 40, 50, 60]))
         if i != 0:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
@@ -730,9 +734,9 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="center right", fontsize=9)
-    fig.text(0.5, 0.01, 'Initial Sampling Ratio $\\alpha$', ha='center')
+    fig.text(0.5, 0.02, 'Initial Sampling Ratio $\\alpha$', ha='center')
     plt.tight_layout()
-    plt.subplots_adjust(wspace=.01)
+    plt.subplots_adjust(wspace=.0)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_alpha.pdf"))
     # plt.show()
 
@@ -818,7 +822,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         # xticklabels = [f"{int(label*100)}" + "%" for label in df_tmp["beta"].to_list()]
         xticklabels = [f"{int(label*100)}" for label in df_tmp["beta"].to_list()]
         xticklabels[-1] = f"{int(df_tmp['beta'].to_list()[-1]*100)}%"
-        axes[i].set_xticklabels(labels=xticklabels)
+        axes[i].set_xticklabels(labels=xticklabels, fontsize=10)
         axes[i].set_ylim((3, 19))
 
         # axes[i].legend(loc="upper left")
@@ -843,9 +847,9 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="lower left", fontsize=9)
-    fig.text(0.5, 0.01, 'Step Size $\\gamma$', ha='center')
+    fig.text(0.5, 0.02, 'Step Size $\\gamma$', ha='center')
     plt.tight_layout()
-    plt.subplots_adjust(wspace=.01)
+    plt.subplots_adjust(wspace=.0)
     plt.savefig(os.path.join(args.home_dir, "plots", "sim-sup_vary_beta.pdf"))
     # plt.show()
 
@@ -1138,7 +1142,7 @@ def main(args: EvalArgs):
         # plot_lat_comparsion_w_breakdown(df, args)
         plot_lat_comparsion_w_breakdown_split(df, args)
         # plot_lat_breakdown(df, args)
-        # plot_vary_min_conf(df, args)
+        plot_vary_min_conf(df, args)
         # plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)

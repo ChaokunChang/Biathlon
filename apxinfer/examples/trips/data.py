@@ -2,6 +2,7 @@ from apxinfer.core.utils import XIPRequest
 from apxinfer.core.data import DBHelper, XIPDataIngestor, XIPDataLoader
 import os
 
+
 class TripsRequest(XIPRequest):
     req_trip_id: int
     req_pickup_datetime: str
@@ -186,6 +187,7 @@ class TripsIngestor(XIPDataIngestor):
         )
         sql = f"""
             INSERT INTO {self.database}.{self.table}
+            SETTINGS max_partitions_per_insert_block = 1000
             SELECT trip_id, pickup_datetime, dropoff_datetime,
               pickup_longitude, pickup_latitude,
               dropoff_longitude, dropoff_latitude,

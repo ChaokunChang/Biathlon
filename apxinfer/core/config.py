@@ -13,7 +13,7 @@ class BaseXIPArgs(Tap):
     scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
     nparts: int = 100  # maximum number of partitions of dataset
-    loading_mode: int = 1  # 0 means part by part, 1 means together, k>1 means k parts by k parts
+    loading_mode: int = 0  # 0 means part by part, 1 means together, k>1 means k parts by k parts
     bs_nthreads: int = 1  # nthreads for bootstrapping
     bs_type: Literal['descrete', 'fstd'] = "fstd"
     bs_nresamples: int = 100
@@ -21,7 +21,7 @@ class BaseXIPArgs(Tap):
     bs_bias_correction: bool = True
     bs_for_var_std: bool = True
     err_min_support: int = 30
-    ncores: int = 0  # ncores for experiment
+    ncores: int = 1  # ncores for experiment
     verbose: bool = False
 
 
@@ -41,7 +41,7 @@ class TrainerArgs(BaseXIPArgs):
 
 class OfflineArgs(BaseXIPArgs):
     nreqs: int = 0  # number of test requests
-    ncfgs: int = 10  # number of query configurations
+    ncfgs: int = 100  # number of query configurations
     clear_cache: bool = False
 
 
@@ -49,7 +49,7 @@ class OnlineArgs(BaseXIPArgs):
     offline_nreqs: int = 10  # number of offline requests
     nreqs: int = 0  # number of test requests
     nreqs_offset: int = 0
-    ncfgs: int = 10  # number of query configurations
+    ncfgs: int = 100  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
     disable_query_cache: bool = False  # whether to disable cache the query in loader

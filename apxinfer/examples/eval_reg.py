@@ -38,7 +38,7 @@ class EvalArgs(Tap):
     scheduler_batch: int = 1
     nocache: bool = False
     seed: int = 0
-    min_confs: list[float] = [0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    min_confs: list[float] = [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
     pest_nsamples: int = 1000
 
     def process_args(self):

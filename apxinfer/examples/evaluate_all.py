@@ -33,12 +33,12 @@ class ExpArgs(Tap):
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
     quantiles = [1, 2, 5] + [i for i in range(10, 100, 20)] + [100]
     # default_quantiles = [1, 2, 5]
-    cfgs = [(7, 11)] # for warm up
+    cfgs = [(7, 13)] # for warm up
     # default beta and vary alpha
     for beta in [1]:
         for alpha in quantiles[:-1]:
             cfgs.append((alpha, beta*naggs))
-    for alpha in [5]:
+    for alpha in [1, 5]:
         for beta in quantiles:
             cfgs.append((alpha, beta*naggs))
     return cfgs
@@ -121,7 +121,7 @@ def run_machinery(args: ExpArgs):
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
         if args.complementary:
-            cmd = f"{cmd} --min_confs 0.95"
+            cmd = f"{cmd} --min_confs 0.99 0.98"
         os.system(cmd)
 
 
@@ -197,7 +197,7 @@ def run_tdfraud(args: ExpArgs):
             args, task_name, model, agg_qids, scheduler_init, scheduler_batch, 0.0
         )
         if args.complementary:
-            cmd = f"{cmd} --min_confs 0.95"
+            cmd = f"{cmd} --min_confs 0.99 0.98"
         os.system(cmd)
 
 
@@ -276,7 +276,7 @@ def run_tripsfeast(args: ExpArgs):
         cmd = get_base_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     cfgs = get_scheduler_cfgs(args, 2)
-    for max_error in [6.0, 8.0, 10.0, 12.0, 14.0]:
+    for max_error in [2.0, 4.0, 6.0, 8.0, 10.0, 15.0]:
         cmd = get_eval_cmd(
                 args,
                 task_name,
@@ -286,9 +286,9 @@ def run_tripsfeast(args: ExpArgs):
                 2,
                 max_error,
             )
-        cmd = f"{cmd} --min_confs 0.95 0.99"
+        cmd = f"{cmd} --min_confs 0.98 0.99"
         os.system(cmd)
-    max_errors = [0.5, 1.0, 1.66, 2.0, 3.0, 5.0]
+    max_errors = [0.1, 0.5, 1.0]
     if args.complementary:
         max_errors = [1.66]
     for scheduler_init, scheduler_batch in cfgs:
@@ -303,7 +303,7 @@ def run_tripsfeast(args: ExpArgs):
                 max_error,
             )
             if args.complementary:
-                cmd = f"{cmd} --min_confs 0.95"
+                cmd = f"{cmd} --min_confs 0.98 0.99"
             os.system(cmd)
 
 

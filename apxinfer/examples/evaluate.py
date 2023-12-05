@@ -13,23 +13,37 @@ TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 1000)]
 
 class ExpArgs(Tap):
     interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
+    task_home: str = "final2"
     exp: str = None
     model: str = None  # see each exp
-    ncores: int = None  # 1, 0
-    loading_mode: int = None  # 0, 1, 2, 5, 10
+
+    ncores: int = 1  # 1, 0
+    loading_mode: int = 0  # 0, 1, 2, 5, 10
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
+
+    prep: bool = False
     skip_shared: bool = False
-    prep_single: str = None
-    complementary: bool = False
+
+    default_only: bool = False
+    collect_only: bool = False
 
     def process_args(self):
         assert self.exp is not None
-        if self.exp != "prepare":
+        if not self.prep:
             assert self.model is not None
-            assert self.ncores is not None
-            assert self.loading_mode is not None
+
+
+def run_prepare(args: ExpArgs):
+    interpreter = args.interpreter
+    if interpreter == "python":
+        cmd = f"{interpreter}"
+    else:
+        cmd = f"sudo {interpreter}"
+    assert args.prep is True
+    cmd = f"{cmd} prep.py --interpreter {interpreter} --task_home {args.task_home} --task_name {args.exp} --prepare_again --seed {args.seed}"
+    os.system(cmd)
 
 
 def extract_result(keys: dict, all_info: dict,
@@ -77,8 +91,8 @@ def extract_result(keys: dict, all_info: dict,
 
 
 def collect_results(args: ExpArgs, task_name: str, agg_qids: str, max_errors: list[float]) -> pd.DataFrame:
-    TASK_HOME = "final"
-    min_confs = [0.999, 0.995, 0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    TASK_HOME = args.task_home
+    min_confs = [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
     qinf = "sobol"
     policy = "optimizer"
     pest_nsamples = 1000
@@ -127,7 +141,7 @@ def get_base_cmd(args: ExpArgs, task_name: str, agg_qids: str):
     else:
         cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
 
-    cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
+    cmd = f"{cmd} --interpreter {interpreter}  --task_home {args.task_home} --task_name {task_name} --agg_qids {agg_qids}"
     cmd = f"{cmd} --model {args.model} --nparts {args.nparts} --ncores {args.ncores} --loading_mode {args.loading_mode}"
     return cmd
 
@@ -157,31 +171,38 @@ def run_eval_cmd(
 def run_pipeline(args: ExpArgs, task_name: str, agg_qids: str,
                  max_errors: list[float]):
     """ run with different settings (scheduler_init, scheduler_batch, max_error, min_confs)
-    1. default setting, (1, 1*naggs, 0.0, 0.99), (1, 1*naggs, 0.0, 0.95)
-    2. vary scheduler_batch, (1, n*naggs, 0.0, c), n \in [1, 2, 5, 10, 30, 50, 70, 100], c \in [0.99, 0.95]
-    3. vary max_error, (1, 1*naggs, e, c), e \in max_errors, c \in [0.99, 0.95]
-    4. vary min_confs, (1, 1*naggs, 0.0, c), c \in [0.999, 0.995, 0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    1. default setting, (1, 1*naggs, 0.0, c), c \in [0.99, 0.98, 0.95]
+    2. vary scheduler_batch, (1, n*naggs, 0.0, c), n \in [1, 2, 5, 10, 30, 50, 70, 100], c \in [0.99, 0.98, 0.95]
+    3. vary max_error, (1, 1*naggs, e, c), e \in max_errors, c \in [0.99, 0.98, 0.95]
+    4. vary min_confs, (1, 1*naggs, 0.0, c), c \in [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
     5. sepecial scheduler_init, (0, n*naggs, 0.0, 0.95), n \in [1, 2, 5, 10, 30, 50, 70, 100]
     6. sepecial scheduler_init, (0, 1*naggs, 0.0, 0.99)
     """
+    if args.collect_only:
+        collect_results(args, task_name, agg_qids, max_errors)
+        return
+
     model = args.model
     naggs = len(agg_qids.split())
     default_error = max_errors[0]
     run_shared(args, task_name, agg_qids)
     # 1. default setting
-    run_eval_cmd(args, task_name, model, agg_qids, 1, 1*naggs, default_error, [0.99, 0.95])
+    run_eval_cmd(args, task_name, model, agg_qids, 1, 1*naggs, default_error, [0.99, 0.98, 0.95])
+
+    if args.default_only:
+        return
 
     # 2. vary scheduler_batch
     batches = [1, 2, 5, 10, 30, 50, 70, 100]
     for n in batches:
-        run_eval_cmd(args, task_name, model, agg_qids, 1, n*naggs, default_error, [0.99, 0.95])
+        run_eval_cmd(args, task_name, model, agg_qids, 1, n*naggs, default_error, [0.99, 0.98, 0.95])
 
     # 3. vary max_error
     for e in max_errors[1:]:
-        run_eval_cmd(args, task_name, model, agg_qids, 1, 1*naggs, e, [0.99, 0.95])
+        run_eval_cmd(args, task_name, model, agg_qids, 1, 1*naggs, e, [0.99, 0.98, 0.95])
 
     # 4. vary min_confs
-    min_confs = [0.999, 0.995, 0.99, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]:
+    min_confs = [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]:
     cmd = run_eval_cmd(args, task_name, agg_qids, 1, 1*naggs, default_error, min_confs)
 
     # 5. sepecial scheduler_init
@@ -247,3 +268,36 @@ def run_tripsfeast(args: ExpArgs):
     max_errors = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
     run_pipeline(args, task_name, agg_qids, max_errors)
     run_pipeline(args, task_name, agg_qids, [0.5, 0.1])
+
+
+def run_machinery_vary_nf(args: ExpArgs, nf: int):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = f"machineryxf{nf}"
+    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    assert args.default_only is True, "must run default_only"
+    run_pipeline(args, task_name, agg_qids, [0.0])
+
+
+if __name__ == "__main__":
+    args = ExpArgs().parse_args()
+    if args.prep:
+        run_prepare(args)
+    elif args.exp == "machinery":
+        run_machinery(args)
+    elif args.exp == "tripsfeast":
+        run_tripsfeast(args)
+    elif args.exp == "machinerymulti":
+        run_machinerymulti(args)
+    elif args.exp in MachineryVaryXNF:
+        nf = int(args.exp[len("machineryxf"):])
+        run_machinery_vary_nf(args, nf)
+    elif args.exp == "tdfraud":
+        run_tdfraud(args)
+    elif args.exp == "tdfraudrandom":
+        run_tdfraudrandom(args)
+    elif args.exp == "tdfraudkaggle":
+        run_tdfraudkaggle(args)
+    else:
+        raise ValueError(f"invalid exp {args.exp}")

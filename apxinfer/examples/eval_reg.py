@@ -100,33 +100,24 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "avg_nrounds": all_info["avg_nrounds"],
         "avg_sample_query": all_info["avg_sample_query"],
         "avg_qtime_query": all_info["avg_qtime_query"],
+        "meet_rate": all_info["meet_rate"],
+        "avg_real_error": all_info["avg_real_error"],
     }
+    for key in all_info["evals_to_ext"]:
+        if key in ['time', 'size']:
+            continue
+        result[f"similarity-{key}"] = all_info["evals_to_ext"][key]
+    for key in all_info["evals_to_gt"]:
+        if key in ['time', 'size']:
+            continue
+        result[f"accuracy-{key}"] = all_info["evals_to_gt"][key]
     if args.task_name in ALL_REG_TASKS:
-        accs = {
-            "similarity": all_info["evals_to_ext"]["r2"],
-            "accuracy": all_info["evals_to_gt"]["r2"],
-            "similarity-r2": all_info["evals_to_ext"]["r2"],
-            "accuracy-r2": all_info["evals_to_gt"]["r2"],
-            "similarity-mse": all_info["evals_to_ext"]["mse"],
-            "accuracy-mse": all_info["evals_to_gt"]["mse"],
-            "similarity-mape": all_info["evals_to_ext"]["mape"],
-            "accuracy-mape": all_info["evals_to_gt"]["mape"],
-            "similarity-maxe": all_info["evals_to_ext"]["maxe"],
-            "accuracy-maxe": all_info["evals_to_gt"]["maxe"],
-        }
+        result['similarity'] = result['similarity-r2']
+        result['accuracy'] = result['accuracy-r2']
     else:
         assert args.task_name in ALL_CLS_TASKS
-        accs = {
-            "similarity": all_info["evals_to_ext"]["acc"],
-            "accuracy": all_info["evals_to_gt"]["acc"],
-            "similarity-acc": all_info["evals_to_ext"]["acc"],
-            "accuracy-acc": all_info["evals_to_gt"]["acc"],
-            "similarity-f1": all_info["evals_to_ext"]["f1"],
-            "accuracy-f1": all_info["evals_to_gt"]["f1"],
-            "similarity-auc": all_info["evals_to_ext"]["auc"],
-            "accuracy-auc": all_info["evals_to_gt"]["auc"],
-        }
-    result = {**result, **accs}
+        result['similarity'] = result['similarity-f1']
+        result['accuracy'] = result['accuracy-f1']
     return result
 
 

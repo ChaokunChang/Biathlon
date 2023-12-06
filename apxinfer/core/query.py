@@ -500,8 +500,7 @@ class XIPQueryProcessor:
             self._dcache["cached_rrd"] = None
 
         if from_pid < to_pid:
-            pid_by_pid = False
-            if pid_by_pid:
+            if self.loading_mode == 0:
                 rrds = []
                 for next_pid in range(from_pid, to_pid):
                     sql = f"""
@@ -517,7 +516,7 @@ class XIPQueryProcessor:
                     new_rrd = np.concatenate(rrds)
                 else:
                     new_rrd = None
-            else:
+            elif self.loading_mode == 1:
                 sql = f"""
                         SELECT {', '.join([qop['dcol'] for qop in self.qops])}
                         FROM {self.dbtable}
@@ -525,6 +524,26 @@ class XIPQueryProcessor:
                         SETTINGS max_threads = {loading_nthreads}
                     """
                 new_rrd = await self.execute_sql_async(sql)
+            elif self.loading_mode >= 2:
+                batch_size = self.loading_mode
+                rrds = []
+                for start_pid in range(from_pid, to_pid, batch_size):
+                    until_pid = min(start_pid + batch_size, to_pid)
+                    sql = f"""
+                        SELECT {', '.join([qop['dcol'] for qop in self.qops])}
+                        FROM {self.dbtable}
+                        WHERE {qcond} AND pid >= {start_pid} AND pid < {until_pid}
+                        SETTINGS max_threads = {loading_nthreads}
+                    """
+                    prrd = await self.execute_sql_async(sql)
+                    if prrd is not None and len(prrd) > 0:
+                        rrds.append(prrd)
+                if len(rrds) > 0:
+                    new_rrd = np.concatenate(rrds)
+                else:
+                    new_rrd = None
+            else:
+                raise ValueError(f"invalid mode {self.loading_mode}")
         else:
             self.logger.debug(f"all required data were cached for {self.qname}, {qcfg}")
             new_rrd = None

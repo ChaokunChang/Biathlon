@@ -7,7 +7,7 @@ import asyncio
 import datetime as dt
 
 
-from apxinfer.examples.taxi.data import TaxiTripRequest
+from apxinfer.examples.trips.data import TripsRequest
 from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.utils import merge_fvecs
@@ -63,7 +63,7 @@ class ExampleQP0(XIPQueryProcessor):
 
 
 class ExampleQP1(XIPQueryProcessor):
-    def get_query_condition(self, request: TaxiTripRequest) -> str:
+    def get_query_condition(self, request: TripsRequest) -> str:
         to_dt = pd.to_datetime(request["req_pickup_datetime"])
         from_dt = to_dt - dt.timedelta(hours=1)
         pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
@@ -88,7 +88,7 @@ class ExampleQP1(XIPQueryProcessor):
 
 
 class ExampleQP2(XIPQueryProcessor):
-    def get_query_condition(self, request: TaxiTripRequest) -> str:
+    def get_query_condition(self, request: TripsRequest) -> str:
         to_dt = pd.to_datetime(request["req_pickup_datetime"])
         from_dt = to_dt - dt.timedelta(hours=24)
         pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
@@ -115,7 +115,7 @@ class ExampleQP2(XIPQueryProcessor):
 
 
 class ExampleQP3(XIPQueryProcessor):
-    def get_query_condition(self, request: TaxiTripRequest) -> str:
+    def get_query_condition(self, request: TripsRequest) -> str:
         to_dt = pd.to_datetime(request["req_pickup_datetime"])
         from_dt = to_dt - dt.timedelta(hours=24 * 7)
         pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
@@ -142,7 +142,7 @@ class ExampleQP3(XIPQueryProcessor):
 
 
 class ExampleQP4(XIPQueryProcessor):
-    def get_query_condition(self, request: TaxiTripRequest) -> str:
+    def get_query_condition(self, request: TripsRequest) -> str:
         to_dt = pd.to_datetime(request["req_pickup_datetime"])
         from_dt = to_dt - dt.timedelta(hours=8)
         # pickup_ntaname = request["req_pickup_ntaname"].replace("'", r"\'")
@@ -305,7 +305,7 @@ def get_dloader(verbose: bool = False) -> XIPDataLoader:
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database="xip",
-        table="trips",
+        table="trips_100",
         seed=0,
         enable_cache=False,
     )

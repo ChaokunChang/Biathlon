@@ -1,4 +1,6 @@
 from tap import Tap
+import time
+import pandas as pd
 
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.fengine import XIPFEngine
@@ -12,7 +14,7 @@ class FEngineTestArgs(Tap):
     qsample: float = 0.1
     ld_nthreads: int = 0
     cp_nthreads: int = 0
-    ncores: int = 0
+    ncores: int = 1
 
 
 def get_fengine(args: FEngineTestArgs, data_loader: XIPDataLoader):
@@ -26,14 +28,41 @@ if __name__ == "__main__":
     print(f"run with args: {args}")
 
     request = get_request()
-    data_loader: XIPDataLoader = get_dloader(args.verbose)
 
-    qps = get_qps(data_loader, verbose=args.verbose)
-    qcfgs = get_qcfgs(qps, args.qsample, 0)
-    fengine = XIPFEngine(qps, args.ncores, verbose=args.verbose)
-    ret_seq = fengine.run(request, qcfgs, "sequential")
+    # sequential execution
+    fengine = get_fengine(args, get_dloader(args.verbose))
+    qcfgs = get_qcfgs(fengine.queries, args.qsample, 0, 0)
+    fengine.set_exec_mode("sequential")
+    st = time.time()
+    ret_seq = fengine.run(request, qcfgs)
+    seq_time = time.time() - st
+    print(f"run sequential finished within {seq_time}")
 
-    qps = get_qps(data_loader, verbose=args.verbose)
-    qcfgs = get_qcfgs(qps, args.qsample, 0)
-    fengine = XIPFEngine(qps, args.ncores, verbose=args.verbose)
-    ret_asy = fengine.run(request, qcfgs, "async")
+    # async execution
+    fengine = get_fengine(args, get_dloader(args.verbose))
+    qcfgs = get_qcfgs(fengine.queries, args.qsample, 0, 0)
+    fengine.set_exec_mode("async")
+    st = time.time()
+    ret_asy = fengine.run(request, qcfgs)
+    asy_time = time.time() - st
+    print(f"run async finished within {asy_time}")
+
+    # ray execution
+    fengine = get_fengine(args, get_dloader(args.verbose))
+    qcfgs = get_qcfgs(fengine.queries, args.qsample, 0, 0)
+    fengine.set_exec_mode("parallel")
+    st = time.time()
+    ret_ray = fengine.run(request, qcfgs)
+    ray_time = time.time() - st
+    print(f"run ray finished within {ray_time}")
+
+    fnames = ret_seq[0]["fnames"]
+    fnames = ["_".join(fname.split("_")[-2:]) for fname in fnames]
+    seq_fvals = ret_seq[0]["fvals"].tolist()
+    asy_fvals = ret_asy[0]["fvals"].tolist()
+    ray_fvals = ret_ray[0]["fvals"].tolist()
+    # combine into pd.DataFrame
+    df = pd.DataFrame([seq_fvals, asy_fvals, ray_fvals], columns=fnames, index=["seq", "asy", "ray"])
+    # add time column to df
+    df["time"] = [seq_time, asy_time, ray_time]
+    print(df)

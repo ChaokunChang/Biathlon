@@ -71,6 +71,7 @@ class OfflineExecutor:
         }
 
     def collect(self, requests: pd.DataFrame) -> List[List[XIPExecutionProfile]]:
+        self.fextractor.set_exec_mode("sequential")
         records = []
         for i, request in tqdm(
             enumerate(requests),
@@ -95,7 +96,7 @@ class OfflineExecutor:
                     qcfgs.append(qry.get_qcfg(cfg_id=cfg_id, sample=sample))
                 try:
                     fvec, qcosts = self.fextractor.extract(
-                        request, qcfgs, mode="sequential"
+                        request, qcfgs
                     )
                 except TypeError:
                     fvec, qcosts = self.fextractor.extract(request, qcfgs)

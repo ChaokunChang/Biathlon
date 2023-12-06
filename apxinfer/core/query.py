@@ -6,13 +6,14 @@ import time
 import json
 from aiohttp import ClientSession
 from aiochclient import ChClient
+import ray
 
 from beaker.cache import CacheManager
 
 from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec
 from apxinfer.core.utils import merge_fvecs, is_same_float
-from apxinfer.core.data import XIPDataLoader
+from apxinfer.core.data import XIPDataLoader, DBHelper
 from apxinfer.core.festimator import XIPFeatureEstimator
 
 fcache_manager = CacheManager(
@@ -112,6 +113,9 @@ class XIPQueryProcessor:
             self.festimator = festimator
         else:
             self.festimator = XIPFeatureEstimator(err_module=None)
+
+    def set_dbclient(self):
+        self.dbclient = DBHelper.get_db_client()
 
     def get_query_condition(self, request: XIPRequest) -> str:
         # return where clause without pid constraint
@@ -568,3 +572,50 @@ class XIPQueryProcessor:
             rrdata = np.array(rrdata, ndmin=2).reshape((nrows, -1))
             self.logger.debug(f"{self.qname} sql return {rrdata.dtype} {rrdata.shape}")
             return rrdata
+
+
+@ray.remote
+class XIPQuryProcessorRayWrapper(XIPQueryProcessor):
+    def __init__(self, qp: XIPQueryProcessor) -> None:
+        self.qname = qp.qname
+        self.qtype = qp.qtype
+        self.fnames = qp.fnames
+
+        self.verbose = qp.verbose
+        self.logger = logging.getLogger(f"XIPQueryProcessorRay-{self.qname}")
+
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
+
+        self.data_loader = None
+        if "database" in qp.__dict__:
+            self.database = qp.database
+            self.table = qp.table
+            self.dbtable = qp.dbtable
+            self.tsize = qp.tsize
+            self.nparts = qp.nparts
+            # self.dbclient = qp.dbclient
+            self.dbclient = None
+
+        self.qops = qp.qops
+        self.n_features = qp.n_features
+
+        self.set_enable_dcache(qp.enable_dcache)
+        self.set_enable_qcache(qp.enable_qcache)
+        self.set_enable_asyncio(qp.enable_async_io)
+        self.set_estimator(qp.festimator)
+        self.set_loading_mode(qp.loading_mode)
+
+        self.profiles = qp.profiles
+
+        self.get_query_condition = qp.get_query_condition
+        self.get_query_ops = qp.get_query_ops
+
+    def get_qname(self):
+        return self.qname
+
+    def get_fnames(self):
+        return self.fnames
+
+    def get_last_qprofile(self):
+        return self.profiles[-1]

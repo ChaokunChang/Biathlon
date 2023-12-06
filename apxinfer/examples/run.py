@@ -103,7 +103,18 @@ def get_fengine(name: str, args: BaseXIPArgs):
                                                                        bs_bias_correction=args.bs_bias_correction,
                                                                        bs_for_var_std=args.bs_for_var_std))
         qry.set_estimator(fest)
-        qry.set_loading_mode(args.loading_mode)
+        if args.loading_mode >= 2000:
+            qry.set_loading_mode(args.loading_mode - 2000)
+        elif args.loading_mode >= 1000:
+            qry.set_loading_mode(args.loading_mode - 1000)
+        else:
+            qry.set_loading_mode(args.loading_mode)
+    if args.loading_mode >= 2000:
+        fengine.set_exec_mode("parallel")
+    elif args.loading_mode >= 1000:
+        fengine.set_exec_mode("async")
+    else:
+        fengine.set_exec_mode("sequential")
     return fengine
 
 

@@ -12,7 +12,7 @@ from apxinfer.test.test_query import get_qps, get_qcfgs
 class FEngineTestArgs(Tap):
     verbose: bool = False
     qsample: float = 0.1
-    ld_nthreads: int = 0
+    ld_nthreads: int = 1
     cp_nthreads: int = 0
     ncores: int = 1
 

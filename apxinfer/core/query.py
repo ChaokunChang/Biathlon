@@ -87,7 +87,7 @@ class XIPQueryProcessor:
 
         self.profiles: List[XIPQProfile] = []
 
-    def set_loading_mode(self, mode: int = 1):
+    def set_loading_mode(self, mode: int = 0):
         self.loading_mode = mode
 
     def set_enable_dcache(self, enable_dcache: bool = True) -> None:
@@ -574,7 +574,7 @@ class XIPQueryProcessor:
             return rrdata
 
 
-@ray.remote
+@ray.remote(num_cpus=1)
 class XIPQuryProcessorRayWrapper(XIPQueryProcessor):
     def __init__(self, qp: XIPQueryProcessor) -> None:
         self.qname = qp.qname

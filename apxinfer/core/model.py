@@ -147,6 +147,8 @@ def create_estimators(
             model = KNeighborsRegressor()
         elif model_name == "svm":
             model = SVR()
+        elif model_name == "rf":
+            model = RandomForestRegressor(n_jobs=-1, **kwargs)
         else:
             model = SUPPORTED_MODELS["regressor"][model_name](**kwargs)
     elif model_type == "classifier":

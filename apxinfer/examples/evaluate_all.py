@@ -306,6 +306,96 @@ def run_tripsfeast(args: ExpArgs):
             os.system(cmd)
 
 
+def run_battery(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "battery"
+    agg_qids = "0 1 2 3 4"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    default_init = 5
+    default_batch = 1*5
+    for max_error in [60, 120, 300, 600, 900, 1200, 3600, 7200]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                default_init,
+                default_batch,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.98 0.99"
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 2)
+    max_errors = [60, 120, 300, 600]
+    if args.complementary:
+        max_errors = [300]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.98 0.99"
+            os.system(cmd)
+
+
+def run_batteryv2(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "batteryv2"
+    agg_qids = "0 1 2 3 4"
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    default_init = 5
+    default_batch = 1*5
+    for max_error in [60, 120, 300, 600, 900, 1200, 3600, 7200]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                default_init,
+                default_batch,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.98 0.99"
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, 2)
+    max_errors = [60, 120, 300, 600]
+    if args.complementary:
+        max_errors = [300]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.98 0.99"
+            os.system(cmd)
+
+
 def run_cheaptripsfeast(args: ExpArgs):
     """
     must models = ["xgb"]
@@ -677,5 +767,9 @@ if __name__ == "__main__":
         run_tick_price_middle(args)
     elif args.exp == "extremetickprice":
         run_extreme_tick_price(args)
+    elif args.exp == "battery":
+        run_battery(args)
+    elif args.exp == "batteryv2":
+        run_batteryv2(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

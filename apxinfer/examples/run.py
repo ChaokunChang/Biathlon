@@ -92,6 +92,12 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
         qps = get_qps_x(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name == "battery":
+        from apxinfer.examples.battery.engine import get_battery_engine
+        fengine = get_battery_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "batteryv2":
+        from apxinfer.examples.battery.engine import get_batteryv2_engine
+        fengine = get_batteryv2_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
 
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
@@ -145,6 +151,9 @@ def run_ingest(name: str, args: BaseXIPArgs):
         num_months = int(name[len("tickvaryNM"):])
         ingest(nparts=args.nparts, seed=args.seed,
                num_months=num_months, verbose=args.verbose)
+    elif name.startswith("battery"):
+        from apxinfer.examples.battery.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
 
 
 def run_prepare(name: str, args: PrepareArgs):
@@ -174,6 +183,9 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name.startswith("tick"):
         from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+        model_type = "regressor"
+    elif name.startswith("battery"):
+        from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
         model_type = "regressor"
 
     worker: XIPPrepareWorker = Worker(
@@ -211,6 +223,9 @@ def run_trainer(name: str, args: TrainerArgs):
         model_type = "classifier"
     elif name.startswith("tick"):
         from apxinfer.examples.tick.trainer import TickTrainer as Trainer
+        model_type = "regressor"
+    elif name.startswith("battery"):
+        from apxinfer.examples.battery.trainer import BatteryTrainer as Trainer
         model_type = "regressor"
 
     trainer = Trainer(

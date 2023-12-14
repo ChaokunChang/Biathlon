@@ -3,7 +3,8 @@ import json
 import pandas as pd
 from tap import Tap
 
-ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2"]
+ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2",
+                 "battery", "batteryv2"]
 ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
                  "ccfraud", "machinerymulti",
                  "tdfraud", "tdfraudrandom", "tdfraudkaggle"]

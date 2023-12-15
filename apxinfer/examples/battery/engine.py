@@ -69,7 +69,7 @@ def get_batteryv2_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     qps.append(BatteryQPNonAGG(
         qname=f"q-{len(qps)}",
         qtype=XIPQType.NORMAL,
-        data_loader=None,
+        data_loader=data_loader,
         verbose=verbose)
     )
 

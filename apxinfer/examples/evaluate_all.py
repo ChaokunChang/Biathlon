@@ -331,7 +331,7 @@ def run_battery(args: ExpArgs):
             )
         cmd = f"{cmd} --min_confs 0.98 0.99"
         os.system(cmd)
-    cfgs = get_scheduler_cfgs(args, 2)
+    cfgs = get_scheduler_cfgs(args, 5)
     max_errors = [60, 120, 300, 600]
     if args.complementary:
         max_errors = [300]
@@ -376,7 +376,7 @@ def run_batteryv2(args: ExpArgs):
             )
         cmd = f"{cmd} --min_confs 0.98 0.99"
         os.system(cmd)
-    cfgs = get_scheduler_cfgs(args, 2)
+    cfgs = get_scheduler_cfgs(args, 5)
     max_errors = [60, 120, 300, 600]
     if args.complementary:
         max_errors = [300]

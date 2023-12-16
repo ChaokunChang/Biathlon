@@ -396,6 +396,98 @@ def run_batteryv2(args: ExpArgs):
             os.system(cmd)
 
 
+def run_turbofan(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "turbofan"
+    naggs = 9
+    agg_qids = " ".join([f"{i}" for i in range(naggs)])
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    default_init = 5
+    default_batch = 1*naggs
+    for max_error in [1, 3, 6, 10, 20, 50, 80, 100]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                default_init,
+                default_batch,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.98 0.99"
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, naggs)
+    max_errors = [1, 3, 6]
+    if args.complementary:
+        max_errors = [6]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.98 0.99"
+            os.system(cmd)
+
+
+def run_turbofanall(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "turbofanall"
+    naggs = 44
+    agg_qids = " ".join([f"{i}" for i in range(naggs)])
+    model = args.model
+    if not args.skip_shared:
+        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    default_init = 5
+    default_batch = 1*naggs
+    for max_error in [1, 3, 6, 10, 20, 50, 80, 100]:
+        cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                default_init,
+                default_batch,
+                max_error,
+            )
+        cmd = f"{cmd} --min_confs 0.98 0.99"
+        os.system(cmd)
+    cfgs = get_scheduler_cfgs(args, naggs)
+    max_errors = [1, 3, 6]
+    if args.complementary:
+        max_errors = [6]
+    for scheduler_init, scheduler_batch in cfgs:
+        for max_error in max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                scheduler_init,
+                scheduler_batch,
+                max_error,
+            )
+            if args.complementary:
+                cmd = f"{cmd} --min_confs 0.98 0.99"
+            os.system(cmd)
+
+
 def run_cheaptripsfeast(args: ExpArgs):
     """
     must models = ["xgb"]
@@ -771,5 +863,9 @@ if __name__ == "__main__":
         run_battery(args)
     elif args.exp == "batteryv2":
         run_batteryv2(args)
+    elif args.exp == "turbofan":
+        run_turbofan(args)
+    elif args.exp == "turbofanall":
+        run_turbofanall(args)
     else:
         raise ValueError(f"invalid exp {args.exp}")

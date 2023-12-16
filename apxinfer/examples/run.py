@@ -98,6 +98,12 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "batteryv2":
         from apxinfer.examples.battery.engine import get_batteryv2_engine
         fengine = get_batteryv2_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "turbofan":
+        from apxinfer.examples.turbofan.engine import get_turbofan_engine
+        fengine = get_turbofan_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "turbofanall":
+        from apxinfer.examples.turbofan.engine import get_turbofanall_engine
+        fengine = get_turbofanall_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
 
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
@@ -154,6 +160,9 @@ def run_ingest(name: str, args: BaseXIPArgs):
     elif name.startswith("battery"):
         from apxinfer.examples.battery.data import ingest
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name.startswith("turbofan"):
+        from apxinfer.examples.turbofan.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
 
 
 def run_prepare(name: str, args: PrepareArgs):
@@ -186,6 +195,9 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
+        model_type = "regressor"
+    elif name.startswith("turbofan"):
+        from apxinfer.examples.turbofan.prepare import TurbofanPrepareWorker as Worker
         model_type = "regressor"
 
     worker: XIPPrepareWorker = Worker(
@@ -226,6 +238,9 @@ def run_trainer(name: str, args: TrainerArgs):
         model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.trainer import BatteryTrainer as Trainer
+        model_type = "regressor"
+    elif name.startswith("turbofan"):
+        from apxinfer.examples.turbofan.trainer import TurbofanTrainer as Trainer
         model_type = "regressor"
 
     trainer = Trainer(

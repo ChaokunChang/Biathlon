@@ -177,21 +177,6 @@ def run_pipeline(
             cmd = f"{cmd} --min_confs {default_min_confs_str}"
             os.system(cmd)
 
-    # vary min_conf only
-    for default_init, default_batch in default_cfgs:
-        for max_error in default_max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                default_init,
-                default_batch,
-                max_error,
-            )
-            cmd = f"{cmd} --min_confs {min_confs_str}"
-            os.system(cmd)
-
     # vary cfgs only
     for scheduler_init, scheduler_batch in cfgs:
         for max_error in default_max_errors:
@@ -205,6 +190,21 @@ def run_pipeline(
                 max_error,
             )
             cmd = f"{cmd} --min_confs {default_min_confs_str}"
+            os.system(cmd)
+
+    # vary min_conf
+    for default_init, default_batch in default_cfgs:
+        for max_error in default_max_errors:
+            cmd = get_eval_cmd(
+                args,
+                task_name,
+                model,
+                agg_qids,
+                default_init,
+                default_batch,
+                max_error,
+            )
+            cmd = f"{cmd} --min_confs {min_confs_str}"
             os.system(cmd)
 
 

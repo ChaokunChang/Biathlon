@@ -39,7 +39,10 @@ def get_min_confs(args: ExpArgs):
 
 
 def get_default_scheduler_cfgs(args: ExpArgs, naggs: int):
-    return [(5, 1 * naggs), (1, 1 * naggs), (2, 2 * naggs)]
+    cfgs = [(5, 1 * naggs), (1, 1 * naggs), (2, 2 * naggs)]
+    if args.complementary:
+        cfgs.append((0, 1 * naggs))
+    return cfgs
 
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
@@ -51,9 +54,10 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int):
         for beta in quantiles:
             cfgs.append((alpha, beta * naggs))
 
-    # vary beta = apha:
-    # for beta in quantiles:
-    #     cfgs.append((beta, beta*naggs))
+    if args.complementary:
+        # no alpha
+        for beta in quantiles:
+            cfgs.append((0, beta*naggs))
 
     # default beta and vary alpha
     for beta in [1, 2]:
@@ -403,22 +407,6 @@ def get_scheduler_vary_cfgs(args: ExpArgs, naggs: int):
         for alpha in default_quantiles:
             cfgs.append((alpha, beta * naggs))
     return cfgs
-
-
-def get_eval_vary_cmd(
-    args: ExpArgs,
-    task_name: str,
-    model: str,
-    agg_qids: str,
-    scheduler_init: int,
-    scheduler_batch: int,
-    max_error: float,
-):
-    cmd = get_eval_cmd(
-        args, task_name, model, agg_qids, scheduler_init, scheduler_batch, max_error
-    )
-    cmd = f"{cmd} --min_confs 0.95"
-    return cmd
 
 
 def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):

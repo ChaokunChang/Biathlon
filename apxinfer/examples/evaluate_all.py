@@ -1,7 +1,7 @@
 from tap import Tap
 import os
 
-MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)]
+MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)]
 MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
 MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 9)]
@@ -416,7 +416,7 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
     if fixed:
         task_name = f"machineryxf{nf}"
     else:
-        task_name = f"machineryf{nf}"
+        task_name = f"machinerynf{nf}"
     agg_qids = " ".join([f"{i}" for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
@@ -428,7 +428,7 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
     if fixed:
         task_name = f"machinerymultixf{nf}"
     else:
-        task_name = f"machinerymultif{nf}"
+        task_name = f"machinerymultinf{nf}"
     agg_qids = " ".join([f"{i}" for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
@@ -562,10 +562,10 @@ if __name__ == "__main__":
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
     elif args.exp in MachineryVaryNF:
-        nf = int(args.exp[len("machineryf") :])
+        nf = int(args.exp[len("machinerynf") :])
         run_machinery_vary_nf(args, nf)
     elif args.exp in MachineryMultiVaryNF:
-        nf = int(args.exp[len("machinerymultif") :])
+        nf = int(args.exp[len("machinerymultinf") :])
         run_machinerymulti_vary_nf(args, nf)
     elif args.exp in MachineryVaryXNF:
         nf = int(args.exp[len("machineryxf") :])

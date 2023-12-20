@@ -10,7 +10,7 @@ ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
                  "ccfraud", "machinerymulti",
                  "tdfraud", "tdfraudrandom", "tdfraudkaggle"]
 
-MachineryVaryNF = [f"machineryf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
+MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 9)]
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF

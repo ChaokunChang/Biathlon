@@ -16,6 +16,7 @@ class XIPQType(Enum):
     FSTORE = 2
     KeySearch = 3
     NORMAL = 4
+    ExactAGG = 5
 
 
 class XIPQueryConfig(TypedDict, total=False):

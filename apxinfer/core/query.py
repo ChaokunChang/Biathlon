@@ -195,7 +195,7 @@ class XIPQueryProcessor:
         return fvec
 
     def load_rrdata(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
-        if self.qtype == XIPQType.AGG:
+        if self.qtype in [XIPQType.AGG, XIPQType.ExactAGG]:
             rrdata = self.load_rrdata_agg(request, qcfg)
         elif self.qtype in [XIPQType.FSTORE, XIPQType.KeySearch]:
             rrdata = self.load_rrdata_ks(request, qcfg)
@@ -469,7 +469,7 @@ class XIPQueryProcessor:
     async def load_rrdata_async(
         self, request: XIPRequest, qcfg: XIPQueryConfig
     ) -> np.ndarray:
-        if self.qtype == XIPQType.AGG:
+        if self.qtype in [XIPQType.AGG, XIPQType.ExactAGG]:
             rrdata = await self.load_rrdata_agg_async(request, qcfg)
         elif self.qtype in [XIPQType.FSTORE, XIPQType.KeySearch]:
             rrdata = self.load_rrdata_ks(request, qcfg)

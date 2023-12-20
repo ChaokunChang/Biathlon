@@ -92,6 +92,13 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
         qps = get_qps_x(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name in ([f"machinerynf{i}" for i in range(1, 9)] + [f"machinerymultinf{i}" for i in range(1, 9)]):
+        from apxinfer.examples.machinery.data import get_dloader
+        from apxinfer.examples.machinery.query import get_qps_varynf
+        from apxinfer.examples.machinery.engine import get_qengine
+        dloader = get_dloader(nparts=args.nparts, verbose=args.verbose)
+        qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
+        fengine = get_qengine(qps, args.ncores, args.verbose)
     elif name == "battery":
         from apxinfer.examples.battery.engine import get_battery_engine
         fengine = get_battery_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
@@ -172,10 +179,10 @@ def run_prepare(name: str, args: PrepareArgs):
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.prepare import CheapTripsPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinery" or (name in [f"machineryf{i}" for i in range(1, 8)]) or (name in [f"machineryxf{i}" for i in range(1, 9)]):
+    elif name.startswith("machinery") and (not name.startswith("machinerymulti")):
         from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
         model_type = "classifier"
-    elif name == "machinerymulti" or (name in [f"machinerymultif{i}" for i in range(1, 8)]) or (name in [f"machinerymultixf{i}" for i in range(1, 9)]):
+    elif name.startswith("machinerymulti"):
         from apxinfer.examples.machinery.prepare import MachineryMultiClassPrepareWorker as Worker
         model_type = "classifier"
     elif name == "ccfraud":
@@ -289,6 +296,9 @@ def run_online(name: str, args: OnlineArgs):
     test_set = LoadingHelper.load_dataset(
         args, "test", args.nreqs, offset=args.nreqs_offset
     )
+    if name == "tdfraudrandom" and args.model == "xgb":
+        if len(test_set) > 1000:
+            test_set = test_set.sample(n=500, random_state=0)
     verbose = args.verbose and len(test_set) <= 10
 
     # load xip model

@@ -137,6 +137,17 @@ class XIPPrepareWorker:
 
         return dataset
 
+    def split_dataset(
+        self, dataset: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        train_set, valid_set, test_set = train_valid_test_split(
+            dataset=dataset,
+            train_ratio=self.train_ratio,
+            valid_ratio=self.valid_ratio,
+            seed=self.seed,
+        )
+        return train_set, valid_set, test_set
+
     def run(self, skip_dataset: bool = False) -> None:
         if skip_dataset and osp.exists(osp.join(self.dataset_dir, "dataset.csv")):
             dataset = pd.read_csv(osp.join(self.dataset_dir, "dataset.csv"))
@@ -144,12 +155,7 @@ class XIPPrepareWorker:
             dataset = self.create_dataset()
             dataset.to_csv(osp.join(self.dataset_dir, "dataset.csv"), index=False)
 
-        train_set, valid_set, test_set = train_valid_test_split(
-            dataset=dataset,
-            train_ratio=self.train_ratio,
-            valid_ratio=self.valid_ratio,
-            seed=self.seed,
-        )
+        train_set, valid_set, test_set = self.split_dataset(dataset)
         # save the dataset
         self.logger.info(f"Saving dataset for {self.dataset_dir}")
         train_set.to_csv(osp.join(self.dataset_dir, "train_set.csv"), index=False)

@@ -34,11 +34,20 @@ class DataAggregator:
     def avg(data: np.ndarray):
         return np.mean(data, axis=0)
 
+    def mean(data: np.ndarray):
+        return DataAggregator.avg(data)
+
     def stdPop(data: np.ndarray):
         return np.std(data, axis=0, ddof=0)
 
+    def std(data: np.ndarray):
+        return DataAggregator.stdPop(data)
+
     def varPop(data: np.ndarray):
         return np.var(data, axis=0, ddof=0)
+
+    def var(data: np.ndarray):
+        return DataAggregator.varPop(data)
 
     def min(data: np.ndarray):
         return np.min(data, axis=0)
@@ -73,19 +82,34 @@ class XIPDataAggregator:
     def avg(samples: np.ndarray, p: float):
         return np.mean(samples, axis=0)
 
+    def mean(samples: np.ndarray, p: float):
+        return XIPDataAggregator.avg(samples, p)
+
     def stdPop(samples: np.ndarray, p: float):
         ddof = int(samples.shape[0] > 1)
         return np.std(samples, axis=0, ddof=ddof)
+
+    def std(samples: np.ndarray, p: float):
+        return XIPDataAggregator.stdPop(samples, p)
 
     def varPop(samples: np.ndarray, p: float):
         ddof = int(samples.shape[0] > 1)
         return np.var(samples, axis=0, ddof=ddof)
 
+    def var(samples: np.ndarray, p: float):
+        return XIPDataAggregator.varPop(samples, p)
+
     def stdPop_biased(samples: np.ndarray, p: float):
         return np.std(samples, axis=0, ddof=0)
 
+    def std_biased(samples: np.ndarray, p: float):
+        return XIPDataAggregator.stdPop_biased(samples, p)
+
     def varPop_biased(samples: np.ndarray, p: float):
         return np.var(samples, axis=0, ddof=0)
+
+    def var_biased(samples: np.ndarray, p: float):
+        return XIPDataAggregator.varPop_biased(samples, p)
 
     def min(samples: np.ndarray, p: float):
         return np.min(samples, axis=0)
@@ -200,6 +224,8 @@ class XIPFeatureErrorEstimator:
         if self.bs_for_var_std:
             self.varPop = None
             self.stdPop = None
+            self.var = None
+            self.std = None
 
         self.bs_tcost = 0.0
         self.bs_random_tcost = 0.0
@@ -251,13 +277,22 @@ class XIPFeatureErrorEstimator:
         fstds = smpl_stds / np.sqrt(len(samples))
         return fstds
 
+    def mean(self, samples: np.ndarray, p: float, tsize: int):
+        return self.avg(samples, p, tsize)
+
     def varPop(self, samples: np.ndarray, p: float, tsize: int):
         smpl_stds = np.std(samples, axis=0, ddof=1)
         fstds = 2 * np.power(smpl_stds, 4) / (len(samples) - 1)
         return fstds
 
+    def var(self, samples: np.ndarray, p: float, tsize: int):
+        return self.varPop(samples, p, tsize)
+
     def stdPop(self, samples: np.ndarray, p: float, tsize: int):
         return np.sqrt(self.varPop(samples, p, tsize))
+
+    def std(self, samples: np.ndarray, p: float, tsize: int):
+        return self.stdPop(samples, p, tsize)
 
     def use_parallel_bt(self, samples: np.ndarray):
         if self.bs_max_nthreads <= 1:
@@ -277,7 +312,7 @@ class XIPFeatureErrorEstimator:
         agg: str,
     ):
         st = time.time()
-        if self.bs_bias_correction and agg in ["stdPop", "varPop"]:
+        if self.bs_bias_correction and agg in ["stdPop", "varPop", "std", "var"]:
             agg = f"{agg}_biased"
         if self.use_parallel_bt(samples):
             ret = self.bootstrap_parallel(samples, p, tsize, agg)
@@ -401,16 +436,11 @@ class XIPFeatureEstimator:
                 fdists.append("fixed")
             elif isinstance(fstd, (list, np.ndarray)) and len(fstd) > 2:
                 fdists.append("unknown")
-            elif agg == 'max':
+            elif agg == "max":
                 fdists.append("r-normal")
             else:
                 fdists.append("normal")
-        return XIPFeatureVec(
-            fnames=fnames,
-            fvals=features,
-            fests=fstds,
-            fdists=fdists
-        )
+        return XIPFeatureVec(fnames=fnames, fvals=features, fests=fstds, fdists=fdists)
 
 
 def auto_extract(

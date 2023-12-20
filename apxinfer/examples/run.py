@@ -111,6 +111,13 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name == "turbofanall":
         from apxinfer.examples.turbofan.engine import get_turbofanall_engine
         fengine = get_turbofanall_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name == "student":
+        from apxinfer.examples.student.engine import get_student_engine
+        fengine = get_student_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+    elif name.startswith("studentqno"):
+        from apxinfer.examples.student.engine import get_studentqno_engine
+        # qno = int(name[len("studentqno"):])
+        fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
 
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
@@ -170,6 +177,9 @@ def run_ingest(name: str, args: BaseXIPArgs):
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.data import ingest
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name.startswith("student"):
+        from apxinfer.examples.student.data import ingest
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
 
 
 def run_prepare(name: str, args: PrepareArgs):
@@ -206,18 +216,39 @@ def run_prepare(name: str, args: PrepareArgs):
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.prepare import TurbofanPrepareWorker as Worker
         model_type = "regressor"
+    elif name == "student":
+        from apxinfer.examples.student.prepare import StudentPrepareWorker as Worker
+        model_type = "classifier"
+    elif name.startswith("studentqno"):
+        from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+        model_type = "classifier"
 
-    worker: XIPPrepareWorker = Worker(
-        DIRHelper.get_prepare_dir(args),
-        get_fengine(name, args),
-        args.max_requests,
-        args.train_ratio,
-        args.valid_ratio,
-        model_type,
-        args.model,
-        args.seed,
-        args.nparts
-    )
+    if name.startswith("studentqno"):
+        qno = int(name[len("studentqno"):])
+        worker: XIPPrepareWorker = Worker(
+            DIRHelper.get_prepare_dir(args),
+            get_fengine(name, args),
+            args.max_requests,
+            args.train_ratio,
+            args.valid_ratio,
+            model_type,
+            args.model,
+            args.seed,
+            args.nparts,
+            qno
+        )
+    else:
+        worker: XIPPrepareWorker = Worker(
+            DIRHelper.get_prepare_dir(args),
+            get_fengine(name, args),
+            args.max_requests,
+            args.train_ratio,
+            args.valid_ratio,
+            model_type,
+            args.model,
+            args.seed,
+            args.nparts
+        )
     worker.run(args.skip_dataset)
 
 
@@ -249,6 +280,12 @@ def run_trainer(name: str, args: TrainerArgs):
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.trainer import TurbofanTrainer as Trainer
         model_type = "regressor"
+    elif name == "student":
+        from apxinfer.examples.student.trainer import StudentTrainer as Trainer
+        model_type = "classifier"
+    elif name.startswith("studentqno"):
+        from apxinfer.examples.student.trainer import StudentQNoTrainer as Trainer
+        model_type = "classifier"
 
     trainer = Trainer(
         DIRHelper.get_prepare_dir(args),

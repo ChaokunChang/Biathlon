@@ -1,6 +1,7 @@
 from tap import Tap
 import os
 
+StudentQNo = [f"studentqn{i}" for i in range(1, 19)]
 MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)]
 MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
@@ -210,6 +211,28 @@ def run_pipeline(
             )
             cmd = f"{cmd} --min_confs {min_confs_str}"
             os.system(cmd)
+
+
+def run_studentqno(args: ExpArgs, qno: int):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    task_name = f"studentqn{qno}"
+    agg_qids = " ".join([f"{i}" for i in range(13)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_student(args: ExpArgs):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    task_name = "student"
+    agg_qids = " ".join([f"{i+1}" for i in range(13)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
 def run_machinery(args: ExpArgs):
@@ -601,5 +624,10 @@ if __name__ == "__main__":
         run_turbofan(args)
     elif args.exp == "turbofanall":
         run_turbofanall(args)
+    elif args.exp == "student":
+        run_student(args)
+    elif args.exp.startswith("studentqn"):
+        qno = int(args.exp[len("studentqn") :])
+        run_studentqno(args, qno)
     else:
         raise ValueError(f"invalid exp {args.exp}")

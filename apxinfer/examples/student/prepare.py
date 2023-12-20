@@ -115,8 +115,8 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
         df = self.extract_request_and_labels()
         df = df[df["qno"] == self.qno]
         requests = df[["session_id", "qno"]]
-        if self.max_requests > 0 and self.max_requests < len(requests):
-            requests = requests.sample(self.max_requests, random_state=0)
+        # if self.max_requests > 0 and self.max_requests < len(requests):
+        #     requests = requests.sample(self.max_requests, random_state=0)
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests

@@ -37,6 +37,12 @@ class DataAggregator:
     def mean(data: np.ndarray):
         return DataAggregator.avg(data)
 
+    def varSamp(data: np.ndarray):
+        return np.var(data, axis=0, ddof=1)
+
+    def stdSamp(data: np.ndarray):
+        return np.std(data, axis=0, ddof=1)
+
     def stdPop(data: np.ndarray):
         return np.std(data, axis=0, ddof=0)
 
@@ -85,6 +91,14 @@ class XIPDataAggregator:
     def mean(samples: np.ndarray, p: float):
         return XIPDataAggregator.avg(samples, p)
 
+    def varSamp(samples: np.ndarray, p: float):
+        ddof = int(samples.shape[0] > 1)
+        scale = samples.shape[0] * 1.0 / (samples.shape[0] - ddof)
+        return scale * np.var(samples, axis=0, ddof=ddof)
+
+    def stdSamp(samples: np.ndarray, p: float):
+        return np.sqrt(XIPDataAggregator.varSamp(samples, p))
+
     def stdPop(samples: np.ndarray, p: float):
         ddof = int(samples.shape[0] > 1)
         return np.std(samples, axis=0, ddof=ddof)
@@ -98,6 +112,14 @@ class XIPDataAggregator:
 
     def var(samples: np.ndarray, p: float):
         return XIPDataAggregator.varPop(samples, p)
+
+    def varSamp_biased(samples: np.ndarray, p: float):
+        ddof = int(samples.shape[0] > 1)
+        return np.var(samples, axis=0, ddof=ddof)
+
+    def stdSamp_biased(samples: np.ndarray, p: float):
+        ddof = int(samples.shape[0] > 1)
+        return np.std(samples, axis=0, ddof=ddof)
 
     def stdPop_biased(samples: np.ndarray, p: float):
         return np.std(samples, axis=0, ddof=0)
@@ -224,6 +246,8 @@ class XIPFeatureErrorEstimator:
         if self.bs_for_var_std:
             self.varPop = None
             self.stdPop = None
+            self.varSamp = None
+            self.stdSamp = None
             self.var = None
             self.std = None
 
@@ -280,6 +304,16 @@ class XIPFeatureErrorEstimator:
     def mean(self, samples: np.ndarray, p: float, tsize: int):
         return self.avg(samples, p, tsize)
 
+    def varSamp(self, samples: np.ndarray, p: float, tsize: int):
+        ddof = int(samples.shape[0] > 1)
+        scale = samples.shape[0] * 1.0 / (samples.shape[0] - ddof)
+        smpl_stds = np.std(samples, axis=0, ddof=1)
+        fvars = 2 * np.power(smpl_stds, 4) / (len(samples) - 1)
+        return fvars * np.power(scale, 2)
+
+    def stdSamp(self, samples: np.ndarray, p: float, tsize: int):
+        return np.sqrt(self.varSamp(samples, p, tsize))
+
     def varPop(self, samples: np.ndarray, p: float, tsize: int):
         smpl_stds = np.std(samples, axis=0, ddof=1)
         fstds = 2 * np.power(smpl_stds, 4) / (len(samples) - 1)
@@ -312,7 +346,14 @@ class XIPFeatureErrorEstimator:
         agg: str,
     ):
         st = time.time()
-        if self.bs_bias_correction and agg in ["stdPop", "varPop", "std", "var"]:
+        if self.bs_bias_correction and agg in [
+            "stdPop",
+            "varPop",
+            "stdSamp",
+            "varSamp",
+            "std",
+            "var",
+        ]:
             agg = f"{agg}_biased"
         if self.use_parallel_bt(samples):
             ret = self.bootstrap_parallel(samples, p, tsize, agg)

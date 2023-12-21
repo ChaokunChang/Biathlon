@@ -1,15 +1,17 @@
 from typing import List
 import pandas as pd
-import datetime as dt
+import numpy as np
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPRequest, XIPQType, XIPQueryConfig
+from apxinfer.core.utils import XIPFeatureVec
+from apxinfer.core.utils import is_same_float
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
 from apxinfer.examples.student.data import StudentRequest
 
 
-def get_qury_group(q_no: int) -> str:
+def get_query_group(q_no: int) -> str:
     # Select level group for the question based on the q_no.
     if q_no <= 3:
         grp = "0-4"
@@ -59,7 +61,7 @@ class StudentQP1(XIPQueryProcessor):
     def get_query_condition(self, request: StudentRequest) -> str:
         req_session_id = request["req_session_id"]
         req_qno = request["req_qno"]
-        level_group = get_qury_group(req_qno)
+        level_group = get_query_group(req_qno)
 
         and_list = [
             f"session_id = {req_session_id}",
@@ -77,3 +79,18 @@ class StudentQP1(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def get_default_fvec(
+        self, request: XIPRequest, qcfg: XIPQueryConfig
+    ) -> XIPFeatureVec:
+        fvals = -np.ones(len(self.fnames))
+        if is_same_float(qcfg["qsample"], 1.0):
+            fests = np.zeros(len(self.fnames))
+        else:
+            fests = np.ones(len(self.fnames)) * 1e9
+        return XIPFeatureVec(
+            fnames=self.fnames,
+            fvals=fvals,
+            fests=fests,
+            fdists=["normal"] * len(self.fnames),
+        )

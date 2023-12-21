@@ -34,7 +34,7 @@ def get_aggops(col: str):
     if col_is_cat(col):
         return ["unique"]
     else:
-        return ["avg", "std"]
+        return ["avg", "stdSamp"]
 
 
 def get_student_engine(nparts: int, ncores: int = 0, verbose: bool = False):

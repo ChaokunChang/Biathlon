@@ -1,7 +1,7 @@
 from tap import Tap
 import os
 
-StudentQNo = [f"studentqn{i}" for i in range(1, 19)]
+StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
 MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)]
 MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
@@ -217,7 +217,7 @@ def run_studentqno(args: ExpArgs, qno: int):
     """
     models = [lgbm, gbm, tfgbm]
     """
-    task_name = f"studentqn{qno}"
+    task_name = f"studentqno{qno}"
     agg_qids = " ".join([f"{i}" for i in range(13)])
     default_max_errors = [0]
     max_errors = [0]
@@ -626,8 +626,8 @@ if __name__ == "__main__":
         run_turbofanall(args)
     elif args.exp == "student":
         run_student(args)
-    elif args.exp.startswith("studentqn"):
-        qno = int(args.exp[len("studentqn") :])
+    elif args.exp.startswith("studentqno"):
+        qno = int(args.exp[len("studentqno") :])
         run_studentqno(args, qno)
     else:
         raise ValueError(f"invalid exp {args.exp}")

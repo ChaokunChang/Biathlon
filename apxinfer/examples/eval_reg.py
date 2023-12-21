@@ -11,7 +11,7 @@ ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
                  "tdfraud", "tdfraudrandom", "tdfraudkaggle",
                  "student"]
 
-StudentQNo = [f"studentqn{i}" for i in range(1, 19)]
+StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
 ALL_CLS_TASKS += StudentQNo
 
 MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]

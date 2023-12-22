@@ -358,7 +358,7 @@ def run_batteryv2(args: ExpArgs):
     task_name = "batteryv2"
     agg_qids = "0 1 2 3 4"
     default_max_errors = [60, 120]
-    max_errors = [30, 60, 120, 300, 600, 900, 1200, 3600]
+    max_errors = [30, 60, 120, 300, 600, 900, 1200, 1800, 2400, 3000, 3600]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

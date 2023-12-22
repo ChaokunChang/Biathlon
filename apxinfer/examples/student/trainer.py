@@ -34,10 +34,14 @@ class StudentModel(BaseEstimator):
             except AttributeError:
                 fimps_list.append(np.zeros((model.n_features_,)))
         self.feature_importances_ = np.mean(fimps_list, axis=0)
+        # add one for gidx
+        self.feature_importances_ = np.insert(
+            self.feature_importances_, self.gidx, 0.0
+        )
 
     def score(self, X: np.ndarray, y: np.ndarray) -> float:
         y_preds = self.predict(X)
-        return f1_score(y_preds, y)
+        return f1_score(y_preds, y, average="macro")
 
     def predict(self, X) -> np.ndarray:
         yproba = self.predict_proba(X)[:, 1]
@@ -45,17 +49,23 @@ class StudentModel(BaseEstimator):
 
     def predict_proba(self, X) -> np.ndarray:
         qno = X[0][self.gidx]
+        if isinstance(X, list):
+            X = np.array(X)
+        # print(f'gidx={self.gidx}, qno={qno}, {type(X)}')
         if np.all(X[:, self.gidx] == qno):
-            return self.models[qno - 1].predict_proba(np.delete(X, self.gidx, axis=1))
+            return self.models[int(qno) - 1].predict_proba(np.delete(X, self.gidx, axis=1))
         else:
             # X \in (n, d), where X[:, gidx] \in (1, 18)
             # each row of X should be predicted with corresponding model
-            y = np.zeros((X.shape[0], 2), dtype=np.int32)
+            yproba = np.zeros((X.shape[0], 2), dtype=np.float32)
             for qno in range(1, 18 + 1):
-                row_index = (X[:, self.gidx] == qno)
-                partial_preds = self.models[qno - 1].predict_proba(np.delete(X[row_index], self.gidx, axis=1))
-                y[row_index] = partial_preds
-            return y
+                row_index = np.abs(X[:, self.gidx] - qno) < 1e-6
+                if not np.any(row_index):
+                    continue
+                partial_preds = self.models[qno - 1].predict_proba(
+                    np.delete(X[row_index], self.gidx, axis=1))
+                yproba[row_index, :] = partial_preds
+            return yproba
 
 
 class StudentTrainer(XIPTrainer):
@@ -66,6 +76,8 @@ class StudentTrainer(XIPTrainer):
             )
             gidx_name = "f_NORMAL_req_qno_0_q-0"
             gidx = X.columns.get_loc(gidx_name)
+            fnames = X.columns.to_list()
+            label_name = y.name
             X_y = pd.concat([X, y], axis=1)
             models = []
             for qno in tqdm(range(1, 18 + 1), desc="Building models"):
@@ -78,48 +90,38 @@ class StudentTrainer(XIPTrainer):
                         verbose=True,
                     )
                 elif self.model_name == "rf":
-                    model = RandomForestClassifier(n_jobs=-1)
+                    model = RandomForestClassifier(n_jobs=-1, random_state=0)
                 elif self.model_name == "lgbm":
-                    model = LGBMClassifier(
-                        n_estimators=300,
-                        learning_rate=0.1,
-                        max_depth=6,
-                        random_state=123456,
-                        verbose=True,
-                    )
+                    model = LGBMClassifier(random_state=0)
                 else:
                     raise NotImplementedError
-                X_fit = X[X_y[gidx_name] == qno].values
-                # the column gidx should not in X_fit
-                X_fit = np.delete(X_fit, gidx, axis=1)
-                y_fit = y[X_y[gidx_name] == qno].values
+                X_qno = X_y[X_y[gidx_name] == qno]
+                X_fit = X_qno[fnames].drop(columns=[gidx_name]).values
+                y_fit = X_qno[label_name].values
                 model.fit(X_fit, y_fit)
                 models.append(model)
+                yproba = model.predict_proba(X_fit)
+                print(f"QNO {qno} F1: {f1_score(y_fit, yproba[:, 1] > 0.5):.04f}")
 
             model = XIPClassifier(
-                StudentModel(
-                    models=models,
-                    gidx=X.columns.get_loc(gidx_name)
-                )
+                StudentModel(models=models, gidx=X.columns.get_loc(gidx_name))
             )
-
-            cols = list(X.columns)
-            fnames = [col for col in cols if col.startswith("f_")]
-            label_name = cols[-1]
 
             valid_set = pd.read_csv(
                 osp.join(self.working_dir, "dataset", "valid_set.csv")
             )
-            valid_predproba = model.predict_proba(valid_set[fnames].values)[:, 1]
+
+            valid_proba = model.predict_proba(valid_set[fnames].values)[:, 1]
             valid_true = valid_set[label_name]
 
             scores, thresholds = [], []
-            best_score = 0
+            best_score = model.score(valid_set[fnames].values, valid_true.values)
             best_threshold = 0.5
-            for threshold in tqdm(np.arange(0.4, 0.81, 0.01), desc="Finding best threshold"):
-                print(f"{threshold:.02f}, ", end="")
-                preds = (valid_predproba.reshape((-1)) > threshold).astype("int")
-                m = f1_score(valid_true.values.reshape((-1)), preds, average="macro")
+            for threshold in tqdm(
+                np.arange(0.4, 0.81, 0.01), desc="Finding best threshold"
+            ):
+                preds = (valid_proba.reshape((-1)) > threshold).astype("int")
+                m = f1_score(preds, valid_true.values, average="macro")
                 scores.append(m)
                 thresholds.append(threshold)
                 if m > best_score:
@@ -131,17 +133,14 @@ class StudentTrainer(XIPTrainer):
             print(f"Best threshold: {best_threshold:.02f} with score {best_score:.04f}")
 
             model = XIPClassifier(
-                StudentModel(
-                    models=models,
-                    gidx=gidx,
-                    thr=best_threshold
-                )
+                StudentModel(models=models, gidx=gidx, thr=best_threshold)
             )
             return model
         elif self.model_name == "tfgbm":
             import tensorflow as tf
             import tensorflow_addons as tfa
             import tensorflow_decision_forests as tfdf
+
             gbtm = tfdf.keras.GradientBoostedTreesModel(verbose=0)
             gbtm.compile(metrics=["accuracy"])
             model = gbtm

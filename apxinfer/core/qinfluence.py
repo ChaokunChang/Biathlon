@@ -155,12 +155,13 @@ class XIPQInfEstimatorSobol(XIPQInfEstimator):
             N = int(n_samples / (fextractor.num_queries + 2))
         param_values = sobol_sample.sample(problem, N, calc_second_order=calc_second_order, seed=seed)
         preds = model.predict(param_values)
-        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
-        qinfs = Si["S1"]
-        # print(f"qinfs = {qinfs}")
-        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
         if np.var(preds) == 0:
             qinfs = np.ones(fextractor.num_queries) * 1e-9
+        else:
+            Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
+            qinfs = Si["S1"]
+        # print(f"qinfs = {qinfs}")
+        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
         return XIPQInfEstimation(qinfs=qinfs)
 
 
@@ -212,10 +213,11 @@ class XIPQInfEstimatorSTIndex(XIPQInfEstimatorSobol):
         seed = self.pred_estimator.seed
         param_values = sobol_sample.sample(problem, 100, calc_second_order=calc_second_order, seed=seed)
         preds = model.predict(param_values)
-        Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
-        qinfs = Si["ST"]
-        # print(f"qinfs = {qinfs}")
-        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
         if np.var(preds) == 0:
             qinfs = np.ones(fextractor.num_queries) * 1e-9
+        else:
+            Si = sobol_analyze.analyze(problem, preds, calc_second_order=calc_second_order, seed=seed)
+            qinfs = Si["ST"]
+        # print(f"qinfs = {qinfs}")
+        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
         return XIPQInfEstimation(qinfs=qinfs)

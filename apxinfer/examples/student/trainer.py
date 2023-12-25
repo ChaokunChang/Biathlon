@@ -8,6 +8,7 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.metrics import f1_score
 from lightgbm import LGBMClassifier
+import xgboost as xgb
 
 from apxinfer.core.model import XIPModel, XIPClassifier
 from apxinfer.core.trainer import XIPTrainer
@@ -70,7 +71,7 @@ class StudentModel(BaseEstimator):
 
 class StudentTrainer(XIPTrainer):
     def build_model(self, X: pd.DataFrame, y: pd.Series) -> XIPModel:
-        if self.model_name in ["gbm", "rf", "lgbm"]:
+        if self.model_name in ["gbm", "rf", "lgbm", "xgb"]:
             self.logger.info(
                 f"Building pipeline for {self.model_type} {self.model_name}"
             )
@@ -78,6 +79,11 @@ class StudentTrainer(XIPTrainer):
             gidx = X.columns.get_loc(gidx_name)
             fnames = X.columns.to_list()
             label_name = y.name
+            valid_set = pd.read_csv(
+                osp.join(self.working_dir, "dataset", "valid_set.csv")
+            )
+            valid_X = valid_set[fnames].values
+            valid_true = valid_set[label_name].values
             X_y = pd.concat([X, y], axis=1)
             models = []
             for qno in tqdm(range(1, 18 + 1), desc="Building models"):
@@ -93,12 +99,33 @@ class StudentTrainer(XIPTrainer):
                     model = RandomForestClassifier(n_jobs=-1, random_state=0)
                 elif self.model_name == "lgbm":
                     model = LGBMClassifier(random_state=0)
+                elif self.model_name == "xgb":
+                    xgb_params = {
+                        'objective': 'binary:logistic',
+                        'eval_metric': 'logloss',
+                        'learning_rate': 0.05,
+                        'max_depth': 4,
+                        'n_estimators': 1000,
+                        'early_stopping_rounds': 50,
+                        'tree_method': 'hist',
+                        'subsample': 0.8,
+                        'colsample_bytree': 0.4,
+                        'use_label_encoder': False,
+                        'random_state': 0
+                    }
+                    model = xgb.XGBClassifier(**xgb_params)
                 else:
                     raise NotImplementedError
                 X_qno = X_y[X_y[gidx_name] == qno]
                 X_fit = X_qno[fnames].drop(columns=[gidx_name]).values
                 y_fit = X_qno[label_name].values
-                model.fit(X_fit, y_fit)
+                if self.model_name == "xgb":
+                    valid_X_qno = valid_set[valid_set[gidx_name] == qno]
+                    X_test = valid_X_qno[fnames].drop(columns=[gidx_name]).values
+                    y_test = valid_X_qno[label_name].values
+                    model.fit(X_fit, y_fit, eval_set=[(X_test, y_test)], verbose=0)
+                else:
+                    model.fit(X_fit, y_fit)
                 models.append(model)
                 yproba = model.predict_proba(X_fit)
                 print(f"QNO {qno} F1: {f1_score(y_fit, yproba[:, 1] > 0.5):.04f}")
@@ -106,22 +133,16 @@ class StudentTrainer(XIPTrainer):
             model = XIPClassifier(
                 StudentModel(models=models, gidx=X.columns.get_loc(gidx_name))
             )
-
-            valid_set = pd.read_csv(
-                osp.join(self.working_dir, "dataset", "valid_set.csv")
-            )
-
-            valid_proba = model.predict_proba(valid_set[fnames].values)[:, 1]
-            valid_true = valid_set[label_name]
+            valid_proba = model.predict_proba(valid_X)[:, 1]
 
             scores, thresholds = [], []
-            best_score = model.score(valid_set[fnames].values, valid_true.values)
+            best_score = model.score(valid_set[fnames].values, valid_true)
             best_threshold = 0.5
             for threshold in tqdm(
                 np.arange(0.4, 0.81, 0.01), desc="Finding best threshold"
             ):
                 preds = (valid_proba.reshape((-1)) > threshold).astype("int")
-                m = f1_score(preds, valid_true.values, average="macro")
+                m = f1_score(preds, valid_true, average="macro")
                 scores.append(m)
                 thresholds.append(threshold)
                 if m > best_score:

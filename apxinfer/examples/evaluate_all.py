@@ -57,8 +57,10 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int):
 
     if args.complementary:
         # no alpha
-        for beta in quantiles:
-            cfgs.append((0, beta*naggs))
+        cfgs.append((0, 1*naggs))
+        cfgs.append((0, 2*naggs))
+        # for beta in quantiles:
+        #     cfgs.append((0, beta*naggs))
 
     # default beta and vary alpha
     for beta in [1, 2]:

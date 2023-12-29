@@ -4,6 +4,7 @@ import logging
 import itertools
 import asyncio
 import ray
+import psutil
 
 from apxinfer.core.utils import XIPRequest, XIPQueryConfig
 from apxinfer.core.utils import XIPFeatureVec, QueryCostEstimation
@@ -43,12 +44,17 @@ class XIPFEngine:
     def set_exec_mode(self, mode: str = "sequential"):
         self.mode = mode
         if self.mode == "parallel":
+            max_cpus = psutil.cpu_count(logical=True)
             self.ray_queries = []
             for qp in self.queries:
                 # delte dbclient first because it contains socket, which can not be pickled
                 qp.data_loader = None  # it contains socket, which can not be pickled
                 qp.dbclient = None  # it contains socket, which can not be pickled
-                self.ray_queries.append(XIPQuryProcessorRayWrapper.remote(qp))
+                if max_cpus < len(self.queries):
+                    num_cpus = max_cpus * 0.9 / len(self.queries)
+                    self.ray_queries.append(XIPQuryProcessorRayWrapper.options(num_cpus=num_cpus).remote(qp))
+                else:
+                    self.ray_queries.append(XIPQuryProcessorRayWrapper.remote(qp))
                 qp.set_dbclient()
             # add dbclient back, dbloader is useless, because data is already loaded
             _ = ray.get([qry.set_dbclient.remote() for qry in self.ray_queries])

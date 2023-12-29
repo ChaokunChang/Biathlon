@@ -112,8 +112,9 @@ class OfflineExecutor:
         return records
 
     def plot_fvars(self, qsamples: np.ndarray, fvars: np.ndarray) -> None:
+        fig_height = min(1<<16, 6 * len(self.agg_fids))
         fig, axes = plt.subplots(
-            len(self.agg_fids), 1, figsize=(8, 6 * len(self.agg_fids))
+            len(self.agg_fids), 1, figsize=(8, fig_height)
         )
         if len(self.agg_fids) == 1:
             axes = [axes]
@@ -126,8 +127,9 @@ class OfflineExecutor:
         plt.savefig(f"{self.working_dir}/fvars.pdf", bbox_inches="tight")
 
     def plot_qcost(self, features: pd.DataFrame):
+        fig_height = min(1<<16, 6 * len(self.agg_fids))
         fig, axes = plt.subplots(
-            len(self.agg_qids), 1, figsize=(8, 6 * len(self.agg_fids))
+            len(self.agg_qids), 1, figsize=(8, fig_height)
         )
         if len(self.agg_qids) == 1:
             axes = [axes]

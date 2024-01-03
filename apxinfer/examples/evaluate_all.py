@@ -64,7 +64,7 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int):
 
     # default beta and vary alpha
     for beta in [1, 2]:
-        for alpha in quantiles[:-2]:
+        for alpha in quantiles[:-1]:
             cfgs.append((alpha, beta * naggs))
     return cfgs
 

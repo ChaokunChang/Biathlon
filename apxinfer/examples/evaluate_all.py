@@ -22,6 +22,7 @@ class ExpArgs(Tap):
     skip_shared: bool = False
     prep_single: str = None
     complementary: bool = False
+    tmp_3percent: str = None
 
     def process_args(self):
         assert self.exp is not None
@@ -212,6 +213,32 @@ def run_pipeline(
                 max_error,
             )
             cmd = f"{cmd} --min_confs {min_confs_str}"
+            os.system(cmd)
+
+    if args.tmp_3percent:
+        for max_error in default_max_errors:
+            cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    5,
+                    naggs * 3,
+                    max_error,
+                )
+            cmd = f"{cmd} --min_confs 0.98"
+            os.system(cmd)
+
+            cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    3,
+                    naggs * 1,
+                    max_error,
+                )
+            cmd = f"{cmd} --min_confs 0.98"
             os.system(cmd)
 
 

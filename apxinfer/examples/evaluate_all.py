@@ -22,7 +22,8 @@ class ExpArgs(Tap):
     skip_shared: bool = False
     prep_single: str = None
     complementary: bool = False
-    tmp_3percent: str = None
+    tmp_3percent: bool = False
+    warmup: bool = False
 
     def process_args(self):
         assert self.exp is not None
@@ -141,6 +142,11 @@ def run_pipeline(
 ):
     naggs = len(agg_qids.split(" "))
     model = args.model
+
+    if args.warmup:
+        cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000*naggs, 0.0)
+        cmd = f"{cmd} --min_confs 1.1"
+        os.system(cmd)
 
     # run prepare
     if not args.skip_shared:

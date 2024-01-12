@@ -20,14 +20,20 @@ class EvalArgs(Tap):
     avg: bool = False
 
 
-select_names = ["Trips-Fare", "battery",
-                "batteryv2", "turbofan",
-                "Bearing-MLP", "Bearing-Multi",
+select_names = ["Trips-Fare",
+                # "battery",
+                "batteryv2",
+                "turbofan",
+                "Bearing-MLP",
+                # "Bearing-Multi",
                 "Fraud-Detection",
-                "tdfraudrandom", 'student']
+                # "tdfraudrandom",
+                'student'
+                ]
 select_names += [f'machineryxf{i}' for i in range(1, 9)]
+select_names += [f'machinerynf{i}' for i in range(1, 9)]
 select_names += [f'studentqno{i}' for i in range(1, 19)]
-select_names += [f'tickvaryNM{i}' for i in range(2, 40)]
+# select_names += [f'tickvaryNM{i}' for i in range(2, 40)]
 
 
 def parse_filename(filename, verbose: bool = False):
@@ -132,8 +138,8 @@ def merge_csv(args: EvalArgs):
 def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
     seeds_dict = {
         "Trips-Fare": [1, 2, 3],
-        "tickvaryNM8": [0, 1, 2],
-        "battery": [0, 4, 3],
+        # "tickvaryNM8": [0, 1, 2],
+        # "battery": [0, 4, 3],
         "batteryv2": [3, 4, 1],
         "turbofan": [1, 2, 3],
         "Bearing-MLP": [0, 2, 4],
@@ -142,8 +148,8 @@ def seed_selection(df: pd.DataFrame) -> pd.DataFrame:
         "tdfraudrandom": [0],
     }
     df = df[(df['task_name'] != 'Trips-Fare') | ((df['task_name'] == 'Trips-Fare') & df['seed'].isin(seeds_dict['Trips-Fare']))]
-    df = df[(df['task_name'] != 'tickvaryNM8') | ((df['task_name'] == 'tickvaryNM8') & df['seed'].isin(seeds_dict['tickvaryNM8']))]
-    df = df[(df['task_name'] != 'battery') | ((df['task_name'] == 'battery') & df['seed'].isin(seeds_dict['battery']))]
+    # df = df[(df['task_name'] != 'tickvaryNM8') | ((df['task_name'] == 'tickvaryNM8') & df['seed'].isin(seeds_dict['tickvaryNM8']))]
+    # df = df[(df['task_name'] != 'battery') | ((df['task_name'] == 'battery') & df['seed'].isin(seeds_dict['battery']))]
     df = df[(df['task_name'] != 'batteryv2') | ((df['task_name'] == 'batteryv2') & df['seed'].isin(seeds_dict['batteryv2']))]
     df = df[(df['task_name'] != 'turbofan') | ((df['task_name'] == 'turbofan') & df['seed'].isin(seeds_dict['turbofan']))]
     df = df[(df['task_name'] != 'Bearing-MLP') | ((df['task_name'] == 'Bearing-MLP') & df['seed'].isin(seeds_dict['Bearing-MLP']))]
@@ -186,7 +192,7 @@ def main():
     useless_cols = ['run_shared', 'nocache', 'interpreter', 'min_confs']
     df = raw_df.drop(columns=useless_cols)
     df = seed_selection(df)
-    df = tmp_handler_for_varynm(df)
+    # df = tmp_handler_for_varynm(df)
     if args.avg:
         # seed,
         # agg_qids,task_home,

@@ -616,7 +616,7 @@ if __name__ == "__main__":
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
     elif args.exp in StudentQNo18VaryNF:
-        nf = int(args.exp[len("studentqno18varynf") :])
+        nf = int(args.exp[len("studentqno18nf") :])
         run_studentqno18_vary_nf(args, nf)
     elif args.exp in MachineryVaryNF:
         nf = int(args.exp[len("machinerynf") :])

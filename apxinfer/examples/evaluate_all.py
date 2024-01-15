@@ -458,9 +458,7 @@ def run_studentqno18_vary_nf(args: ExpArgs, nf: int):
     """
     task_name = f"studentqno18nf{nf}"
     agg_qids = " ".join([f"{i}" for i in range(nf)])
-    default_max_errors = [0]
-    max_errors = [0]
-    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+    run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
 
 def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):

@@ -75,7 +75,8 @@ def get_student_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_studentqno_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_studentqno_engine(nparts: int, ncores: int = 0,
+                          verbose: bool = False, **kwargs):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database="xip",
@@ -89,11 +90,27 @@ def get_studentqno_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
     qps: List[XIPQueryProcessor] = []
     cols = STUDENT_NUMERICAL + STUDENT_CATEGORICAL
-    for col in cols:
+    nf = kwargs.get("nf", len(cols))
+
+    for i in range(nf):
+        col = cols[i]
         qps.append(
             StudentQP1(
                 qname=f"q-{len(qps)}",
                 qtype=XIPQType.AGG,
+                data_loader=data_loader,
+                dcol=col,
+                dcol_ops=get_aggops(col),
+                verbose=verbose,
+            )
+        )
+
+    for i in range(nf, len(cols)):
+        col = cols[i]
+        qps.append(
+            StudentQP1(
+                qname=f"q-{len(qps)}",
+                qtype=XIPQType.ExactAGG,
                 data_loader=data_loader,
                 dcol=col,
                 dcol_ops=get_aggops(col),

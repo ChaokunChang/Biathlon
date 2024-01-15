@@ -2,6 +2,7 @@ from tap import Tap
 import os
 
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
+StudentQNo18VaryNF = [f"studentqno18nf{i}" for i in range(1, 13)]
 MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)]
 MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
@@ -34,7 +35,7 @@ class ExpArgs(Tap):
 
 
 def get_default_min_confs(args: ExpArgs):
-    return [0.99, 0.98, 0.95]
+    return [0.98]
 
 
 def get_min_confs(args: ExpArgs):
@@ -42,30 +43,23 @@ def get_min_confs(args: ExpArgs):
 
 
 def get_default_scheduler_cfgs(args: ExpArgs, naggs: int):
-    cfgs = [(5, 1 * naggs), (1, 1 * naggs), (2, 2 * naggs)]
-    if args.complementary:
-        cfgs.append((0, 1 * naggs))
+    cfgs = [(5, 1 * naggs)]
     return cfgs
 
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
-    quantiles = [1, 2, 5] + [i for i in range(10, 100, 20)] + [100]
+    quantiles = [1, 3, 5] + [i for i in range(10, 100, 20)] + [100]
+    default_alphas = [1, 5]
+    default_betas = [1]
     cfgs = []
 
     # default apha and vary beta
-    for alpha in [1, 5]:
+    for alpha in default_alphas:
         for beta in quantiles:
             cfgs.append((alpha, beta * naggs))
 
-    if args.complementary:
-        # no alpha
-        cfgs.append((0, 1*naggs))
-        cfgs.append((0, 2*naggs))
-        # for beta in quantiles:
-        #     cfgs.append((0, beta*naggs))
-
     # default beta and vary alpha
-    for beta in [1, 2]:
+    for beta in default_betas:
         for alpha in quantiles[:-1]:
             cfgs.append((alpha, beta * naggs))
     return cfgs
@@ -458,13 +452,15 @@ def run_tick_v2(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
-def get_scheduler_vary_cfgs(args: ExpArgs, naggs: int):
-    default_quantiles = [1, 2, 5]
-    cfgs = [(5, 5)]
-    for beta in default_quantiles:
-        for alpha in default_quantiles:
-            cfgs.append((alpha, beta * naggs))
-    return cfgs
+def run_studentqno18_vary_nf(args: ExpArgs, nf: int):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    task_name = f"studentqno18nf{nf}"
+    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
 def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
@@ -619,6 +615,9 @@ if __name__ == "__main__":
         run_cheaptripsfeast(args)
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
+    elif args.exp in StudentQNo18VaryNF:
+        nf = int(args.exp[len("studentqno18varynf") :])
+        run_studentqno18_vary_nf(args, nf)
     elif args.exp in MachineryVaryNF:
         nf = int(args.exp[len("machinerynf") :])
         run_machinery_vary_nf(args, nf)

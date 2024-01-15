@@ -117,7 +117,11 @@ def get_fengine(name: str, args: BaseXIPArgs):
     elif name.startswith("studentqno"):
         from apxinfer.examples.student.engine import get_studentqno_engine
         # qno = int(name[len("studentqno"):])
-        fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
+        if name.startswith("studentqno18nf"):
+            nf = int(name[len("studentqno18nf"):])
+            fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose, nf=nf)
+        else:
+            fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores, verbose=args.verbose)
 
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
@@ -224,7 +228,10 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
 
     if name.startswith("studentqno"):
-        qno = int(name[len("studentqno"):])
+        if name.startswith("studentqno18nf"):
+            qno = 18
+        else:
+            qno = int(name[len("studentqno"):])
         worker: XIPPrepareWorker = Worker(
             DIRHelper.get_prepare_dir(args),
             get_fengine(name, args),

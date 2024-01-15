@@ -14,6 +14,9 @@ ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
 ALL_CLS_TASKS += StudentQNo
 
+StudentQNo18VaryNF = [f"studentqno18nf{i}" for i in range(1, 13)]
+ALL_CLS_TASKS += StudentQNo18VaryNF
+
 MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 9)]
 ALL_CLS_TASKS += MachineryVaryNF

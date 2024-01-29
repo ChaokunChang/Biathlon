@@ -33,6 +33,7 @@ select_names = ["Trips-Fare",
 select_names += [f'machineryxf{i}' for i in range(1, 9)]
 select_names += [f'machinerynf{i}' for i in range(1, 9)]
 select_names += [f'studentqno{i}' for i in range(1, 19)]
+select_names += [f'studentqno18nf{i}' for i in range(1, 13)]
 # select_names += [f'tickvaryNM{i}' for i in range(2, 40)]
 
 

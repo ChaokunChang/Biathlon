@@ -1,50 +1,92 @@
 from typing import List
 
-from apxinfer.core.utils import XIPQueryConfig, XIPFeatureVec, XIPQType
-from apxinfer.core.utils import merge_fvecs, get_qcfg_pool
-from apxinfer.core.query import XIPQuery
-from apxinfer.core.feature import FEstimatorHelper
+from apxinfer.core.utils import XIPQType
+from apxinfer.core.data import XIPDataLoader
+from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
 from apxinfer.examples.machinery.data import MachineryRequest
-from apxinfer.examples.machinery.data import MachineryLoader
 
 
-class MachineryQuery(XIPQuery):
-    def __init__(
-        self,
-        qname: str,
-        dcols: List[str],
-        aggs: List[str] = ["avg"],
-        enable_cache: bool = False,
-        max_nchunks: int = 100,
-        seed: int = 0,
-        n_cfgs: int = 5,
-    ) -> None:
-        self.aggs = aggs
-        self.dcols = dcols
-        fnames = [f"{agg}_{dcol}" for agg in aggs for dcol in dcols]
-        data_loader = MachineryLoader(
-            backend="clickhouse",
-            database="xip",
-            table="mach_imbalance",
-            seed=seed,
-            enable_cache=enable_cache,
-            max_nchunks=max_nchunks,
-        )
-        super().__init__(
-            qname, XIPQType.AGG, data_loader, fnames, get_qcfg_pool(qname, n_cfgs), enable_cache
-        )
+class MachineryQP(XIPQueryProcessor):
+    def __init__(self, qname: str, qtype: XIPQType, 
+                 data_loader: XIPDataLoader, 
+                 dcol: str, 
+                 dcol_ops: List[str], 
+                 fnames: List[str] = None, 
+                 verbose: bool = False) -> None:
+        self.dcol = dcol
+        self.dcol_ops = dcol_ops
+        super().__init__(qname, qtype, data_loader, fnames, verbose)
 
-    def run(self, request: MachineryRequest, qcfg: XIPQueryConfig) -> XIPFeatureVec:
-        req_data = self.data_loader.load_data(request, qcfg, self.dcols)
-        if req_data is None or len(req_data) == 0:
-            return self.get_default_fvec(request, qcfg)
-        else:
-            fvecs = []
-            for agg in self.aggs:
-                fvec: XIPFeatureVec = FEstimatorHelper.SUPPORTED_AGGS[agg](
-                    req_data, qcfg["qsample"]
-                )
-                fvecs.append(fvec)
-            fvec = merge_fvecs(fvecs, new_names=self.fnames)
-        return fvec
+    def get_query_condition(self, request: MachineryRequest) -> str:
+        bid = request["req_bid"]
+        qcond = f"bid = {bid}"
+        return qcond
+
+    def get_query_ops(self) -> List[XIPQOperatorDescription]:
+        dcols = [self.dcol]
+        dcol_aggs = [self.dcol_ops]
+        qops = [
+            XIPQOperatorDescription(dcol=dcol, dops=dcol_aggs[i])
+            for i, dcol in enumerate(dcols)
+        ]
+        return qops
+
+
+def get_qps(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
+    nf = kwargs.get("nf", 8)
+    qps: List[XIPQueryProcessor] = []
+    # dcols = [f'sensor_{i}' for i in range(8)]
+    # dcols_aggs = [["avg"] for i in range(8)]
+    for i in range(nf):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.AGG,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    return qps
+
+
+def get_qps_x(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
+    nf = kwargs.get("nf", 8)
+    qps: List[XIPQueryProcessor] = []
+    # dcols = [f'sensor_{i}' for i in range(8)]
+    # dcols_aggs = [["avg"] for i in range(8)]
+    for i in range(nf):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.AGG,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    for i in range(nf, 8):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.KeySearch,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    return qps
+
+
+def get_qps_varynf(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
+    nf = kwargs.get("nf", 8)
+    qps: List[XIPQueryProcessor] = []
+    # dcols = [f'sensor_{i}' for i in range(8)]
+    # dcols_aggs = [["avg"] for i in range(8)]
+    for i in range(nf):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.AGG,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    for i in range(nf, 8):
+        qps.append(MachineryQP(qname=f"q-{len(qps)}",
+                               qtype=XIPQType.ExactAGG,
+                               data_loader=data_loader,
+                               dcol=f'sensor_{i}',
+                               dcol_ops=["avg"],
+                               verbose=verbose))
+    return qps

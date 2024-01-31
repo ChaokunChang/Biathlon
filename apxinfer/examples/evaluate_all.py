@@ -15,42 +15,53 @@ class ExpArgs(Tap):
     interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
     exp: str = None
     model: str = None  # see each exp
-    ncores: int = None  # 1, 0
-    loading_mode: int = None  # 0, 1, 2, 5, 10
+    ncores: int = 1  # 1, 0
+    loading_mode: int = 0  # 0, 1, 2, 5, 10
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
     skip_shared: bool = False
-    prep_single: str = None
-    complementary: bool = False
-    tmp_3percent: bool = False
+    prepare: bool = False
     warmup: bool = False
 
     def process_args(self):
         assert self.exp is not None
-        if self.exp != "prepare":
+        if not self.prepare:
             assert self.model is not None
-            assert self.ncores is not None
-            assert self.loading_mode is not None
 
 
 def get_default_min_confs(args: ExpArgs):
-    return [0.98]
+    return [0.95, 0.98]
 
 
 def get_min_confs(args: ExpArgs):
-    return [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    # return [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+    return [0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
+
+
+def get_default_alphas(args: ExpArgs):
+    return [5]
+
+
+def get_default_betas(args: ExpArgs):
+    return [1]
+
+
+def get_all_quantiles(args: ExpArgs):
+    return [1, 2, 3, 5] + [i for i in range(10, 100, 20)] + [100]
 
 
 def get_default_scheduler_cfgs(args: ExpArgs, naggs: int):
-    cfgs = [(5, 1 * naggs)]
+    for alpha in get_default_alphas(args):
+        for beta in get_default_betas(args):
+            cfgs = [(alpha, beta * naggs)]
     return cfgs
 
 
 def get_scheduler_cfgs(args: ExpArgs, naggs: int):
-    quantiles = [1, 3, 5] + [i for i in range(10, 100, 20)] + [100]
-    default_alphas = [1, 5]
-    default_betas = [1]
+    quantiles = get_all_quantiles(args)
+    default_alphas = get_default_alphas(args)
+    default_betas = get_default_betas(args)
     cfgs = []
 
     # default apha and vary beta
@@ -65,31 +76,18 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int):
     return cfgs
 
 
+def list_to_option_str(values: list):
+    return " ".join([f"{v}" for v in values])
+
+
 def run_prepare(args: ExpArgs):
     interpreter = args.interpreter
     if interpreter == "python":
         cmd = f"{interpreter}"
     else:
         cmd = f"sudo {interpreter}"
-    if args.prep_single:
-        tasks = [args.prep_single]
-    else:
-        tasks = [
-            "trips",
-            "tick",
-            "tickv2",
-            "cheaptrips",
-            "machinery",
-            "ccfraud",
-            "tripsfeast",
-            "machinerymulti",
-            "tdfraud",
-        ]
-    for task in tasks:
-        cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {task} --prepare_again --seed {args.seed}"
-        if task in TickVaryNMonths:
-            cmd = f"{cmd} --all_nparts 100"
-        os.system(cmd)
+    cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {args.exp} --prepare_again --seed {args.seed}"
+    os.system(cmd)
 
 
 def get_base_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
@@ -101,6 +99,11 @@ def get_base_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
 
     cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
     cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores} --loading_mode {args.loading_mode}"
+    return cmd
+
+
+def get_baseline_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
     cmd = f"{cmd} --run_shared"
     return cmd
 
@@ -114,14 +117,7 @@ def get_eval_cmd(
     scheduler_batch: int,
     max_error: float,
 ):
-    interpreter = args.interpreter
-    if interpreter == "python":
-        cmd = f"{interpreter} eval_reg.py --seed {args.seed}"
-    else:
-        cmd = f"sudo {interpreter} eval_reg.py --seed {args.seed}"
-
-    cmd = f"{cmd} --interpreter {interpreter} --task_name {task_name} --agg_qids {agg_qids}"
-    cmd = f"{cmd} --model {model} --nparts {args.nparts} --ncores {args.ncores} --loading_mode {args.loading_mode}"
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
     cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
     return cmd
 
@@ -138,17 +134,17 @@ def run_pipeline(
     model = args.model
 
     if args.warmup:
-        cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000*naggs, 0.0)
-        cmd = f"{cmd} --min_confs 1.1"
+        cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000 * naggs, 0.0)
+        cmd = f"{cmd} --min_confs 1.1 --nocache"
         os.system(cmd)
 
-    # run prepare
+    # run offline and baseline
     if not args.skip_shared:
-        cmd = get_base_cmd(args, task_name, model, agg_qids)
+        cmd = get_baseline_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
 
-    default_min_confs_str = " ".join([f"{c}" for c in get_default_min_confs(args)])
-    min_confs_str = " ".join([f"{c}" for c in get_min_confs(args)])
+    default_min_confs_str = list_to_option_str(get_default_min_confs(args))
+    min_confs_str = list_to_option_str(get_min_confs(args))
 
     default_cfgs = get_default_scheduler_cfgs(args, naggs)
     cfgs = get_scheduler_cfgs(args, naggs)
@@ -215,39 +211,13 @@ def run_pipeline(
             cmd = f"{cmd} --min_confs {min_confs_str}"
             os.system(cmd)
 
-    if args.tmp_3percent:
-        for max_error in default_max_errors:
-            cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    5,
-                    naggs * 3,
-                    max_error,
-                )
-            cmd = f"{cmd} --min_confs 0.98"
-            os.system(cmd)
-
-            cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    3,
-                    naggs * 1,
-                    max_error,
-                )
-            cmd = f"{cmd} --min_confs 0.98"
-            os.system(cmd)
-
 
 def run_studentqno(args: ExpArgs, qno: int):
     """
     models = [lgbm, gbm, tfgbm]
     """
     task_name = f"studentqno{qno}"
-    agg_qids = " ".join([f"{i}" for i in range(13)])
+    agg_qids = list_to_option_str([i for i in range(13)])
     default_max_errors = [0]
     max_errors = [0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -258,7 +228,7 @@ def run_student(args: ExpArgs):
     models = [lgbm, gbm, tfgbm]
     """
     task_name = "student"
-    agg_qids = " ".join([f"{i+1}" for i in range(13)])
+    agg_qids = list_to_option_str([i + 1 for i in range(13)])
     default_max_errors = [0]
     max_errors = [0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -398,7 +368,7 @@ def run_turbofan(args: ExpArgs):
     """
     task_name = "turbofan"
     naggs = 9
-    agg_qids = " ".join([f"{i}" for i in range(naggs)])
+    agg_qids = list_to_option_str([i for i in range(naggs)])
     default_max_errors = [1, 3, 6]
     max_errors = [1, 3, 6, 10, 20, 50, 80, 100]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -411,7 +381,7 @@ def run_turbofanall(args: ExpArgs):
     """
     task_name = "turbofanall"
     naggs = 44
-    agg_qids = " ".join([f"{i}" for i in range(naggs)])
+    agg_qids = list_to_option_str([i for i in range(naggs)])
     default_max_errors = [1, 3, 6]
     max_errors = [1, 3, 6, 10, 20, 50, 80, 100]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -457,7 +427,7 @@ def run_studentqno18_vary_nf(args: ExpArgs, nf: int):
     models = [lgbm, gbm, tfgbm]
     """
     task_name = f"studentqno18nf{nf}"
-    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    agg_qids = list_to_option_str([i for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
 
@@ -469,7 +439,7 @@ def run_machinery_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
         task_name = f"machineryxf{nf}"
     else:
         task_name = f"machinerynf{nf}"
-    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    agg_qids = list_to_option_str([i for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
 
@@ -481,7 +451,7 @@ def run_machinerymulti_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
         task_name = f"machinerymultixf{nf}"
     else:
         task_name = f"machinerymultinf{nf}"
-    agg_qids = " ".join([f"{i}" for i in range(nf)])
+    agg_qids = list_to_option_str([i for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 
 
@@ -573,7 +543,7 @@ def run_vary_nsamples(args: ExpArgs):
     model = args.model
 
     default_cfgs = get_default_scheduler_cfgs(args, naggs)
-    default_min_confs_str = " ".join([f"{c}" for c in get_default_min_confs(args)])
+    default_min_confs_str = list_to_option_str(get_default_min_confs(args))
     nsamples_list = [50, 100, 256, 500, 768, 1000, 1024, 2048]
     for scheduler_init, scheduler_batch in default_cfgs:
         for max_error in default_max_errors:

@@ -191,7 +191,7 @@ def main():
     raw_df = merge_csv(args)
     print(f'columns: {raw_df.columns}')
     useless_cols = ['run_shared', 'nocache', 'interpreter', 'min_confs']
-    df = raw_df.drop(columns=useless_cols)
+    df = raw_df.drop(columns=useless_cols, errors='ignore')
     df = seed_selection(df)
     # df = tmp_handler_for_varynm(df)
     if args.avg:

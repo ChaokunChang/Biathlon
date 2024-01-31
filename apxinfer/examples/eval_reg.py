@@ -41,6 +41,8 @@ class EvalArgs(Tap):
     max_error: float = 1.0
     agg_qids: list[int] = None
     run_shared: bool = False
+    run_offline: bool = False
+    run_baseline: bool = False
     qinf: str = "sobol"
     policy: str = "optimizer"
     scheduler_init: int = 1
@@ -112,6 +114,9 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "meet_rate": all_info["meet_rate"],
         "avg_real_error": all_info["avg_real_error"],
     }
+    dropped_keys = ['run_shared', 'run_offline', 'run_baseline', 'nocache', 'interpreter', 'min_confs']
+    for key in dropped_keys:
+        result.pop(key, None)
     for key in all_info["evals_to_ext"]:
         if key in ['time', 'size']:
             continue
@@ -133,19 +138,20 @@ def extract_result(all_info: dict, min_conf, base_time=None):
 cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
 results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
 
-if args.run_shared:
+if args.run_offline or args.run_shared:
     # offline
     command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
     print(command)
     qcm_path = f"{results_prefix}/offline/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
     os.system(command=command)
-
+if args.run_baseline or args.run_shared:
     # exact
     command = f"{cmd_prefix} --ncores {ncores} --exact"
     print(command)
     exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/exact/evals_exact.json"
     os.system(command=command)
-else:
+
+if not args.run_shared and not args.run_offline and not args.run_baseline:
     evals = []
     path_prefix = (
         f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}"

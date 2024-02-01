@@ -298,7 +298,7 @@ def run_trainer(name: str, args: TrainerArgs):
         DIRHelper.get_prepare_dir(args),
         model_type,
         args.model,
-        args.seed,
+        args.model_seed,
         scaler_type=args.scaler_type,
         multi_class=(name == "machinerymulti")
     )

@@ -301,10 +301,10 @@ async def run_async(
     return fvec, tcost
 
 
-def get_dloader(verbose: bool = False) -> XIPDataLoader:
+def get_dloader(seed: int = 0, verbose: bool = False) -> XIPDataLoader:
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="trips_100",
         seed=0,
         enable_cache=False,
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     print(f"run with args: {args}")
 
     request = get_request()
-    data_loader: XIPDataLoader = get_dloader(args.verbose)
+    data_loader: XIPDataLoader = get_dloader(0, args.verbose)
 
     qps = get_qps(data_loader, verbose=args.verbose)
     qcfgs = get_qcfgs(qps, args.qsample, 0, args.ld_nthreads, args.cp_nthreads)

@@ -8,10 +8,11 @@ from apxinfer.examples.tick.query import TickQP1, TickQP2
 
 
 def get_tick_engine(nparts: int, ncores: int = 0,
-                    num_months: int = 1, verbose: bool = False):
+                    seed: int = 0, num_months: int = 1,
+                    verbose: bool = False):
     tick_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tickvary_{num_months}_{nparts}",
         seed=0,
         enable_cache=False,
@@ -19,7 +20,7 @@ def get_tick_engine(nparts: int, ncores: int = 0,
 
     tick_fstore_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="tick_fstore_hour",
         seed=0,
         enable_cache=False,

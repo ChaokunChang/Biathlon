@@ -50,6 +50,7 @@ class XIPPrepareWorker:
         model_type: str,
         model_name: str,
         seed: int,
+        split_seed: int = 0
     ) -> None:
         self.working_dir = working_dir
 
@@ -63,7 +64,8 @@ class XIPPrepareWorker:
         self.model_type = model_type
         self.model_name = model_name
 
-        self.seed = seed
+        self.seed = seed  # to identify db
+        self.split_seed = split_seed  # for dataset split
         self.logger = logging.getLogger("DatasetCreator")
 
         self.dataset_dir = osp.join(self.working_dir, "dataset")
@@ -144,7 +146,7 @@ class XIPPrepareWorker:
             dataset=dataset,
             train_ratio=self.train_ratio,
             valid_ratio=self.valid_ratio,
-            seed=self.seed,
+            seed=self.split_seed,
         )
         return train_set, valid_set, test_set
 

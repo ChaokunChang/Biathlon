@@ -29,7 +29,7 @@ class CCFraudPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
-        self.database = "xip"
+        self.database = f"xip_{seed}"
         self.table = f"ccfraud_txns_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:

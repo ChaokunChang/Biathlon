@@ -12,10 +12,11 @@ from apxinfer.examples.tdfraud.query import TDFraudKaggleQP0
 from apxinfer.examples.tdfraud.query import TDFraudKaggleQP1
 
 
-def get_tdfraud_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_tdfraud_engine(nparts: int, ncores: int = 0,
+                       seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tdfraud_{nparts}",
         seed=0,
         enable_cache=False,
@@ -59,10 +60,11 @@ def get_tdfraud_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_tdfraudkaggle_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_tdfraudkaggle_engine(nparts: int, ncores: int = 0,
+                             seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tdfraud_{nparts}",
         seed=0,
         enable_cache=False,

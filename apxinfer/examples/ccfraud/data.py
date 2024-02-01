@@ -306,7 +306,7 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     txns_ingestor = CCFraudTxnsIngestor(
         dsrc_type="user_files",
         dsrc=txns_src,
-        database="xip",
+        database=f"xip_{seed}",
         table=f"ccfraud_txns_{nparts}",
         nparts=nparts,
         seed=seed,
@@ -317,7 +317,7 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     cards_ingestor = CCFraudCardsIngestor(
         dsrc_type="user_files",
         dsrc=cards_src,
-        database="xip",
+        database=f"xip_{seed}",
         table="ccfraud_cards",
         nparts=nparts,
         seed=seed,
@@ -328,7 +328,7 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     users_ingestor = CCFraudUsersIngestor(
         dsrc_type="user_files",
         dsrc=users_src,
-        database="xip",
+        database=f"xip_{seed}",
         table="ccfraud_users",
         nparts=nparts,
         seed=seed,

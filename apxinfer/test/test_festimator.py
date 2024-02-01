@@ -13,9 +13,10 @@ from functools import partial
 
 
 from apxinfer.core.festimator import XIPDataAggregator, XIPFeatureErrorEstimator
+from apxinfer.core.config import EXP_HOME
 
 if __name__ == "__main__":
-    FIG_HOME = "/home/ckchang/.cache/apxinf/xip/festimator"
+    FIG_HOME = os.path.join(EXP_HOME, "festimator")
     os.makedirs(FIG_HOME, exist_ok=True)
     p = 0.0001
     tsize = 1000000

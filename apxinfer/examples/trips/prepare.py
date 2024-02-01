@@ -28,7 +28,7 @@ class TripsPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
-        self.database = "xip"
+        self.database = f"xip_{seed}"
         self.table = f"trips_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:

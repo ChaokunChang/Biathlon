@@ -7,10 +7,10 @@ from apxinfer.core.fengine import XIPFEngine
 from apxinfer.examples.battery.query import BatteryQPAgg, BatteryQPNonAGG
 
 
-def get_battery_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_battery_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"battery_{nparts}",
         seed=0,
         enable_cache=False,
@@ -39,10 +39,10 @@ def get_battery_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_batteryv2_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_batteryv2_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"battery_{nparts}",
         seed=0,
         enable_cache=False,

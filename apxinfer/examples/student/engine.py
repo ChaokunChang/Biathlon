@@ -37,10 +37,10 @@ def get_aggops(col: str):
         return ["avg", "stdSamp"]
 
 
-def get_student_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_student_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"student_{nparts}",
         seed=0,
         enable_cache=False,
@@ -76,10 +76,11 @@ def get_student_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
 
 def get_studentqno_engine(nparts: int, ncores: int = 0,
+                          seed: int = 0,
                           verbose: bool = False, **kwargs):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"student_{nparts}",
         seed=0,
         enable_cache=False,

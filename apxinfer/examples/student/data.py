@@ -207,7 +207,7 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     txns_ingestor = StudentIngestor(
         dsrc_type="user_files",
         dsrc=txns_src,
-        database="xip",
+        database=f"xip_{seed}",
         table=f"student_{nparts}",
         nparts=nparts,
         seed=seed,

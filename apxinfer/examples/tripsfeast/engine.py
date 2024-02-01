@@ -9,8 +9,9 @@ from apxinfer.examples.tripsfeast.query import TripsQP0, TripsQP1, TripsQP2
 from apxinfer.examples.tripsfeast.query import TripsQP3, TripsQP4
 
 
-def get_trips_feast_engine(nparts: int, ncores: int = 0, verbose: bool = False):
-    data_loader: XIPDataLoader = get_dloader(nparts, verbose=verbose)
+def get_trips_feast_engine(nparts: int, ncores: int = 0,
+                           seed: int = 0, verbose: bool = False):
+    data_loader: XIPDataLoader = get_dloader(nparts, seed=seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",
         qtype=XIPQType.NORMAL,
@@ -39,8 +40,9 @@ def get_trips_feast_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
 
 def get_trips_feast_engine_vary(nparts: int, rate: int,
-                                ncores: int = 0, verbose: bool = False):
-    data_loader: XIPDataLoader = get_dloader(nparts, verbose=verbose)
+                                ncores: int = 0, seed: int = 0,
+                                verbose: bool = False):
+    data_loader: XIPDataLoader = get_dloader(nparts, seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",
         qtype=XIPQType.NORMAL,

@@ -7,10 +7,11 @@ from apxinfer.core.fengine import XIPFEngine
 from apxinfer.examples.turbofan.query import TurbofanQPAgg
 
 
-def get_turbofan_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_turbofan_engine(nparts: int, ncores: int = 0,
+                        seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"turbofan_{nparts}",
         seed=0,
         enable_cache=False,
@@ -48,10 +49,11 @@ def get_turbofan_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_turbofanall_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_turbofanall_engine(nparts: int, ncores: int = 0,
+                           seed: int = 0, verbose: bool = False):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"turbofan_{nparts}",
         seed=0,
         enable_cache=False,

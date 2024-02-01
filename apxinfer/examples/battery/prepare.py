@@ -32,7 +32,7 @@ class BatteryPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
-        self.database = "xip"
+        self.database = f"xip_{seed}"
         self.table = f"battery_{nparts}"
 
         self._cached_df = None

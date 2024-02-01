@@ -32,14 +32,13 @@ if __name__ == "__main__":
     args = TrainerArgs().parse_args()
     model_name = args.model
     model_type = "classifier"
-    seed = args.seed
     working_dir = DIRHelper.get_prepare_dir(args)
 
     trainer = BatteryTrainer(
         working_dir,
         model_type,
         model_name,
-        seed,
+        args.model_seed,
         scaler_type=args.scaler_type,
         multi_class=args.multiclass,
     )

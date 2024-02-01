@@ -4,53 +4,55 @@ from tap import Tap
 import joblib
 import pandas as pd
 
-EXP_HOME = "/home/ckchang/.cache/apxinf/xip"
+EXP_HOME = "/home/ckchang/.cache/Biathlon/vldb2024"
 
 
 class BaseXIPArgs(Tap):
     task: str = "test"  # task name
-    model: str = "lgbm"  # model name
-    scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     seed: int = 0  # seed for prediction estimation
+
     nparts: int = 100  # maximum number of partitions of dataset
     loading_mode: int = 0  # 0 means part by part, 1 means together, k>1 means k parts by k parts
+    ncores: int = 1  # ncores for experiment
+
+    # AFC and AMI settings
+    err_min_support: int = 30
     bs_nthreads: int = 1  # nthreads for bootstrapping
     bs_type: Literal['descrete', 'fstd'] = "fstd"
     bs_nresamples: int = 100
     bs_feature_correction: bool = True
     bs_bias_correction: bool = True
     bs_for_var_std: bool = True
-    err_min_support: int = 30
-    ncores: int = 1  # ncores for experiment
+
+    # model settings
+    scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
+    model: str = "lgbm"  # model name
+
     verbose: bool = False
 
 
 class PrepareArgs(BaseXIPArgs):
-    skip_dataset: bool = (
-        False  # whether to skip dataset preparation, by loading cached one
-    )
+    skip_dataset: bool = False  # skip dataset preparation
     max_requests: int = 2000  # maximum number of requests
     train_ratio: float = 0.5  # ratio of training data
     valid_ratio: float = 0.3  # ratio of validation data
+    split_seed: int = 0
 
 
 class TrainerArgs(BaseXIPArgs):
-    plus: bool = False  # whether to use plus features
     multiclass: bool = False  # whether the model is multi-class
     model_seed: int = 0
 
 
 class OfflineArgs(BaseXIPArgs):
-    nreqs: int = 0  # number of test requests
+    offline_nreqs: int = 100  # number of requests for offline
     ncfgs: int = 100  # number of query configurations
+    nreqs_offset: int = 0
     clear_cache: bool = False
 
 
-class OnlineArgs(BaseXIPArgs):
-    offline_nreqs: int = 10  # number of offline requests
+class OnlineArgs(OfflineArgs):
     nreqs: int = 0  # number of test requests
-    nreqs_offset: int = 0
-    ncfgs: int = 100  # number of query configurations
 
     disable_sample_cache: bool = False  # whether to disable cache the sample in loader
     disable_query_cache: bool = False  # whether to disable cache the query in loader
@@ -134,7 +136,7 @@ class DIRHelper:
         offline_dir = os.path.join(offline_dir, f"ldnthreads-{args.loading_mode}")
         offline_dir = os.path.join(offline_dir, f"nparts-{args.nparts}")
         offline_dir = os.path.join(offline_dir, f"ncfgs-{args.ncfgs}")
-        offline_dir = os.path.join(offline_dir, f"nreqs-{args.nreqs}")
+        offline_dir = os.path.join(offline_dir, f"nreqs-{args.offline_nreqs}")
         os.makedirs(offline_dir, exist_ok=True)
         return offline_dir
 

@@ -28,7 +28,7 @@ class MachineryMultiClassPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
-        self.database = "xip"
+        self.database = f"xip_{seed}"
         self.table = f"mach_imbalance_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:

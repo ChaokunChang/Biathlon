@@ -3,6 +3,8 @@ import json
 import pandas as pd
 from tap import Tap
 
+from apxinfer.core.config import EXP_HOME
+
 ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2",
                  "battery", "batteryv2",
                  "turbofan", "turbofanall"]
@@ -136,7 +138,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
 
 
 cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
-results_prefix = f"/home/ckchang/.cache/apxinf/xip/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
+results_prefix = f"{EXP_HOME}/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
 
 if args.run_offline or args.run_shared:
     # offline

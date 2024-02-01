@@ -9,10 +9,11 @@ from apxinfer.examples.tick.query import TickQP1, TickQP2
 from apxinfer.examples.tick.query import TickQP3, TickQP4
 
 
-def get_tick_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_tick_engine(nparts: int, ncores: int = 0,
+                    seed: int = 0, verbose: bool = False):
     tick_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tick_{nparts}",
         seed=0,
         enable_cache=False,
@@ -20,7 +21,7 @@ def get_tick_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
     tick_fstore_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="tick_fstore_hour",
         seed=0,
         enable_cache=False,
@@ -54,10 +55,11 @@ def get_tick_engine(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_tick_engine_v2(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_tick_engine_v2(nparts: int, ncores: int = 0,
+                       seed: int = 0, verbose: bool = False):
     tick_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tick_{nparts}",
         seed=0,
         enable_cache=False,
@@ -65,7 +67,7 @@ def get_tick_engine_v2(nparts: int, ncores: int = 0, verbose: bool = False):
 
     tick_fstore_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="tick_fstore_hour",
         seed=0,
         enable_cache=False,
@@ -92,10 +94,11 @@ def get_tick_engine_v2(nparts: int, ncores: int = 0, verbose: bool = False):
     return fengine
 
 
-def get_tick_engine_v3(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_tick_engine_v3(nparts: int, ncores: int = 0,
+                       seed: int = 0, verbose: bool = False):
     tick_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"tick_{nparts}",
         seed=0,
         enable_cache=False,
@@ -103,7 +106,7 @@ def get_tick_engine_v3(nparts: int, ncores: int = 0, verbose: bool = False):
 
     tick_fstore_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="tick_fstore_hour",
         seed=0,
         enable_cache=False,

@@ -29,7 +29,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
             model_name,
             seed,
         )
-        self.database = "xip"
+        self.database = f"xip_{seed}"
         self.table = f"tdfraud_{nparts}"
 
     def get_requests(self) -> pd.DataFrame:

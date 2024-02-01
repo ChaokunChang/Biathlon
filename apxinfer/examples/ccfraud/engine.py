@@ -13,10 +13,10 @@ from apxinfer.examples.ccfraud.query import CCFraudQP5
 from apxinfer.examples.ccfraud.query import CCFraudQP6
 
 
-def get_ccfraud_engine(nparts: int, ncores: int = 0, verbose: bool = False):
+def get_ccfraud_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False):
     txns_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table=f"ccfraud_txns_{nparts}",
         seed=0,
         enable_cache=False,
@@ -27,7 +27,7 @@ def get_ccfraud_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
     cards_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="ccfraud_cards",
         seed=0,
         enable_cache=False,
@@ -35,7 +35,7 @@ def get_ccfraud_engine(nparts: int, ncores: int = 0, verbose: bool = False):
 
     users_data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
-        database="xip",
+        database=f"xip_{seed}",
         table="ccfraud_users",
         seed=0,
         enable_cache=False,

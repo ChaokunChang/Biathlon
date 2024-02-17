@@ -13,6 +13,7 @@ TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 1000)]
 
 class ExpArgs(Tap):
     interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
+    version: str = "latest"
     exp: str = None
     model: str = None  # see each exp
     ncores: int = 1  # 1, 0
@@ -20,6 +21,7 @@ class ExpArgs(Tap):
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
+    pest_seed: int = 0
     phase: str = "biathlon"
     skip_shared: bool = False
     default_only: bool = False
@@ -130,7 +132,12 @@ def get_eval_cmd(
     max_error: float,
 ):
     cmd = get_base_cmd(args, task_name, model, agg_qids)
-    cmd = f"{cmd} --pest biathlon --pest_nsamples 1024 --qinf biathlon"
+    if args.version == "latest":
+        cmd = f"{cmd} --pest biathlon --pest_nsamples 1024 --pest_seed {args.pest_seed} --qinf biathlon"
+    elif args.version == "submission":
+        cmd = f"{cmd} --pest MC --pest_nsamples 1000 --pest_seed {args.seed} --qinf sobol"
+    else:
+        raise ValueError(f"invalid version {args.version}")
     cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
     return cmd
 

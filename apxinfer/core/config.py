@@ -9,7 +9,7 @@ EXP_HOME = "/home/ckchang/.cache/biathlon/vldb2024"
 
 class BaseXIPArgs(Tap):
     task: str = "test"  # task name
-    seed: int = 0  # seed for prediction estimation
+    seed: int = 0  # seed for database
 
     nparts: int = 100  # maximum number of partitions of dataset
     loading_mode: int = 0  # 0 means part by part, 1 means together, k>1 means k parts by k parts

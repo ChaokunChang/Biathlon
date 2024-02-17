@@ -10,9 +10,10 @@ from apxinfer.core.config import OfflineArgs, OnlineArgs
 
 from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimator
 from apxinfer.core.model import XIPModel
-from apxinfer.core.prediction import MCPredictionEstimator
+from apxinfer.core.prediction import MCPredictionEstimator, BiathlonPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
 from apxinfer.core.qinfluence import XIPQInfEstimatorSobol, XIPQInfEstimatorSTIndex
+from apxinfer.core.qinfluence import BiathlonQInfEstimator
 from apxinfer.core.qcost import XIPQCostModel
 from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
@@ -389,6 +390,23 @@ def run_online(name: str, args: OnlineArgs):
             pest_point=args.pest_point,
             verbose=verbose,
         )
+    elif args.pest == "biathlon":
+        constraint = args.pest_constraint
+        if constraint == "conf":
+            constraint_value = args.min_conf
+        elif constraint == "error":
+            constraint_value = args.max_error
+        elif constraint == "relative_error":
+            constraint_value = args.max_relative_error
+        pred_estimator = BiathlonPredictionEstimator(
+            constraint_type=constraint,
+            constraint_value=constraint_value,
+            fextractor=fengine,
+            seed=args.pest_seed,
+            n_samples=args.pest_nsamples,
+            pest_point=args.pest_point,
+            verbose=verbose,
+        )
     else:
         raise ValueError("Invalid prediction estimator")
 
@@ -407,6 +425,10 @@ def run_online(name: str, args: OnlineArgs):
         )
     elif args.qinf == "sobolT":
         qinf_estimator = XIPQInfEstimatorSTIndex(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
+    elif args.qinf == "biathlon":
+        qinf_estimator = BiathlonQInfEstimator(
             pred_estimator=pred_estimator, verbose=verbose
         )
     else:

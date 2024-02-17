@@ -1,8 +1,12 @@
 import numpy as np
 import logging
 
+from SALib.sample import sobol as sobol_sample
+from SALib.analyze import sobol as sobol_analyze
+
 from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.festimator import fvec_random_sample
+from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
 
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +78,9 @@ class XIPPredictionEstimator:
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
         raise NotImplementedError
 
+    def compute_S1_indices(self):
+        raise NotImplementedError
+
 
 class MCPredictionEstimator(XIPPredictionEstimator):
     def __init__(
@@ -107,6 +114,76 @@ class MCPredictionEstimator(XIPPredictionEstimator):
                 pred_value = np.mean(preds)
             else:
                 raise ValueError(f"Unsupported pred_type: {pred_type}")
+        return PredictionEstimatorHelper.xip_estimate(
+            pred_value, preds, self.constraint_type, self.constraint_value
+        )
+
+
+class BiathlonPredictionEstimator(XIPPredictionEstimator):
+    def __init__(
+        self,
+        constraint_type: str,
+        constraint_value: float,
+        seed: int,
+        fextractor: XIPFeatureExtractor,
+        n_samples: int = 1024,
+        pest_point: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(constraint_type, constraint_value, seed, verbose)
+        self.fextractor = fextractor
+        self.n_samples = n_samples
+        self.pest_point = pest_point
+
+    def get_qmc_preds(self, model: XIPModel, fvec: XIPFeatureVec):
+        n_features = len(fvec["fdists"])
+        # print(fvec)
+        bounds = []
+        dists = []
+        for i in range(n_features):
+            if fvec["fdists"][i] == 'fixed':
+                bounds.append([fvec["fvals"][i], 1e-9])
+                dists.append('norm')
+            elif fvec["fdists"][i] in ['normal', 'r-normal', 'l-normal']:
+                bounds.append([fvec["fvals"][i], max(fvec["fests"][i], 1e-9)])
+                dists.append('norm')
+            else:
+                raise ValueError(f"Unknown distribution {dists[i]}")
+        groups = []
+        for i in range(self.fextractor.num_queries):
+            for j in range(self.fextractor.queries[i].n_features):
+                groups.append(f'g{i}')
+        self.problem = {
+            "num_vars": n_features,
+            "groups": groups,
+            "names": fvec["fnames"],
+            "bounds": bounds,
+            "dists": dists
+        }
+        self.fsamples = sobol_sample.sample(self.problem, self.n_samples,
+                                            calc_second_order=False,
+                                            seed=self.seed)
+        self.preds = model.predict(self.fsamples)
+        return self.preds
+
+    def compute_S1_indices(self):
+        self.Si = sobol_analyze.analyze(self.problem, self.preds,
+                                        calc_second_order=False,
+                                        seed=self.seed)
+        return self.Si["S1"]
+
+    def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
+        preds = self.get_qmc_preds(model, fvec)
+
+        if self.pest_point:
+            pred_value = model.predict([fvec["fvals"]])[0]
+        else:
+            if model.model_type == "classifier":
+                pred_value = np.argmax(np.bincount(preds))
+            elif model.model_type == "regressor":
+                pred_value = np.mean(preds)
+            else:
+                raise ValueError(f"Unsupported model type: {model.model_type}")
         return PredictionEstimatorHelper.xip_estimate(
             pred_value, preds, self.constraint_type, self.constraint_value
         )

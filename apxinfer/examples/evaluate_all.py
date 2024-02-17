@@ -20,13 +20,13 @@ class ExpArgs(Tap):
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
+    phase: str = "biathlon"
     skip_shared: bool = False
-    prepare: bool = False
-    warmup: bool = False
+    default_only: bool = False
 
     def process_args(self):
         assert self.exp is not None
-        if not self.prepare:
+        if self.phase != "prepare":
             assert self.model is not None
 
 
@@ -86,7 +86,13 @@ def run_prepare(args: ExpArgs):
         cmd = f"{interpreter}"
     else:
         cmd = f"sudo {interpreter}"
-    cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {args.exp} --prepare_again --seed {args.seed}"
+    cmd = f"{cmd} prep.py --interpreter {interpreter} --task_name {args.exp} --seed {args.seed}"
+    if args.model is not None:
+        models = args.model.split(",")
+        models = " ".join(models)
+        cmd = f"{cmd} --all_models {models}"
+    if not args.skip_shared:
+        cmd = f"{cmd} --prepare_again"
     os.system(cmd)
 
 
@@ -102,9 +108,15 @@ def get_base_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
     return cmd
 
 
+def get_offline_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    cmd = f"{cmd} --run_offline"
+    return cmd
+
+
 def get_baseline_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
     cmd = get_base_cmd(args, task_name, model, agg_qids)
-    cmd = f"{cmd} --run_shared"
+    cmd = f"{cmd} --run_baseline"
     return cmd
 
 
@@ -118,6 +130,7 @@ def get_eval_cmd(
     max_error: float,
 ):
     cmd = get_base_cmd(args, task_name, model, agg_qids)
+    cmd = f"{cmd} --pest biathlon --pest_nsamples 1024 --qinf biathlon"
     cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
     return cmd
 
@@ -133,83 +146,86 @@ def run_pipeline(
     naggs = len(agg_qids.split(" "))
     model = args.model
 
-    if args.warmup:
+    if args.phase == "offline":
+        cmd = get_offline_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    elif args.phase == "baseline":
+        cmd = get_baseline_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    elif args.phase == "warmup":
         cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000 * naggs, 0.0)
         cmd = f"{cmd} --min_confs 1.1 --nocache"
         os.system(cmd)
+    elif args.phase == "biathlon":
+        default_min_confs_str = list_to_option_str(get_default_min_confs(args))
+        min_confs_str = list_to_option_str(get_min_confs(args))
 
-    # run offline and baseline
-    if not args.skip_shared:
-        cmd = get_baseline_cmd(args, task_name, model, agg_qids)
-        os.system(cmd)
+        default_cfgs = get_default_scheduler_cfgs(args, naggs)
+        cfgs = get_scheduler_cfgs(args, naggs)
 
-    default_min_confs_str = list_to_option_str(get_default_min_confs(args))
-    min_confs_str = list_to_option_str(get_min_confs(args))
+        # default only
+        for default_init, default_batch in default_cfgs:
+            for max_error in default_max_errors:
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    default_init,
+                    default_batch,
+                    max_error,
+                )
+                cmd = f"{cmd} --min_confs {default_min_confs_str}"
+                os.system(cmd)
+        if default_only or args.default_only:
+            return
 
-    default_cfgs = get_default_scheduler_cfgs(args, naggs)
-    cfgs = get_scheduler_cfgs(args, naggs)
+        # vary max_error only
+        for default_init, default_batch in default_cfgs:
+            for max_error in max_errors:
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    default_init,
+                    default_batch,
+                    max_error,
+                )
+                cmd = f"{cmd} --min_confs {default_min_confs_str}"
+                os.system(cmd)
 
-    # default only
-    for default_init, default_batch in default_cfgs:
-        for max_error in default_max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                default_init,
-                default_batch,
-                max_error,
-            )
-            cmd = f"{cmd} --min_confs {default_min_confs_str}"
-            os.system(cmd)
-    if default_only:
-        return
+        # vary cfgs only
+        for scheduler_init, scheduler_batch in cfgs:
+            for max_error in default_max_errors:
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    scheduler_init,
+                    scheduler_batch,
+                    max_error,
+                )
+                cmd = f"{cmd} --min_confs {default_min_confs_str}"
+                os.system(cmd)
 
-    # vary max_error only
-    for default_init, default_batch in default_cfgs:
-        for max_error in max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                default_init,
-                default_batch,
-                max_error,
-            )
-            cmd = f"{cmd} --min_confs {default_min_confs_str}"
-            os.system(cmd)
-
-    # vary cfgs only
-    for scheduler_init, scheduler_batch in cfgs:
-        for max_error in default_max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                scheduler_init,
-                scheduler_batch,
-                max_error,
-            )
-            cmd = f"{cmd} --min_confs {default_min_confs_str}"
-            os.system(cmd)
-
-    # vary min_conf
-    for default_init, default_batch in default_cfgs:
-        for max_error in default_max_errors:
-            cmd = get_eval_cmd(
-                args,
-                task_name,
-                model,
-                agg_qids,
-                default_init,
-                default_batch,
-                max_error,
-            )
-            cmd = f"{cmd} --min_confs {min_confs_str}"
-            os.system(cmd)
+        # vary min_conf
+        for default_init, default_batch in default_cfgs:
+            for max_error in default_max_errors:
+                cmd = get_eval_cmd(
+                    args,
+                    task_name,
+                    model,
+                    agg_qids,
+                    default_init,
+                    default_batch,
+                    max_error,
+                )
+                cmd = f"{cmd} --min_confs {min_confs_str}"
+                os.system(cmd)
+    else:
+        raise ValueError(f"invalid phase {args.phase}")
 
 
 def run_studentqno(args: ExpArgs, qno: int):
@@ -563,7 +579,7 @@ def run_vary_nsamples(args: ExpArgs):
 
 if __name__ == "__main__":
     args = ExpArgs().parse_args()
-    if args.exp == "prepare":
+    if args.phase == "prepare":
         run_prepare(args)
     elif args.exp == "trips":
         run_trips(args)

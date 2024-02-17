@@ -4,7 +4,7 @@ from tap import Tap
 import joblib
 import pandas as pd
 
-EXP_HOME = "/home/ckchang/.cache/Biathlon/vldb2024"
+EXP_HOME = "/home/ckchang/.cache/biathlon/vldb2024"
 
 
 class BaseXIPArgs(Tap):
@@ -60,12 +60,12 @@ class OnlineArgs(OfflineArgs):
     pest_constraint: Literal[
         "conf", "error", "relative_error"
     ] = "error"  # prediction estimation constraint
-    pest: Literal["MC"] = "MC"  # prediction estimation method
+    pest: Literal["MC", "biathlon"] = "MC"  # prediction estimation method
     pest_nsamples: int = 1000  # number of samples for prediction estimation
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol", "sobolT"] = "sobol"  # query inference method
+    qinf: Literal["direct", "by_finf", "sobol", "sobolT", "biathlon"] = "sobol"  # query inference method
 
     scheduler: Literal[
         "greedy", "random", "greedy_plus",

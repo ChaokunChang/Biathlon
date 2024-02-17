@@ -5,13 +5,27 @@ from tap import Tap
 
 from apxinfer.core.config import EXP_HOME
 
-ALL_REG_TASKS = ["trips", "tripsfeast", "tick", "tickv2",
-                 "battery", "batteryv2",
-                 "turbofan", "turbofanall"]
-ALL_CLS_TASKS = ["cheaptrips", "cheaptripsfeast", "machinery",
-                 "ccfraud", "machinerymulti",
-                 "tdfraud", "tdfraudrandom", "tdfraudkaggle",
-                 "student"]
+ALL_REG_TASKS = [
+    "trips",
+    "tripsfeast",
+    "tick",
+    "tickv2",
+    "battery",
+    "batteryv2",
+    "turbofan",
+    "turbofanall",
+]
+ALL_CLS_TASKS = [
+    "cheaptrips",
+    "cheaptripsfeast",
+    "machinery",
+    "ccfraud",
+    "machinerymulti",
+    "tdfraud",
+    "tdfraudrandom",
+    "tdfraudkaggle",
+    "student",
+]
 
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
 ALL_CLS_TASKS += StudentQNo
@@ -19,8 +33,12 @@ ALL_CLS_TASKS += StudentQNo
 StudentQNo18VaryNF = [f"studentqno18nf{i}" for i in range(1, 13)]
 ALL_CLS_TASKS += StudentQNo18VaryNF
 
-MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)] + [f"machineryxf{i}" for i in range(1, 9)]
-MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [f"machinerymultixf{i}" for i in range(1, 9)]
+MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)] + [
+    f"machineryxf{i}" for i in range(1, 9)
+]
+MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [
+    f"machinerymultixf{i}" for i in range(1, 9)
+]
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF
 
@@ -35,24 +53,43 @@ class EvalArgs(Tap):
     interpreter: str = "python"
     task_home: str = "final"
     task_name: str = None
-    model: str = None
     nparts: int = 100
     ncfgs: int = None
     ncores: int = 1
     loading_mode: int = 0
-    max_error: float = 1.0
+    seed: int = 0
     agg_qids: list[int] = None
-    run_shared: bool = False
-    run_offline: bool = False
-    run_baseline: bool = False
+    model: str = None
+
+    pest: str = "MC"
+    pest_constraint: str = "error"
+    pest_nsamples: int = 1000
+    pest_seed: int = 0
+
     qinf: str = "sobol"
+
     policy: str = "optimizer"
     scheduler_init: int = 1
     scheduler_batch: int = 1
     nocache: bool = False
-    seed: int = 0
-    min_confs: list[float] = [0.999, 0.995, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.0]
-    pest_nsamples: int = 1000
+    max_error: float = 1.0
+    min_confs: list[float] = [
+        0.999,
+        0.995,
+        0.99,
+        0.98,
+        0.95,
+        0.9,
+        0.8,
+        0.7,
+        0.6,
+        0.5,
+        0.0,
+    ]
+
+    run_shared: bool = False
+    run_offline: bool = False
+    run_baseline: bool = False
 
     def process_args(self):
         assert self.task_name is not None
@@ -77,14 +114,20 @@ else:
     ncfgs = args.ncfgs
 ncores = args.ncores
 loading_mode = args.loading_mode
-max_error = args.max_error
-min_confs = args.min_confs
+seed = args.seed
+pest_seed = args.pest_seed
+
+pest = args.pest
+pest_constraint = args.pest_constraint
+pest_nsamples = args.pest_nsamples
+
 qinf = args.qinf
+
 policy = args.policy
 scheduler_init = args.scheduler_init
 scheduler_batch = args.scheduler_batch
-seed = args.seed
-pest_nsamples = args.pest_nsamples
+max_error = args.max_error
+min_confs = args.min_confs
 
 offline_nreqs = 100
 if nparts >= 20:
@@ -116,58 +159,68 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         "meet_rate": all_info["meet_rate"],
         "avg_real_error": all_info["avg_real_error"],
     }
-    dropped_keys = ['run_shared', 'run_offline', 'run_baseline', 'nocache', 'interpreter', 'min_confs']
+    dropped_keys = [
+        "run_shared",
+        "run_offline",
+        "run_baseline",
+        "nocache",
+        "interpreter",
+        "min_confs",
+    ]
     for key in dropped_keys:
         result.pop(key, None)
     for key in all_info["evals_to_ext"]:
-        if key in ['time', 'size']:
+        if key in ["time", "size"]:
             continue
         result[f"similarity-{key}"] = all_info["evals_to_ext"][key]
     for key in all_info["evals_to_gt"]:
-        if key in ['time', 'size']:
+        if key in ["time", "size"]:
             continue
         result[f"accuracy-{key}"] = all_info["evals_to_gt"][key]
     if args.task_name in ALL_REG_TASKS:
-        result['similarity'] = result['similarity-r2']
-        result['accuracy'] = result['accuracy-r2']
+        result["similarity"] = result["similarity-r2"]
+        result["accuracy"] = result["accuracy-r2"]
     else:
         assert args.task_name in ALL_CLS_TASKS
-        result['similarity'] = result['similarity-f1']
-        result['accuracy'] = result['accuracy-f1']
+        result["similarity"] = result["similarity-f1"]
+        result["accuracy"] = result["accuracy-f1"]
     return result
 
 
-cmd_prefix = f"{interpreter} run.py --example {TASK_NAME} --stage online --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
-results_prefix = f"{EXP_HOME}/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
+shared_cmd = f"{interpreter} run.py --example {TASK_NAME} --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
+offline_cmd = f"{shared_cmd} --stage offline"
+online_cmd = f"{shared_cmd} --stage online"
+
+shared_prefix = f"{EXP_HOME}/{TASK_HOME}/{TASK_NAME}/seed-{seed}"
+qcm_path = f"{shared_prefix}/offline/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
+online_prefix = f"{shared_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}"
+exact_path = f"{online_prefix}/exact/evals_exact.json"
 
 if args.run_offline or args.run_shared:
     # offline
-    command = f"{interpreter} run.py --example {TASK_NAME} --stage offline --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --nreqs {offline_nreqs} --ncfgs {ncfgs} --clear_cache --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
+    command = f"{offline_cmd} --clear_cache"
     print(command)
-    qcm_path = f"{results_prefix}/offline/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/nreqs-{offline_nreqs}/model/xip_qcm.pkl"
-    os.system(command=command)
-if args.run_baseline or args.run_shared:
-    # exact
-    command = f"{cmd_prefix} --ncores {ncores} --exact"
-    print(command)
-    exact_path = f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/exact/evals_exact.json"
     os.system(command=command)
 
-if not args.run_shared and not args.run_offline and not args.run_baseline:
+if args.run_baseline or args.run_shared:
+    # exact
+    command = f"{online_cmd} --exact"
+    print(command)
+    os.system(command=command)
+
+if (not args.run_shared) and (not args.run_offline) and (not args.run_baseline):
     evals = []
-    path_prefix = (
-        f"{results_prefix}/online/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}"
-    )
-    eval_path = f"{path_prefix}/exact/evals_exact.json"
-    evals.append(extract_result(json.load(open(eval_path)), 1.0))
+    evals.append(extract_result(json.load(open(exact_path)), 1.0))
     print(f"last eval: {evals[-1]}")
 
     for min_conf in min_confs:
-        cmd_prefix += (
-            f" --scheduler {policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
-        )
-        command = f"{cmd_prefix} --pest_constraint error --pest_seed {seed} --pest_nsamples {pest_nsamples} --max_error {max_error} --min_conf {min_conf}"
-        eval_path = f"{path_prefix}/ncfgs-{ncfgs}/pest-error-MC-{pest_nsamples}-{seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+        pest_opts = f"--pest {pest} --pest_constraint {pest_constraint} --pest_seed {pest_seed} --pest_nsamples {pest_nsamples}"
+        qinf_opts = f"--qinf {qinf}"
+        scheduler_opts = f"--scheduler {policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+        acc_opts = f"--max_error {max_error} --min_conf {min_conf}"
+        command = f"{online_cmd} {pest_opts} {qinf_opts} {scheduler_opts} {acc_opts}"
+        eval_path = f"{online_prefix}/ncfgs-{ncfgs}/pest-{pest_constraint}-{pest}-{pest_nsamples}-{pest_seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+        print(f"path: {eval_path}")
         if args.nocache or (not os.path.exists(eval_path)):
             os.system(command=command)
         evals.append(
@@ -177,7 +230,7 @@ if not args.run_shared and not args.run_offline and not args.run_baseline:
         )
         print(f"last eval: {evals[-1]}")
 
-    evals_dir = os.path.join(EVALS_HOME, f'seed-{seed}', f'mode-{loading_mode}')
+    evals_dir = os.path.join(EVALS_HOME, f"seed-{seed}", f"mode-{loading_mode}")
     if not os.path.exists(evals_dir):
         os.makedirs(evals_dir, exist_ok=True)
 

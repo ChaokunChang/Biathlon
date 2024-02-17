@@ -221,3 +221,26 @@ class XIPQInfEstimatorSTIndex(XIPQInfEstimatorSobol):
         # print(f"qinfs = {qinfs}")
         # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
         return XIPQInfEstimation(qinfs=qinfs)
+
+
+class BiathlonQInfEstimator(XIPQInfEstimatorSobol):
+    """Estimate the influence of a query on a prediction
+    by using the influence of each feature on the prediction
+    """
+
+    def __init__(
+        self, pred_estimator: XIPPredictionEstimator, verbose: bool = False
+    ) -> None:
+        super().__init__(pred_estimator, verbose)
+
+    def estimate(
+        self,
+        model: XIPModel,
+        fextractor: XIPFeatureExtractor,
+        fvec: XIPFeatureVec,
+        xip_pred: XIPPredEstimation,
+    ) -> XIPQInfEstimation:
+        qinfs = self.pred_estimator.compute_S1_indices()
+        # print(f"qinfs = {qinfs}")
+        # print(f"var(preds) = {np.var(preds)}, {xip_pred['pred_var']}")
+        return XIPQInfEstimation(qinfs=qinfs)

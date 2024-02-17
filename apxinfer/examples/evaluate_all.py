@@ -22,6 +22,8 @@ class ExpArgs(Tap):
     ncfgs: int = 100
     seed: int = 0
     pest_seed: int = 0
+    pest_nsamples: int = 1024
+    policy: str = "optimizer"
     phase: str = "biathlon"
     skip_shared: bool = False
     default_only: bool = False
@@ -133,12 +135,12 @@ def get_eval_cmd(
 ):
     cmd = get_base_cmd(args, task_name, model, agg_qids)
     if args.version == "latest":
-        cmd = f"{cmd} --pest biathlon --pest_nsamples 1024 --pest_seed {args.pest_seed} --qinf biathlon"
+        cmd = f"{cmd} --pest biathlon --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf biathlon"
     elif args.version == "submission":
         cmd = f"{cmd} --pest MC --pest_nsamples 1000 --pest_seed {args.seed} --qinf sobol"
     else:
         raise ValueError(f"invalid version {args.version}")
-    cmd = f"{cmd} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
+    cmd = f"{cmd} --policy {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
     return cmd
 
 

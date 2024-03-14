@@ -358,7 +358,7 @@ def run_prepare(name: str, args: PrepareArgs):
             from apxinfer.examples.tick.prepare import TickRalfTestPrepareWorker as Worker
 
             model_type = "regressor"
-        elif name == "tickralf"
+        elif name == "tickralf":
             from apxinfer.examples.tick.prepare import TickRalfPrepareWorker as Worker
 
             model_type = "regressor"

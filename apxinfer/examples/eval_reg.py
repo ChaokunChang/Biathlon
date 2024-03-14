@@ -14,6 +14,7 @@ ALL_REG_TASKS = [
     "batteryv2",
     "turbofan",
     "turbofanall",
+    "tripsralf", "tripsralftest", "tripsralf2h",
 ]
 ALL_CLS_TASKS = [
     "cheaptrips",
@@ -87,6 +88,8 @@ class EvalArgs(Tap):
         0.0,
     ]
 
+    ralf_budget: float = 1.0
+
     run_shared: bool = False
     run_offline: bool = False
     run_baseline: bool = False
@@ -134,6 +137,7 @@ if nparts >= 20:
     offline_nreqs = 50
 
 agg_qids = args.agg_qids
+ralf_budget = args.ralf_budget
 
 
 def extract_result(all_info: dict, min_conf, base_time=None):
@@ -188,6 +192,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
 
 
 shared_cmd = f"{interpreter} run.py --example {TASK_NAME} --task {TASK_HOME}/{TASK_NAME} --model {model} --nparts {nparts} --offline_nreqs {offline_nreqs} --ncfgs {ncfgs} --ncores {ncores} --loading_mode {loading_mode} --seed {seed}"
+shared_cmd = f"{shared_cmd} --ralf_budget {ralf_budget}"
 offline_cmd = f"{shared_cmd} --stage offline"
 online_cmd = f"{shared_cmd} --stage online"
 

@@ -28,6 +28,8 @@ class ExpArgs(Tap):
     skip_shared: bool = False
     default_only: bool = False
 
+    ralf_budget: float = 1.0
+
     def process_args(self):
         assert self.exp is not None
         if self.phase != "prepare":
@@ -124,6 +126,13 @@ def get_baseline_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
     return cmd
 
 
+def get_ralf_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
+    assert args.loading_mode >= 3000
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    cmd = f"{cmd} --run_baseline --ralf_budget {args.ralf_budget}"
+    return cmd
+
+
 def get_eval_cmd(
     args: ExpArgs,
     task_name: str,
@@ -160,6 +169,9 @@ def run_pipeline(
         os.system(cmd)
     elif args.phase == "baseline":
         cmd = get_baseline_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    elif args.phase == "ralf":
+        cmd = get_ralf_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     elif args.phase == "warmup":
         cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000 * naggs, 0.0)
@@ -346,6 +358,43 @@ def run_trips(args: ExpArgs):
     task_name = "trips"
     agg_qids = "1 2 3"
     default_max_errors = [0.1, 0.5, 1.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralf(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralf"
+    agg_qids = "1 2"
+    default_max_errors = [0.1, 0.5, 1.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralftest(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralftest"
+    agg_qids = "1 2"
+    # default_max_errors = [0.5, 1.0, 1.5]
+    default_max_errors = [1.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralf2h(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralf2h"
+    agg_qids = "1 2"
+    default_max_errors = [0.5, 1.0, 2.0]
     max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -590,6 +639,12 @@ if __name__ == "__main__":
     args = ExpArgs().parse_args()
     if args.phase == "prepare":
         run_prepare(args)
+    elif args.exp == "tripsralf":
+        run_tripsralf(args)
+    elif args.exp == "tripsralftest":
+        run_tripsralftest(args)
+    elif args.exp == "tripsralf2h":
+        run_tripsralf2h(args)
     elif args.exp == "trips":
         run_trips(args)
     elif args.exp == "tick-v1":

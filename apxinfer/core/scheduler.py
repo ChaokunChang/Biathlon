@@ -94,9 +94,13 @@ class XIPScheduler:
             )
         ]
 
+    def reset(self) -> None:
+        """Reset the scheduler"""
+        self.history = []
+
     def start(self, request: XIPRequest) -> List[XIPQueryConfig]:
         """Start the scheduler given a request"""
-        self.history = []
+        self.reset()
         return self.get_init_qcfgs(request)
 
     def record(
@@ -177,6 +181,9 @@ class XIPScheduler:
                 nsteps -= 1
 
         return next_qcfgs
+
+    def get_latest_profile(self) -> XIPExecutionProfile:
+        return self.history[-1]
 
 
 class XIPSchedulerGreedy(XIPScheduler):

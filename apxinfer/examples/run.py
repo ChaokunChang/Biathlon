@@ -56,7 +56,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_tick_engine_v2(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
-    elif name.startswith("tickralftest"):
+    elif name.startswith("tickralf"):
         from apxinfer.examples.tick.engine import get_tick_engine_v2
 
         fengine = get_tick_engine_v2(
@@ -272,7 +272,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
         from apxinfer.examples.tick.data import ingest
 
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
-    elif name.startswith("tickralftest"):
+    elif name.startswith("tickralf"):
         from apxinfer.examples.tick.data import ingest
 
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)

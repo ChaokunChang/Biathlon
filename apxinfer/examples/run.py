@@ -56,6 +56,12 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_tick_engine_v2(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
+    elif name.startswith("tickralftest"):
+        from apxinfer.examples.tick.engine import get_tick_engine_v2
+
+        fengine = get_tick_engine_v2(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name.startswith("tickvaryNM"):
         from apxinfer.examples.tickvary.engine import get_tick_engine
 
@@ -266,6 +272,10 @@ def run_ingest(name: str, args: BaseXIPArgs):
         from apxinfer.examples.tick.data import ingest
 
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name.startswith("tickralftest"):
+        from apxinfer.examples.tick.data import ingest
+
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name.startswith("tickvaryNM"):
         from apxinfer.examples.tickvary.data import ingest
 
@@ -344,9 +354,18 @@ def run_prepare(name: str, args: PrepareArgs):
 
         model_type = "classifier"
     elif name.startswith("tick"):
-        from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+        if name == "tickralftest":
+            from apxinfer.examples.tick.prepare import TickRalfTestPrepareWorker as Worker
 
-        model_type = "regressor"
+            model_type = "regressor"
+        elif name == "tickralf"
+            from apxinfer.examples.tick.prepare import TickRalfPrepareWorker as Worker
+
+            model_type = "regressor"
+        else:
+            from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+
+            model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
 

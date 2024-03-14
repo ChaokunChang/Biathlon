@@ -4,7 +4,7 @@ import datetime as dt
 
 from apxinfer.core.data import DBHelper
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPQueryConfig
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -41,6 +41,14 @@ class TickQP0(XIPQueryProcessor):
         ]
         return qops
 
+    def request_to_key(self, request: TickRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_cpair']
+
+    def key_to_request(self, request: TickRequest, qcfg: XIPQueryConfig, key: str) -> TickRequest:
+        new_request = {**request}
+        new_request['req_cpair'] = key
+        return new_request
+
 
 class TickQP1(XIPQueryProcessor):
     def get_query_condition(self, request: TickRequest) -> str:
@@ -64,6 +72,14 @@ class TickQP1(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TickRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_cpair']
+
+    def key_to_request(self, request: TickRequest, qcfg: XIPQueryConfig, key: str) -> TickRequest:
+        new_request = {**request}
+        new_request['req_cpair'] = key
+        return new_request
 
 
 class TickQP2(XIPQueryProcessor):
@@ -119,6 +135,14 @@ class TickQP3(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TickRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_cpair']
+
+    def key_to_request(self, request: TickRequest, qcfg: XIPQueryConfig, key: str) -> TickRequest:
+        new_request = {**request}
+        new_request['req_cpair'] = key
+        return new_request
 
 
 class TickQP4(XIPQueryProcessor):

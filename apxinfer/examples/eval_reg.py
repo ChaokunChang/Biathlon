@@ -15,6 +15,7 @@ ALL_REG_TASKS = [
     "turbofan",
     "turbofanall",
     "tripsralf", "tripsralftest", "tripsralf2h",
+    "tickralftest", "tickralf"
 ]
 ALL_CLS_TASKS = [
     "cheaptrips",

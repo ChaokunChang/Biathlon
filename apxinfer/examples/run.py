@@ -32,16 +32,16 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_ccfraud_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
-    elif name == "tdfraud" or name == "tdfraudrandom":
-        from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
-
-        fengine = get_tdfraud_engine(
-            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
-        )
     elif name == "tdfraudkaggle":
         from apxinfer.examples.tdfraud.engine import get_tdfraudkaggle_engine
 
         fengine = get_tdfraudkaggle_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name.startswith("tdfraud"):  # tdfraud, tdfraudrandom, tdfraudralf...
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
+
+        fengine = get_tdfraud_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
     elif name == "tick":
@@ -341,6 +341,14 @@ def run_prepare(name: str, args: PrepareArgs):
         from apxinfer.examples.tdfraud.prepare import TDFraudPrepareWorker as Worker
 
         model_type = "classifier"
+    elif name == "tdfraudralf":
+        from apxinfer.examples.tdfraud.prepare import TDFraudRalfPrepareWorker as Worker
+
+        model_type = "classifier"
+    elif name == "tdfraudralftest":
+        from apxinfer.examples.tdfraud.prepare import TDFraudRalfTestPrepareWorker as Worker
+
+        model_type = "classifier"
     elif name == "tdfraudrandom":
         from apxinfer.examples.tdfraud.prepare import (
             TDFraudRandomPrepareWorker as Worker,
@@ -432,12 +440,12 @@ def run_trainer(name: str, args: TrainerArgs):
         from apxinfer.examples.ccfraud.trainer import CCFraudTrainer as Trainer
 
         model_type = "classifier"
-    elif name == "tdfraud" or name == "tdfraudrandom":
-        from apxinfer.examples.tdfraud.trainer import TDFraudTrainer as Trainer
-
-        model_type = "classifier"
     elif name == "tdfraudkaggle":
         from apxinfer.examples.tdfraud.trainer import TDFraudKaggleTrainer as Trainer
+
+        model_type = "classifier"
+    elif name.startswith("tdfraud"):
+        from apxinfer.examples.tdfraud.trainer import TDFraudTrainer as Trainer
 
         model_type = "classifier"
     elif name.startswith("tick"):

@@ -18,6 +18,7 @@ ALL_REG_TASKS = [
     "tickralftest", "tickralf"
 ]
 ALL_CLS_TASKS = [
+    "tdfraudralftest", "tdfraudralf"
     "cheaptrips",
     "cheaptripsfeast",
     "machinery",

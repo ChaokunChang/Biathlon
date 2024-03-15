@@ -328,6 +328,28 @@ def run_tdfraud(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tdfraudralf(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraudralf"
+    agg_qids = "1 2 3"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tdfraudralftest(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraudralftest"
+    agg_qids = "1 2 3"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_tdfraudrandom(args: ExpArgs):
     """
     must models = ["xgb"]
@@ -718,6 +740,10 @@ if __name__ == "__main__":
         run_tdfraud(args)
     elif args.exp == "tdfraudrandom":
         run_tdfraudrandom(args)
+    elif args.exp == "tdfraudralf":
+        run_tdfraudralf(args)
+    elif args.exp == "tdfraudralftest":
+        run_tdfraudralftest(args)
     elif args.exp.startswith("varynsamples"):
         run_vary_nsamples(args)
     elif args.exp == "tdfraudkaggle":

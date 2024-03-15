@@ -138,6 +138,8 @@ class TickRalfPrepareWorker(TickPrepareWorker):
                 ORDER BY (cpair, year, month, day, hour)
                 """
         requests: pd.DataFrame = self.db_client.query_df(sql)
+        requests["ts"] = pd.to_datetime(requests["ts"]).astype(int) // 10**9
+        requests["label_ts"] = pd.to_datetime(requests["label_ts"]).astype(int) // 10**9
 
         if max_num > 0 and max_num < len(requests):
             requests = requests[:max_num]

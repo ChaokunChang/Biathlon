@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from typing import Tuple
+from tqdm import tqdm
 
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
@@ -141,21 +142,35 @@ class TripsRalfPrepareWorker(TripsPrepareWorker):
         return requests
 
     def get_requests(self) -> pd.DataFrame:
-        requests = self._extract_requests()
+        if os.path.exists(os.path.join(self.working_dir, "requests.csv")):
+            return pd.read_csv(os.path.join(self.working_dir, "requests.csv"))
+        else:
+            requests = self._extract_requests()
 
-        self.logger.info(f"Extracted {len(requests)}x of requests")
-        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
-        return requests
+            self.logger.info(f"Extracted {len(requests)}x of requests")
+            requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+            return requests
+
+    def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
+        if os.path.exists(os.path.join(self.working_dir, "features.csv")):
+            return pd.read_csv(os.path.join(self.working_dir, "features.csv"))
+        else:
+            return super().get_features(requests)
 
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         self.logger.info(f"Getting labels for {len(requests)}x requests")
         trip_ids = [str(x) for x in requests["req_trip_id"].values]
-        sql = f"""
-            SELECT trip_id, fare_amount
-            FROM {self.database}.{self.table}
-            WHERE trip_id IN ({','.join(trip_ids)})
-            """
-        df: pd.DataFrame = self.db_client.query_df(sql)
+        df = None
+        for i in tqdm(range(0, len(trip_ids), 1000)):
+            sql = f"""
+                SELECT trip_id, fare_amount
+                FROM {self.database}.{self.table}
+                WHERE trip_id IN ({','.join(trip_ids[i:i+1000])})
+                """
+            if df is None:
+                df: pd.DataFrame = self.db_client.query_df(sql)
+            else:
+                df = pd.concat([df, self.db_client.query_df(sql)])
         labels_pds = requests.merge(
             df, left_on="req_trip_id", right_on="trip_id", how="left"
         )["fare_amount"]

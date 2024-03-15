@@ -118,7 +118,12 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, version=1)
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name == "machinery" or name == "machinerymulti":
+    elif name in [
+        "machinery",
+        "machinerymulti",
+        "machineryralf",
+        "machineryralftest",
+    ]:
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps
         from apxinfer.examples.machinery.engine import get_qengine
@@ -321,15 +326,27 @@ def run_prepare(name: str, args: PrepareArgs):
         )
 
         model_type = "classifier"
-    elif name.startswith("machinery") and (not name.startswith("machinerymulti")):
-        from apxinfer.examples.machinery.prepare import (
-            MachineryBinaryClassPrepareWorker as Worker,
-        )
-
-        model_type = "classifier"
     elif name.startswith("machinerymulti"):
         from apxinfer.examples.machinery.prepare import (
             MachineryMultiClassPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machineryralftest"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryRalfTestPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machineryralf"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryRalfPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machinery"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryBinaryClassPrepareWorker as Worker,
         )
 
         model_type = "classifier"
@@ -346,7 +363,9 @@ def run_prepare(name: str, args: PrepareArgs):
 
         model_type = "classifier"
     elif name == "tdfraudralftest":
-        from apxinfer.examples.tdfraud.prepare import TDFraudRalfTestPrepareWorker as Worker
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalfTestPrepareWorker as Worker,
+        )
 
         model_type = "classifier"
     elif name == "tdfraudrandom":
@@ -363,7 +382,9 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name.startswith("tick"):
         if name == "tickralftest":
-            from apxinfer.examples.tick.prepare import TickRalfTestPrepareWorker as Worker
+            from apxinfer.examples.tick.prepare import (
+                TickRalfTestPrepareWorker as Worker,
+            )
 
             model_type = "regressor"
         elif name == "tickralf":

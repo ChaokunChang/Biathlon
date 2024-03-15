@@ -643,8 +643,12 @@ class XIPQueryProcessor:
             num_updates = 1
         else:
             last_ts = last_update[1]
-            assert req_ts >= last_ts
-            num_updates = int((req_ts - last_ts) * self.budget)
+            if self.budget <= 1e-6:
+                # num_updates = int(req_ts != last_ts)
+                num_updates = 0
+            else:
+                assert req_ts >= last_ts
+                num_updates = int((req_ts - last_ts) * self.budget)
         return num_updates
 
     def ralf_update(self, request: XIPRequest, qcfg: XIPQueryConfig) -> int:

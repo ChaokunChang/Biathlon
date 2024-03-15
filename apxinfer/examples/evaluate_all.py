@@ -282,6 +282,28 @@ def run_machinery(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_machineryralftest(args: ExpArgs):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = "machineryralftest"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_machineryralf(args: ExpArgs):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = "machineryralf"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_machinerymulti(args: ExpArgs):
     """
     must models = ["mlp", "svm", "knn"]
@@ -705,6 +727,10 @@ if __name__ == "__main__":
         run_cheaptrips(args)
     elif args.exp == "machinery":
         run_machinery(args)
+    elif args.exp == "machineryralf":
+        run_machineryralf(args)
+    elif args.exp == "machineryralftest":
+        run_machineryralftest(args)
     elif args.exp == "ccfraud":
         run_ccfraud(args)
     elif args.exp == "tripsfeast":

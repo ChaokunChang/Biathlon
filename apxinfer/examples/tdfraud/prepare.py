@@ -36,11 +36,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # for each user, we extract the most recent 5 fraudlent transaction
         # and 5 non-fraudulent transaction
-        req_path = os.path.join(self.working_dir, "requests.csv")
-        if os.path.exists(req_path):
-            self.logger.info(f"Loading requests from {req_path}")
-            requests = pd.read_csv(req_path)
-            return requests
+
         self.logger.info("Getting requests")
         sql = f"""
             SELECT *
@@ -216,18 +212,15 @@ class TDFraudKagglePrepareWorker(TDFraudPrepareWorker):
 class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
     def _extract_requests(
         self,
-        start_dt: str = "2017-11-08 00:00:00",
-        end_dt: str = "2017-11-08 01:00:00",
+        start_dt: str = "2017-11-08 16:00:00",
+        end_dt: str = "2017-11-09 16:00:00",
+        # start_dt: str = "2017-11-08 00:00:00",
+        # end_dt: str = "2017-11-08 01:00:00",
         sampling_rate: float = 0.01,
         max_num: int = 0,
     ) -> pd.DataFrame:
         # for each user, we extract the most recent 5 fraudlent transaction
         # and 5 non-fraudulent transaction
-        req_path = os.path.join(self.working_dir, "requests.csv")
-        if os.path.exists(req_path):
-            self.logger.info(f"Loading requests from {req_path}")
-            requests = pd.read_csv(req_path)
-            return requests
         self.logger.info("Getting requests")
         sql = f"""
             SELECT *
@@ -237,28 +230,32 @@ class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
                         cnt_fraud / cnt as fraud_rate
                 FROM {self.database}.{self.table}
                 GROUP BY ip
-                ORDER BY cnt DESC
+                ORDER BY (cnt, ip) DESC
                 )
             """
         ip_fraud_df: pd.DataFrame = self.db_client.query_df(sql)
         ip_fraud_df.to_csv(os.path.join(self.working_dir, "ip_fraud.csv"), index=False)
-        ip_fraud = ip_fraud_df.values
-        self.logger.info(f"Number of (ip): {len(ip_fraud)}")
+        self.logger.info(f"Number of (ip): {len(ip_fraud_df)}")
         self.logger.info(
-            f"mean count: {ip_fraud[:, 1].mean()}, "
-            f"mean fraud_cnt: {ip_fraud[:, 2].mean()}"
+            f"mean count: {ip_fraud_df['cnt'].mean()}, "
+            f"mean fraud_cnt: {ip_fraud_df['cnt_fraud'].mean()}"
         )
 
-        selected_ips: list = ip_fraud_df.sample(frac=sampling_rate, random_state=0)[
-            "ip"
-        ].tolist()
+        ip_fraud_df = pd.read_csv(os.path.join(self.working_dir, "ip_fraud.csv"))
+        ip_fraud_df = ip_fraud_df[ip_fraud_df['fraud_rate'] >= 0.01]
+        selected_ips = ip_fraud_df.sample(frac=sampling_rate,
+                                          random_state=0)["ip"].tolist()
+        self.logger.info(f"Selected {len(selected_ips)}x of ips")
+
+        selected_ips = [str(x) for x in selected_ips]
+
         sql = f"""
             SELECT toString(click_time) as ts,
                 toString(attributed_time) as label_ts,
                 txn_id, ip, app, device, os, channel,
                 toString(click_time) as click_time
-            FROM xip.tdfraud_100
-            WHERE ip in {selected_ips}
+            FROM {self.database}.{self.table}
+            WHERE ip IN ({','.join(selected_ips)})
                 AND click_time >= '{start_dt}'
                 AND click_time <= '{end_dt}'
             ORDER BY click_time, ip
@@ -299,8 +296,7 @@ class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
 
 class TDFraudRalfTestPrepareWorker(TDFraudRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
-        requests = self._extract_requests(max_num=self.max_requests)
-
+        requests = self._extract_requests(start_dt="2017-11-09 15:00:00")
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests

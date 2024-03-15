@@ -142,20 +142,26 @@ class TripsRalfPrepareWorker(TripsPrepareWorker):
         return requests
 
     def get_requests(self) -> pd.DataFrame:
-        if os.path.exists(os.path.join(self.working_dir, "requests.csv")):
-            return pd.read_csv(os.path.join(self.working_dir, "requests.csv"))
-        else:
-            requests = self._extract_requests()
+        # if os.path.exists(os.path.join(self.working_dir, "requests.csv")):
+        #     return pd.read_csv(os.path.join(self.working_dir, "requests.csv"))
+        # else:
+        #     requests = self._extract_requests()
 
-            self.logger.info(f"Extracted {len(requests)}x of requests")
-            requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
-            return requests
+        #     self.logger.info(f"Extracted {len(requests)}x of requests")
+        #     requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        #     return requests
 
-    def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
-        if os.path.exists(os.path.join(self.working_dir, "features.csv")):
-            return pd.read_csv(os.path.join(self.working_dir, "features.csv"))
-        else:
-            return super().get_features(requests)
+        requests = self._extract_requests()
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    # def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
+    #     if os.path.exists(os.path.join(self.working_dir, "features.csv")):
+    #         return pd.read_csv(os.path.join(self.working_dir, "features.csv"))
+    #     else:
+    #         return super().get_features(requests)
 
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         self.logger.info(f"Getting labels for {len(requests)}x requests")

@@ -32,10 +32,16 @@ class OnlineExecutor:
         fcols = [col for col in cols if col.startswith("f_")]
         label_col = "label"
 
+        if "req_ts" not in req_cols:
+            req_cols.extend(["req_ts", "req_label_ts"])
+            dataset.insert(0, "req_ts", range(len(dataset)))
+            dataset['req_label_ts'] = dataset['req_ts']
+
         requests = dataset[req_cols].to_dict(orient="records")
         labels = dataset[label_col].to_numpy()
         ext_features = dataset[fcols].to_numpy()
         ext_preds = self.ppl.model.predict(ext_features).astype(np.float64)
+
 
         self.requests = requests
         self.labels = labels

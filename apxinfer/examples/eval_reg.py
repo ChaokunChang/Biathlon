@@ -29,6 +29,7 @@ ALL_CLS_TASKS = [
     "tdfraudrandom",
     "tdfraudkaggle",
     "student",
+    "studentqnotest",
 ]
 
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
@@ -188,7 +189,7 @@ def extract_result(all_info: dict, min_conf, base_time=None):
         result["similarity"] = result["similarity-r2"]
         result["accuracy"] = result["accuracy-r2"]
     else:
-        assert args.task_name in ALL_CLS_TASKS
+        assert args.task_name in ALL_CLS_TASKS, f"unknown task: {args.task_name}"
         result["similarity"] = result["similarity-f1"]
         result["accuracy"] = result["accuracy-f1"]
     return result

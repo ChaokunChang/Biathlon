@@ -260,6 +260,17 @@ def run_studentqno(args: ExpArgs, qno: int):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_studentqnotest(args: ExpArgs):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    task_name = "studentqnotest"
+    agg_qids = list_to_option_str([i for i in range(13)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_student(args: ExpArgs):
     """
     models = [lgbm, gbm, tfgbm]
@@ -739,6 +750,8 @@ if __name__ == "__main__":
         run_cheaptripsfeast(args)
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
+    elif args.exp == "studentqnotest":
+        run_studentqnotest(args)
     elif args.exp in StudentQNo18VaryNF:
         nf = int(args.exp[len("studentqno18nf") :])
         run_studentqno18_vary_nf(args, nf)

@@ -408,15 +408,20 @@ def run_prepare(name: str, args: PrepareArgs):
 
         model_type = "classifier"
     elif name.startswith("studentqno"):
-        from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+        if name == "studentqnotest":
+            from apxinfer.examples.student.prepare import StudentQNoTestPrepareWorker as Worker
 
-        model_type = "classifier"
+            model_type = "classifier"
+        else:
+            from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+
+            model_type = "classifier"
 
     if name.startswith("studentqno"):
-        if name.startswith("studentqno18nf"):
+        if name.startswith("studentqno18nf") or name == "studentqnotest":
             qno = 18
         else:
-            qno = int(name[len("studentqno") :])
+            qno = int(name[len("studentqno"):])
         worker: XIPPrepareWorker = Worker(
             DIRHelper.get_prepare_dir(args),
             get_fengine(name, args),

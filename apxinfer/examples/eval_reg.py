@@ -10,7 +10,7 @@ ALL_REG_TASKS = [
     "tripsfeast",
     "tick",
     "tickv2",
-    "battery",
+    "battery", "batterytest",
     "batteryv2",
     "turbofan",
     "turbofanall",

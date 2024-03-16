@@ -466,6 +466,19 @@ def run_tripsfeast(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_batterytest(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "batterytest"
+    agg_qids = "0 1 2 3 4"
+    # default_max_errors = [120, 300]
+    default_max_errors = [300]
+    max_errors = [60, 120, 300, 600, 900, 1200, 3600, 7200]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_battery(args: ExpArgs):
     """
     must models = ["lgbm"]
@@ -791,6 +804,8 @@ if __name__ == "__main__":
         run_tick_price_middle(args)
     elif args.exp == "extremetickprice":
         run_extreme_tick_price(args)
+    elif args.exp == "batterytest":
+        run_batterytest(args)
     elif args.exp == "battery":
         run_battery(args)
     elif args.exp == "batteryv2":

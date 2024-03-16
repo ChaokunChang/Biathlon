@@ -395,6 +395,10 @@ def run_prepare(name: str, args: PrepareArgs):
             from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
 
             model_type = "regressor"
+    elif name == "batterytest":
+        from apxinfer.examples.battery.prepare import BatteryTestPrepareWorker as Worker
+
+        model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
 

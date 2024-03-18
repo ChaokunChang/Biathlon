@@ -42,11 +42,11 @@ class TurbofanQPAgg(XIPQueryProcessor):
         name = request['req_name']
         unit = request['req_unit']
         cycle = request['req_cycle']
-        return f"{name}_{unit}_{cycle}"
+        return f"{name}#{unit}#{cycle}"
 
     def key_to_request(self, request: TurbofanRequest, qcfg: XIPQueryConfig, key: str) -> TurbofanRequest:
         new_request = {**request}
-        name, unit, cycle = key.split('_')
+        name, unit, cycle = key.split('#')
         new_request['req_name'] = name
         new_request['req_unit'] = int(unit)
         new_request['req_cycle'] = int(cycle)

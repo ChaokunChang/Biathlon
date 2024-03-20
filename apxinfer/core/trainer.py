@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import os
 import os.path as osp
@@ -49,7 +50,10 @@ class XIPTrainer:
             multi_class=self.multi_class,
             random_state=self.seed,
         )
-        model.fit(X.values, y.values)
+        if isinstance(X, pd.DataFrame):
+            model.fit(X.values, y.values)
+        else:
+            model.fit(X, y)
         return model
 
     def run(self) -> None:

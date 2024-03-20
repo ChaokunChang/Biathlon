@@ -80,17 +80,30 @@ class StudentQP1(XIPQueryProcessor):
         ]
         return qops
 
-    def get_default_fvec(
-        self, request: XIPRequest, qcfg: XIPQueryConfig
-    ) -> XIPFeatureVec:
-        fvals = -np.ones(len(self.fnames))
-        if is_same_float(qcfg["qsample"], 1.0):
-            fests = np.zeros(len(self.fnames))
-        else:
-            fests = np.ones(len(self.fnames)) * 1e9
-        return XIPFeatureVec(
-            fnames=self.fnames,
-            fvals=fvals,
-            fests=fests,
-            fdists=["normal"] * len(self.fnames),
-        )
+    def request_to_key(self, request: StudentRequest, qcfg: XIPQueryConfig) -> str:
+        session_id = request['req_session_id']
+        req_qno = request["req_qno"]
+        # level_group = get_query_group(req_qno)
+        return f"{session_id}_{req_qno}"
+
+    def key_to_request(self, request: StudentRequest, qcfg: XIPQueryConfig, key: str) -> StudentRequest:
+        new_request = {**request}
+        session_id, req_qno = key.split("_")
+        new_request["req_session_id"] = session_id
+        new_request["req_qno"] = int(req_qno)
+        return new_request
+
+    # def get_default_fvec(
+    #     self, request: XIPRequest, qcfg: XIPQueryConfig
+    # ) -> XIPFeatureVec:
+    #     fvals = -np.ones(len(self.fnames))
+    #     if is_same_float(qcfg["qsample"], 1.0):
+    #         fests = np.zeros(len(self.fnames))
+    #     else:
+    #         fests = np.ones(len(self.fnames)) * 1e9
+    #     return XIPFeatureVec(
+    #         fnames=self.fnames,
+    #         fvals=fvals,
+    #         fests=fests,
+    #         fdists=["normal"] * len(self.fnames),
+    #     )

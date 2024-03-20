@@ -1,6 +1,6 @@
 from typing import List
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPQueryConfig
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -31,6 +31,14 @@ class MachineryQP(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: MachineryRequest, qcfg: XIPQueryConfig) -> str:
+        return str(request['req_bid'])
+
+    def key_to_request(self, request: MachineryRequest, qcfg: XIPQueryConfig, key: str) -> MachineryRequest:
+        new_request = {**request}
+        new_request['req_bid'] = int(key)
+        return new_request
 
 
 def get_qps(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):

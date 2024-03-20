@@ -61,9 +61,11 @@ class XIPPipeline:
         if self.settings.termination_condition == "pvar":
             return pred["pred_var"] <= self.settings.max_error
         elif self.settings.termination_condition == "min_max":
-            z_loc = st.norm.ppf(0.5 + self.settings.min_conf / 2,
-                                loc=pred["pred_value"],
-                                scale=np.sqrt(pred["pred_var"]))
+            z_loc = st.norm.ppf(
+                0.5 + self.settings.min_conf / 2,
+                loc=pred["pred_value"],
+                scale=np.sqrt(pred["pred_var"]),
+            )
             return np.abs(z_loc - pred["pred_value"]) <= self.settings.max_error
         elif self.settings.termination_condition == "error":
             return pred["pred_error"] <= self.settings.max_error
@@ -79,9 +81,7 @@ class XIPPipeline:
         else:
             raise ValueError("Invalid termination condition")
 
-    def run_exact(
-        self, request: XIPRequest, ret_fvec: bool = False
-    ) -> XIPPredEstimation:
+    def run_exact(self, request: XIPRequest) -> XIPPredEstimation:
         self.start_time = time.time()
 
         qcfgs = self.scheduler.start(request)
@@ -99,13 +99,12 @@ class XIPPipeline:
         xip_pred = XIPPredEstimation(
             pred_value=pred, pred_error=0.0, pred_conf=1.0, fvec=None, pred_var=0
         )
-        if ret_fvec:
-            xip_pred['fvec'] = fvec
+        xip_pred["fvec"] = fvec
 
         self.scheduler.record(request, qcfgs, fvec, xip_pred, qcosts)
         return xip_pred
 
-    def run_apx(self, request: XIPRequest, ret_fvec: bool = False) -> XIPPredEstimation:
+    def run_apx(self, request: XIPRequest) -> XIPPredEstimation:
         self.start_time = time.time()
         self.cumulative_qtimes = np.zeros(self.fextractor.num_queries)
         self.cumulative_pred_time = 0
@@ -133,13 +132,15 @@ class XIPPipeline:
 
             round_id += 1
 
-        if ret_fvec:
-            pred["fvec"] = fvec
+        pred["fvec"] = fvec
         return pred
 
-    def serve(
-        self, request: XIPRequest, ret_fvec: bool = False, exact: bool = False
-    ) -> XIPPredEstimation:
+    def serve(self, request: XIPRequest, exact: bool = False) -> XIPPredEstimation:
         if exact:
-            return self.run_exact(request, ret_fvec)
-        return self.run_apx(request, ret_fvec)
+            return self.run_exact(request)
+        return self.run_apx(request)
+
+    def accuracy_feedback(self, request: XIPRequest, error: float) -> None:
+        profile = self.scheduler.get_latest_profile()
+        qcfgs = profile["qcfgs"]
+        self.fextractor.accuracy_feedback(request, qcfgs, error)

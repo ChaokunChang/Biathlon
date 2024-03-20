@@ -68,3 +68,39 @@ class MachineryBinaryClassPrepareWorker(MachineryMultiClassPrepareWorker):
         labels = super().get_labels(requests)
         labels = labels.apply(lambda x: 1 if x > 0 else 0)
         return labels
+
+
+class MachineryRalfPrepareWorker(MachineryBinaryClassPrepareWorker):
+    def _extract_requests(self, max_num: int = 0) -> pd.DataFrame:
+        sql = f"""
+            SELECT bid as ts,
+                bid as label_ts,
+                bid as bid
+            FROM {self.database}.{self.table}
+            GROUP BY bid
+            ORDER BY bid
+        """
+        requests: pd.DataFrame = self.db_client.query_df(sql)
+
+        if max_num > 0 and max_num < len(requests):
+            requests = requests.sample(max_num, replace=False)
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests()
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class MachineryRalfTestPrepareWorker(MachineryRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(max_num=200)
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests

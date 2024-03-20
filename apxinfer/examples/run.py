@@ -28,140 +28,219 @@ from apxinfer.core.online import OnlineExecutor
 def get_fengine(name: str, args: BaseXIPArgs):
     if name == "ccfraud":
         from apxinfer.examples.ccfraud.engine import get_ccfraud_engine
-        fengine = get_ccfraud_engine(nparts=args.nparts, ncores=args.ncores,
-                                     seed=args.seed, verbose=args.verbose)
-    elif name == "tdfraud" or name == "tdfraudrandom":
-        from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
-        fengine = get_tdfraud_engine(nparts=args.nparts, ncores=args.ncores,
-                                     seed=args.seed, verbose=args.verbose)
+
+        fengine = get_ccfraud_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "tdfraudkaggle":
         from apxinfer.examples.tdfraud.engine import get_tdfraudkaggle_engine
-        fengine = get_tdfraudkaggle_engine(nparts=args.nparts, ncores=args.ncores,
-                                           seed=args.seed, verbose=args.verbose)
+
+        fengine = get_tdfraudkaggle_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name.startswith("tdfraud"):  # tdfraud, tdfraudrandom, tdfraudralf...
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
+
+        fengine = get_tdfraud_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "tick":
         from apxinfer.examples.tick.engine import get_tick_engine
-        fengine = get_tick_engine(nparts=args.nparts, ncores=args.ncores,
-                                  seed=args.seed, verbose=args.verbose)
+
+        fengine = get_tick_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "tickv2":
         from apxinfer.examples.tick.engine import get_tick_engine_v2
-        fengine = get_tick_engine_v2(nparts=args.nparts, ncores=args.ncores,
-                                     seed=args.seed, verbose=args.verbose)
+
+        fengine = get_tick_engine_v2(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name.startswith("tickralf"):
+        from apxinfer.examples.tick.engine import get_tick_engine_v2
+
+        fengine = get_tick_engine_v2(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name.startswith("tickvaryNM"):
         from apxinfer.examples.tickvary.engine import get_tick_engine
-        num_months = int(name[len("tickvaryNM"):])
-        fengine = get_tick_engine(nparts=args.nparts, ncores=args.ncores,
-                                  seed=args.seed, num_months=num_months,
-                                  verbose=args.verbose)
+
+        num_months = int(name[len("tickvaryNM") :])
+        fengine = get_tick_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            num_months=num_months,
+            verbose=args.verbose,
+        )
     elif name == "tripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
-        fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores,
-                                         seed=args.seed, verbose=args.verbose)
+
+        fengine = get_trips_feast_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name.startswith("tripsfeastw"):
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine_vary
-        rate = int(name[len("tripsfeastw"):])
-        fengine = get_trips_feast_engine_vary(nparts=args.nparts, rate=rate,
-                                              ncores=args.ncores, seed=args.seed,
-                                              verbose=args.verbose)
+
+        rate = int(name[len("tripsfeastw") :])
+        fengine = get_trips_feast_engine_vary(
+            nparts=args.nparts,
+            rate=rate,
+            ncores=args.ncores,
+            seed=args.seed,
+            verbose=args.verbose,
+        )
+    elif name.startswith("tripsralf"):
+        from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
+
+        fengine = get_trips_feast_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "cheaptripsfeast":
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
-        fengine = get_trips_feast_engine(nparts=args.nparts, ncores=args.ncores,
-                                         seed=args.seed, verbose=args.verbose)
+
+        fengine = get_trips_feast_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "trips":
         from apxinfer.examples.trips.data import get_dloader
         from apxinfer.examples.trips.query import get_qps
         from apxinfer.examples.trips.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, version=1)
         fengine = get_qengine(qps, args.ncores, args.verbose)
     elif name == "cheaptrips":
         from apxinfer.examples.trips.data import get_dloader
         from apxinfer.examples.trips.query import get_qps
         from apxinfer.examples.trips.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, version=1)
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name == "machinery" or name == "machinerymulti":
+    elif name in [
+        "machinery",
+        "machinerymulti",
+        "machineryralf",
+        "machineryralftest",
+    ]:
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps
         from apxinfer.examples.machinery.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose)
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name in ([f"machineryf{i}" for i in range(1, 8)] + [f"machinerymultif{i}" for i in range(1, 8)]):
+    elif name in (
+        [f"machineryf{i}" for i in range(1, 8)]
+        + [f"machinerymultif{i}" for i in range(1, 8)]
+    ):
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps
         from apxinfer.examples.machinery.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name in ([f"machineryxf{i}" for i in range(1, 9)] + [f"machinerymultixf{i}" for i in range(1, 9)]):
+    elif name in (
+        [f"machineryxf{i}" for i in range(1, 9)]
+        + [f"machinerymultixf{i}" for i in range(1, 9)]
+    ):
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps_x
         from apxinfer.examples.machinery.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps_x(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name in ([f"machinerynf{i}" for i in range(1, 9)] + [f"machinerymultinf{i}" for i in range(1, 9)]):
+    elif name in (
+        [f"machinerynf{i}" for i in range(1, 9)]
+        + [f"machinerymultinf{i}" for i in range(1, 9)]
+    ):
         from apxinfer.examples.machinery.data import get_dloader
         from apxinfer.examples.machinery.query import get_qps_varynf
         from apxinfer.examples.machinery.engine import get_qengine
-        dloader = get_dloader(nparts=args.nparts, seed=args.seed,
-                              verbose=args.verbose)
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
     elif name == "battery":
         from apxinfer.examples.battery.engine import get_battery_engine
-        fengine = get_battery_engine(nparts=args.nparts, ncores=args.ncores,
-                                     seed=args.seed, verbose=args.verbose)
+
+        fengine = get_battery_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "batteryv2":
         from apxinfer.examples.battery.engine import get_batteryv2_engine
-        fengine = get_batteryv2_engine(nparts=args.nparts, ncores=args.ncores,
-                                       seed=args.seed, verbose=args.verbose)
+
+        fengine = get_batteryv2_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "turbofan":
         from apxinfer.examples.turbofan.engine import get_turbofan_engine
-        fengine = get_turbofan_engine(nparts=args.nparts, ncores=args.ncores,
-                                      seed=args.seed, verbose=args.verbose)
+
+        fengine = get_turbofan_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "turbofanall":
         from apxinfer.examples.turbofan.engine import get_turbofanall_engine
-        fengine = get_turbofanall_engine(nparts=args.nparts, ncores=args.ncores,
-                                         seed=args.seed, verbose=args.verbose)
+
+        fengine = get_turbofanall_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "student":
         from apxinfer.examples.student.engine import get_student_engine
-        fengine = get_student_engine(nparts=args.nparts, ncores=args.ncores,
-                                     seed=args.seed, verbose=args.verbose)
+
+        fengine = get_student_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name.startswith("studentqno"):
         from apxinfer.examples.student.engine import get_studentqno_engine
+
         # qno = int(name[len("studentqno"):])
         if name.startswith("studentqno18nf"):
-            nf = int(name[len("studentqno18nf"):])
-            fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores,
-                                            seed=args.seed, verbose=args.verbose, nf=nf)
+            nf = int(name[len("studentqno18nf") :])
+            fengine = get_studentqno_engine(
+                nparts=args.nparts,
+                ncores=args.ncores,
+                seed=args.seed,
+                verbose=args.verbose,
+                nf=nf,
+            )
         else:
-            fengine = get_studentqno_engine(nparts=args.nparts, ncores=args.ncores,
-                                            seed=args.seed, verbose=args.verbose)
+            fengine = get_studentqno_engine(
+                nparts=args.nparts,
+                ncores=args.ncores,
+                seed=args.seed,
+                verbose=args.verbose,
+            )
 
     for qry in fengine.queries:
-        fest = XIPFeatureEstimator(err_module=XIPFeatureErrorEstimator(min_support=args.err_min_support,
-                                                                       seed=args.seed,
-                                                                       bs_type=args.bs_type,
-                                                                       bs_nresamples=args.bs_nresamples,
-                                                                       bs_max_nthreads=args.bs_nthreads,
-                                                                       bs_feature_correction=args.bs_feature_correction,
-                                                                       bs_bias_correction=args.bs_bias_correction,
-                                                                       bs_for_var_std=args.bs_for_var_std))
+        fest = XIPFeatureEstimator(
+            err_module=XIPFeatureErrorEstimator(
+                min_support=args.err_min_support,
+                seed=args.seed,
+                bs_type=args.bs_type,
+                bs_nresamples=args.bs_nresamples,
+                bs_max_nthreads=args.bs_nthreads,
+                bs_feature_correction=args.bs_feature_correction,
+                bs_bias_correction=args.bs_bias_correction,
+                bs_for_var_std=args.bs_for_var_std,
+            )
+        )
         qry.set_estimator(fest)
-        if args.loading_mode >= 2000:
+        if args.loading_mode >= 3000:
+            qry.set_loading_mode(args.loading_mode - 3000)
+            qry.set_ralf_budget(budget=args.ralf_budget)
+        elif args.loading_mode >= 2000:
             qry.set_loading_mode(args.loading_mode - 2000)
         elif args.loading_mode >= 1000:
             qry.set_loading_mode(args.loading_mode - 1000)
         else:
             qry.set_loading_mode(args.loading_mode)
-    if args.loading_mode >= 2000:
+    if args.loading_mode >= 3000:
+        fengine.set_exec_mode("ralf")
+    elif args.loading_mode >= 2000:
         fengine.set_exec_mode("parallel")
     elif args.loading_mode >= 1000:
         fengine.set_exec_mode("async")
@@ -173,84 +252,177 @@ def get_fengine(name: str, args: BaseXIPArgs):
 def run_ingest(name: str, args: BaseXIPArgs):
     if name.startswith("trips"):
         from apxinfer.examples.trips.data import get_ingestor
+
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.trips.data import get_ingestor
+
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
     elif name.startswith("machinery"):
         from apxinfer.examples.machinery.data import get_ingestor
+
         ingestor = get_ingestor(nparts=args.nparts, seed=args.seed)
         ingestor.run()
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name.startswith("tdfraud"):
         from apxinfer.examples.tdfraud.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name == "tick":
         from apxinfer.examples.tick.data import ingest
+
+        ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+    elif name.startswith("tickralf"):
+        from apxinfer.examples.tick.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name.startswith("tickvaryNM"):
         from apxinfer.examples.tickvary.data import ingest
-        num_months = int(name[len("tickvaryNM"):])
-        ingest(nparts=args.nparts, seed=args.seed,
-               num_months=num_months, verbose=args.verbose)
+
+        num_months = int(name[len("tickvaryNM") :])
+        ingest(
+            nparts=args.nparts,
+            seed=args.seed,
+            num_months=num_months,
+            verbose=args.verbose,
+        )
     elif name.startswith("battery"):
         from apxinfer.examples.battery.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
     elif name.startswith("student"):
         from apxinfer.examples.student.data import ingest
+
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
 
 
 def run_prepare(name: str, args: PrepareArgs):
     if name.startswith("trips"):
-        from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
+        if name == "tripsralftest":
+            from apxinfer.examples.trips.prepare import (
+                TripsRalfTestPrepareWorker as Worker,
+            )
+        elif name == "tripsralf2h":
+            from apxinfer.examples.trips.prepare import (
+                TripsRalf2HPrepareWorker as Worker,
+            )
+        elif name == "tripsralf":
+            from apxinfer.examples.trips.prepare import TripsRalfPrepareWorker as Worker
+        else:
+            from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
         model_type = "regressor"
     elif name == "cheaptrips" or name == "cheaptripsfeast":
-        from apxinfer.examples.cheaptrips.prepare import CheapTripsPrepareWorker as Worker
-        model_type = "classifier"
-    elif name.startswith("machinery") and (not name.startswith("machinerymulti")):
-        from apxinfer.examples.machinery.prepare import MachineryBinaryClassPrepareWorker as Worker
+        from apxinfer.examples.cheaptrips.prepare import (
+            CheapTripsPrepareWorker as Worker,
+        )
+
         model_type = "classifier"
     elif name.startswith("machinerymulti"):
-        from apxinfer.examples.machinery.prepare import MachineryMultiClassPrepareWorker as Worker
+        from apxinfer.examples.machinery.prepare import (
+            MachineryMultiClassPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machineryralftest"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryRalfTestPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machineryralf"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryRalfPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name.startswith("machinery"):
+        from apxinfer.examples.machinery.prepare import (
+            MachineryBinaryClassPrepareWorker as Worker,
+        )
+
         model_type = "classifier"
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.prepare import CCFraudPrepareWorker as Worker
+
         model_type = "classifier"
     elif name == "tdfraud":
         from apxinfer.examples.tdfraud.prepare import TDFraudPrepareWorker as Worker
+
+        model_type = "classifier"
+    elif name == "tdfraudralf":
+        from apxinfer.examples.tdfraud.prepare import TDFraudRalfPrepareWorker as Worker
+
+        model_type = "classifier"
+    elif name == "tdfraudralftest":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalfTestPrepareWorker as Worker,
+        )
+
         model_type = "classifier"
     elif name == "tdfraudrandom":
-        from apxinfer.examples.tdfraud.prepare import TDFraudRandomPrepareWorker as Worker
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRandomPrepareWorker as Worker,
+        )
+
         model_type = "classifier"
     elif name == "tdfraudkaggle":
-        from apxinfer.examples.tdfraud.prepare import TDFraudKagglePrepareWorker as Worker
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudKagglePrepareWorker as Worker,
+        )
+
         model_type = "classifier"
     elif name.startswith("tick"):
-        from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+        if name == "tickralftest":
+            from apxinfer.examples.tick.prepare import (
+                TickRalfTestPrepareWorker as Worker,
+            )
+
+            model_type = "regressor"
+        elif name == "tickralf":
+            from apxinfer.examples.tick.prepare import TickRalfPrepareWorker as Worker
+
+            model_type = "regressor"
+        else:
+            from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
+
+            model_type = "regressor"
+    elif name == "batterytest":
+        from apxinfer.examples.battery.prepare import BatteryTestPrepareWorker as Worker
+
         model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
+
         model_type = "regressor"
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.prepare import TurbofanPrepareWorker as Worker
+
         model_type = "regressor"
     elif name == "student":
         from apxinfer.examples.student.prepare import StudentPrepareWorker as Worker
+
         model_type = "classifier"
     elif name.startswith("studentqno"):
-        from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
-        model_type = "classifier"
+        if name == "studentqnotest":
+            from apxinfer.examples.student.prepare import StudentQNoTestPrepareWorker as Worker
+
+            model_type = "classifier"
+        else:
+            from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+
+            model_type = "classifier"
 
     if name.startswith("studentqno"):
-        if name.startswith("studentqno18nf"):
+        if name.startswith("studentqno18nf") or name == "studentqnotest":
             qno = 18
         else:
             qno = int(name[len("studentqno"):])
@@ -264,7 +436,7 @@ def run_prepare(name: str, args: PrepareArgs):
             args.model,
             args.seed,
             args.nparts,
-            qno
+            qno,
         )
     else:
         worker: XIPPrepareWorker = Worker(
@@ -276,7 +448,7 @@ def run_prepare(name: str, args: PrepareArgs):
             model_type,
             args.model,
             args.seed,
-            args.nparts
+            args.nparts,
         )
     worker.run(args.skip_dataset)
 
@@ -284,36 +456,47 @@ def run_prepare(name: str, args: PrepareArgs):
 def run_trainer(name: str, args: TrainerArgs):
     if name.startswith("trips"):
         from apxinfer.examples.trips.trainer import TripsTrainer as Trainer
+
         model_type = "regressor"
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.trainer import CheapTripsTrainer as Trainer
+
         model_type = "classifier"
     elif name.startswith("machinery"):
         from apxinfer.examples.machinery.trainer import MachineryTrainer as Trainer
+
         model_type = "classifier"
     elif name == "ccfraud":
         from apxinfer.examples.ccfraud.trainer import CCFraudTrainer as Trainer
-        model_type = "classifier"
-    elif name == "tdfraud" or name == "tdfraudrandom":
-        from apxinfer.examples.tdfraud.trainer import TDFraudTrainer as Trainer
+
         model_type = "classifier"
     elif name == "tdfraudkaggle":
         from apxinfer.examples.tdfraud.trainer import TDFraudKaggleTrainer as Trainer
+
+        model_type = "classifier"
+    elif name.startswith("tdfraud"):
+        from apxinfer.examples.tdfraud.trainer import TDFraudTrainer as Trainer
+
         model_type = "classifier"
     elif name.startswith("tick"):
         from apxinfer.examples.tick.trainer import TickTrainer as Trainer
+
         model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.trainer import BatteryTrainer as Trainer
+
         model_type = "regressor"
     elif name.startswith("turbofan"):
         from apxinfer.examples.turbofan.trainer import TurbofanTrainer as Trainer
+
         model_type = "regressor"
     elif name == "student":
         from apxinfer.examples.student.trainer import StudentTrainer as Trainer
+
         model_type = "classifier"
     elif name.startswith("studentqno"):
         from apxinfer.examples.student.trainer import StudentQNoTrainer as Trainer
+
         model_type = "classifier"
 
     trainer = Trainer(
@@ -322,7 +505,7 @@ def run_trainer(name: str, args: TrainerArgs):
         args.model,
         args.model_seed,
         scaler_type=args.scaler_type,
-        multi_class=(name == "machinerymulti")
+        multi_class=(name == "machinerymulti"),
     )
     trainer.run()
 
@@ -350,7 +533,14 @@ def run_offline(name: str, args: OfflineArgs):
 
 
 def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
-    ofl_args = OfflineArgs().from_dict({**args.as_dict(), "nreqs": args.offline_nreqs})
+    if args.loading_mode == 3000:
+        ofl_args = OfflineArgs().from_dict(
+            {**args.as_dict(), "nreqs": args.offline_nreqs, "loading_mode": 0}
+        )
+    else:
+        ofl_args = OfflineArgs().from_dict(
+            {**args.as_dict(), "nreqs": args.offline_nreqs}
+        )
     model_dir = DIRHelper.get_qcost_model_dir(ofl_args)
     model_path = os.path.join(model_dir, "xip_qcm.pkl")
     model: XIPQCostModel = joblib.load(model_path)
@@ -446,7 +636,7 @@ def run_online(name: str, args: OnlineArgs):
         "qinf_estimator": qinf_estimator,
         "qcost_estimator": qcost_model,
         "sample_grans": step_sizes,
-        "min_qsamples": [args.scheduler_init * i for i in step_sizes], 
+        "min_qsamples": [args.scheduler_init * i for i in step_sizes],
         "batch_size": args.scheduler_batch,
         "min_card": args.err_min_support,
         "verbose": verbose,

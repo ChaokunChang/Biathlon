@@ -3,6 +3,7 @@ import numpy as np
 import datetime as dt
 import os
 from tqdm import tqdm
+from typing import Tuple
 
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
@@ -19,7 +20,7 @@ class TickPrepareWorker(XIPPrepareWorker):
         model_type: str,
         model_name: str,
         seed: int,
-        nparts: int
+        nparts: int,
     ) -> None:
         super().__init__(
             working_dir,
@@ -103,3 +104,72 @@ class TickPrepareWorker(XIPPrepareWorker):
         labels_pds = pd.to_numeric(labels_pds, errors="coerce")
         labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels_pds
+
+
+class TickRalfPrepareWorker(TickPrepareWorker):
+    def _extract_requests(
+        self,
+        start_dt: str = "2022-02-01 00:00:00.000",
+        end_dt: str = "2022-03-01 00:00:00.000",
+        sampling_rate: float = 1,
+        max_num: int = 0,
+    ) -> pd.DataFrame:
+        self.logger.info("Getting requests")
+
+        sql = f""" WITH makeDateTime64(year, month, day, hour, 0, 0) as dt
+                SELECT count()
+                FROM xip.tick_fstore_hour
+                WHERE dt >= '{start_dt}' AND dt <= '{end_dt}'
+            """
+        cnt: int = self.db_client.command(sql)
+        self.logger.info(f"number of possible requests: {cnt}")
+        self.logger.info(f"requests sampling: {sampling_rate}")
+
+        sql = f"""
+                WITH makeDateTime64(year, month, day, hour, 0, 0) as clk_dt
+                SELECT
+                    toString(clk_dt) as ts,
+                    toString(addHours(clk_dt, 1)) as label_ts,
+                    cpair, toString(clk_dt) as dt
+                FROM xip.tick_fstore_hour
+                WHERE (cityHash64(clk_dt) % {int(1.0 / sampling_rate)}) == 0
+                        AND clk_dt >= '{start_dt}'
+                        AND clk_dt <= '{end_dt}'
+                ORDER BY (cpair, year, month, day, hour)
+                """
+        requests: pd.DataFrame = self.db_client.query_df(sql)
+        requests["ts"] = pd.to_datetime(requests["ts"]).astype(int) // 10**9
+        requests["label_ts"] = pd.to_datetime(requests["label_ts"]).astype(int) // 10**9
+
+        if max_num > 0 and max_num < len(requests):
+            requests = requests[:max_num]
+
+        self.logger.info(f"Got of {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests()
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def split_dataset(
+        self, dataset: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        n_train = len(dataset) // 2
+        n_valid = 100
+        train_set = dataset[:n_train]
+        test_set = dataset[n_train:]
+        valid_set = test_set[:n_valid]
+        return train_set, valid_set, test_set
+
+
+class TickRalfTestPrepareWorker(TickRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(max_num=self.max_requests)
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests

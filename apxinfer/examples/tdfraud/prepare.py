@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from tqdm import tqdm
+from typing import Tuple
 
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
@@ -17,7 +18,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
         model_type: str,
         model_name: str,
         seed: int,
-        nparts: int
+        nparts: int,
     ) -> None:
         super().__init__(
             working_dir,
@@ -35,11 +36,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # for each user, we extract the most recent 5 fraudlent transaction
         # and 5 non-fraudulent transaction
-        req_path = os.path.join(self.working_dir, "requests.csv")
-        if os.path.exists(req_path):
-            self.logger.info(f"Loading requests from {req_path}")
-            requests = pd.read_csv(req_path)
-            return requests
+
         self.logger.info("Getting requests")
         sql = f"""
             SELECT *
@@ -53,9 +50,7 @@ class TDFraudPrepareWorker(XIPPrepareWorker):
                 )
             """
         ip_fraud_df: pd.DataFrame = self.db_client.query_df(sql)
-        ip_fraud_df.to_csv(
-            os.path.join(self.working_dir, "ip_fraud.csv"), index=False
-        )
+        ip_fraud_df.to_csv(os.path.join(self.working_dir, "ip_fraud.csv"), index=False)
         ip_fraud = ip_fraud_df.values
         self.logger.info(f"Number of (ip): {len(ip_fraud)}")
         self.logger.info(
@@ -212,3 +207,96 @@ class TDFraudKagglePrepareWorker(TDFraudPrepareWorker):
         labels_pds = train_samples["is_attributed"]
         labels_pds.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels_pds
+
+
+class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
+    def _extract_requests(
+        self,
+        start_dt: str = "2017-11-08 16:00:00",
+        end_dt: str = "2017-11-09 16:00:00",
+        # start_dt: str = "2017-11-08 00:00:00",
+        # end_dt: str = "2017-11-08 01:00:00",
+        sampling_rate: float = 0.01,
+        max_num: int = 0,
+    ) -> pd.DataFrame:
+        # for each user, we extract the most recent 5 fraudlent transaction
+        # and 5 non-fraudulent transaction
+        self.logger.info("Getting requests")
+        sql = f"""
+            SELECT *
+            FROM (
+                SELECT ip, count() AS cnt,
+                        countIf(is_attributed=1) as cnt_fraud,
+                        cnt_fraud / cnt as fraud_rate
+                FROM {self.database}.{self.table}
+                GROUP BY ip
+                ORDER BY (cnt, ip) DESC
+                )
+            """
+        ip_fraud_df: pd.DataFrame = self.db_client.query_df(sql)
+        ip_fraud_df.to_csv(os.path.join(self.working_dir, "ip_fraud.csv"), index=False)
+        self.logger.info(f"Number of (ip): {len(ip_fraud_df)}")
+        self.logger.info(
+            f"mean count: {ip_fraud_df['cnt'].mean()}, "
+            f"mean fraud_cnt: {ip_fraud_df['cnt_fraud'].mean()}"
+        )
+
+        ip_fraud_df = pd.read_csv(os.path.join(self.working_dir, "ip_fraud.csv"))
+        ip_fraud_df = ip_fraud_df[ip_fraud_df['fraud_rate'] >= 0.01]
+        selected_ips = ip_fraud_df.sample(frac=sampling_rate,
+                                          random_state=0)["ip"].tolist()
+        self.logger.info(f"Selected {len(selected_ips)}x of ips")
+
+        selected_ips = [str(x) for x in selected_ips]
+
+        sql = f"""
+            SELECT toString(click_time) as ts,
+                toString(attributed_time) as label_ts,
+                txn_id, ip, app, device, os, channel,
+                toString(click_time) as click_time
+            FROM {self.database}.{self.table}
+            WHERE ip IN ({','.join(selected_ips)})
+                AND click_time >= '{start_dt}'
+                AND click_time <= '{end_dt}'
+            ORDER BY click_time, ip
+        """
+        requests = self.db_client.query_df(sql)
+
+        requests["ts"] = pd.to_datetime(requests["ts"]).astype(int) // 10**9
+        requests["label_ts"] = pd.to_datetime(requests["label_ts"]).astype(int) // 10**9
+
+        # if label_ts < ts, set label_ts = ts
+        requests["label_ts"] = requests["label_ts"].where(
+            requests["label_ts"] > requests["ts"], requests["ts"]
+        )
+
+        self.logger.info(f"Got {len(requests)}x of requests")
+
+        if max_num > 0 and max_num < len(requests):
+            requests = requests[:max_num]
+
+        return requests
+
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests()
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def split_dataset(
+        self, dataset: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        n_train = len(dataset) // 2
+        n_valid = 100
+        train_set = dataset[:n_train]
+        test_set = dataset[n_train:]
+        valid_set = test_set[:n_valid]
+        return train_set, valid_set, test_set
+
+
+class TDFraudRalfTestPrepareWorker(TDFraudRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-09 15:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests

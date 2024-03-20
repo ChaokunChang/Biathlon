@@ -4,10 +4,12 @@ from enum import Enum
 import itertools
 
 
-class XIPRequest(TypedDict):
+class XIPRequest(TypedDict, total=False):
     """Request"""
 
     req_id: int
+    req_ts: int
+    req_label_ts: int
 
 
 class XIPQType(Enum):

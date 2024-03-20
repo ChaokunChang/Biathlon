@@ -17,7 +17,7 @@ from apxinfer.examples.student.query import get_query_group
 from apxinfer.examples.student.engine import STUDENT_CATEGORICAL, STUDENT_NUMERICAL
 
 
-def feature_engineer(data_df):
+def feature_engineer(data_df: pd.DataFrame) -> pd.DataFrame:
     dfs = []
     for c in STUDENT_CATEGORICAL:
         tmp = data_df.groupby(["session_id", "level_group"])[c].agg("nunique")
@@ -83,13 +83,17 @@ class StudentPrepareWorker(XIPPrepareWorker):
         df = df.merge(df_features, on=['session_id', 'level_group'], how='left')
         df = df.reset_index()
 
+        df.insert(0, "ts", range(len(df)))
+        df['label_ts'] = df['ts']
+
         df.to_csv(os.path.join(self.working_dir, "extracted_df.csv"), index=False)
         self._cached_df = df
         return self._cached_df
 
     def get_requests(self) -> pd.DataFrame:
         df = self.extract_request_and_labels()
-        requests = df[["session_id", "qno"]]
+        requests = df[["ts", "label_ts", "session_id", "qno"]]
+
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
@@ -207,7 +211,7 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         df = self.extract_request_and_labels()
         df = df[df["qno"] == self.qno]
-        requests = df[["session_id", "qno"]]
+        requests = df[["ts", "label_ts", "session_id", "qno"]]
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
@@ -220,3 +224,9 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
             )
         ]
         return users_test
+
+
+class StudentQNoTestPrepareWorker(StudentQNoPrepareWorker):
+    def get_test_users(self, USER_LIST, split):
+        users = super().get_test_users(USER_LIST, split)
+        return users[:200]

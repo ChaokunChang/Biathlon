@@ -28,6 +28,8 @@ class ExpArgs(Tap):
     skip_shared: bool = False
     default_only: bool = False
 
+    ralf_budget: float = 1.0
+
     def process_args(self):
         assert self.exp is not None
         if self.phase != "prepare":
@@ -124,6 +126,13 @@ def get_baseline_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
     return cmd
 
 
+def get_ralf_cmd(args: ExpArgs, task_name: str, model: str, agg_qids: str):
+    assert args.loading_mode >= 3000
+    cmd = get_base_cmd(args, task_name, model, agg_qids)
+    cmd = f"{cmd} --run_baseline --ralf_budget {args.ralf_budget}"
+    return cmd
+
+
 def get_eval_cmd(
     args: ExpArgs,
     task_name: str,
@@ -160,6 +169,9 @@ def run_pipeline(
         os.system(cmd)
     elif args.phase == "baseline":
         cmd = get_baseline_cmd(args, task_name, model, agg_qids)
+        os.system(cmd)
+    elif args.phase == "ralf":
+        cmd = get_ralf_cmd(args, task_name, model, agg_qids)
         os.system(cmd)
     elif args.phase == "warmup":
         cmd = get_eval_cmd(args, task_name, model, agg_qids, 1000, 1000 * naggs, 0.0)
@@ -248,6 +260,17 @@ def run_studentqno(args: ExpArgs, qno: int):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_studentqnotest(args: ExpArgs):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    task_name = "studentqnotest"
+    agg_qids = list_to_option_str([i for i in range(13)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_student(args: ExpArgs):
     """
     models = [lgbm, gbm, tfgbm]
@@ -264,6 +287,28 @@ def run_machinery(args: ExpArgs):
     must models = ["mlp", "svm", "knn"]
     """
     task_name = "machinery"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_machineryralftest(args: ExpArgs):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = "machineryralftest"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_machineryralf(args: ExpArgs):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    task_name = "machineryralf"
     agg_qids = "0 1 2 3 4 5 6 7"
     default_max_errors = [0]
     max_errors = [0]
@@ -316,6 +361,28 @@ def run_tdfraud(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tdfraudralf(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraudralf"
+    agg_qids = "1 2 3"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tdfraudralftest(args: ExpArgs):
+    """
+    must models = ["xgb"]
+    """
+    task_name = "tdfraudralftest"
+    agg_qids = "1 2 3"
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_tdfraudrandom(args: ExpArgs):
     """
     must models = ["xgb"]
@@ -350,6 +417,43 @@ def run_trips(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tripsralf(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralf"
+    agg_qids = "1 2"
+    default_max_errors = [0.1, 0.5, 1.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralftest(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralftest"
+    agg_qids = "1 2"
+    # default_max_errors = [0.5, 1.0, 1.5]
+    default_max_errors = [1.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralf2h(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralf2h"
+    agg_qids = "1 2"
+    default_max_errors = [0.5, 1.0, 2.0]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_tripsfeast(args: ExpArgs):
     """
     must models = ["lgbm"]
@@ -359,6 +463,19 @@ def run_tripsfeast(args: ExpArgs):
     agg_qids = "1 2"
     default_max_errors = [0.1, 0.5, 1.0]
     max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_batterytest(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "batterytest"
+    agg_qids = "0 1 2 3 4"
+    # default_max_errors = [120, 300]
+    default_max_errors = [300]
+    max_errors = [60, 120, 300, 600, 900, 1200, 3600, 7200]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -441,6 +558,30 @@ def run_tick_v2(args: ExpArgs):
     optional models = ["dt", "rf"]
     """
     task_name = "tickv2"
+    agg_qids = "6"
+    default_max_errors = [0.01, 0.05]
+    max_errors = [0.001, 0.01, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tickralf(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralf"
+    agg_qids = "6"
+    default_max_errors = [0.01, 0.05]
+    max_errors = [0.001, 0.01, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tickralftest(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralftest"
     agg_qids = "6"
     default_max_errors = [0.01, 0.05]
     max_errors = [0.001, 0.01, 0.05, 0.1]
@@ -590,16 +731,30 @@ if __name__ == "__main__":
     args = ExpArgs().parse_args()
     if args.phase == "prepare":
         run_prepare(args)
+    elif args.exp == "tripsralf":
+        run_tripsralf(args)
+    elif args.exp == "tripsralftest":
+        run_tripsralftest(args)
+    elif args.exp == "tripsralf2h":
+        run_tripsralf2h(args)
     elif args.exp == "trips":
         run_trips(args)
     elif args.exp == "tick-v1":
         run_tick_v1(args)
     elif args.exp == "tick-v2":
         run_tick_v2(args)
+    elif args.exp == "tickralf":
+        run_tickralf(args)
+    elif args.exp == "tickralftest":
+        run_tickralftest(args)
     elif args.exp == "cheaptrips":
         run_cheaptrips(args)
     elif args.exp == "machinery":
         run_machinery(args)
+    elif args.exp == "machineryralf":
+        run_machineryralf(args)
+    elif args.exp == "machineryralftest":
+        run_machineryralftest(args)
     elif args.exp == "ccfraud":
         run_ccfraud(args)
     elif args.exp == "tripsfeast":
@@ -608,6 +763,8 @@ if __name__ == "__main__":
         run_cheaptripsfeast(args)
     elif args.exp == "machinerymulti":
         run_machinerymulti(args)
+    elif args.exp == "studentqnotest":
+        run_studentqnotest(args)
     elif args.exp in StudentQNo18VaryNF:
         nf = int(args.exp[len("studentqno18nf") :])
         run_studentqno18_vary_nf(args, nf)
@@ -635,6 +792,10 @@ if __name__ == "__main__":
         run_tdfraud(args)
     elif args.exp == "tdfraudrandom":
         run_tdfraudrandom(args)
+    elif args.exp == "tdfraudralf":
+        run_tdfraudralf(args)
+    elif args.exp == "tdfraudralftest":
+        run_tdfraudralftest(args)
     elif args.exp.startswith("varynsamples"):
         run_vary_nsamples(args)
     elif args.exp == "tdfraudkaggle":
@@ -643,6 +804,8 @@ if __name__ == "__main__":
         run_tick_price_middle(args)
     elif args.exp == "extremetickprice":
         run_extreme_tick_price(args)
+    elif args.exp == "batterytest":
+        run_batterytest(args)
     elif args.exp == "battery":
         run_battery(args)
     elif args.exp == "batteryv2":

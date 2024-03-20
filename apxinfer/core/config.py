@@ -28,6 +28,9 @@ class BaseXIPArgs(Tap):
     scaler_type: Literal["standard", "minmax", "robust", "maxabs"] = None
     model: str = "lgbm"  # model name
 
+    # ralf setting
+    ralf_budget: float = 1.0
+
     verbose: bool = False
 
 

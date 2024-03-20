@@ -98,3 +98,7 @@ class BatteryPrepareWorker(XIPPrepareWorker):
         self.logger.info(f"Getting labels for {len(labels)}x requests")
         labels.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels["rul"]
+
+
+class BatteryTestPrepareWorker(BatteryPrepareWorker):
+    pass

@@ -50,7 +50,7 @@ class XIPPrepareWorker:
         model_type: str,
         model_name: str,
         seed: int,
-        split_seed: int = 0
+        split_seed: int = 0,
     ) -> None:
         self.working_dir = working_dir
 
@@ -169,3 +169,13 @@ class XIPPrepareWorker:
         train_set.describe().to_csv(osp.join(self.dataset_dir, "train_set_stats.csv"))
         valid_set.describe().to_csv(osp.join(self.dataset_dir, "valid_set_stats.csv"))
         test_set.describe().to_csv(osp.join(self.dataset_dir, "test_set_stats.csv"))
+
+        rec_budget = self.recommend_ralf_budget(test_set)
+        self.logger.info(f"Recommended RALF budget: {rec_budget}")
+
+    def recommend_ralf_budget(self, dataset: pd.DataFrame) -> float:
+        if "req_ts" not in dataset.columns:
+            return 0.0
+        # compute the mean time interval on req_ts
+        interval = dataset["req_ts"].diff().mean()
+        return 1.0 / interval

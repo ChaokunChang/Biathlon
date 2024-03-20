@@ -86,6 +86,7 @@ class XIPTrainer:
         all_evals = {"train": train_evals, "valid": valid_evals, "test": test_evals}
         with open(osp.join(self.model_dir, f"{self.model_tag}_evals.json"), "w") as f:
             json.dump(all_evals, f, indent=4)
+        self.logger.info(all_evals)
 
         # for classification pipeline, we print and save the classification report
         if self.model_type == "classification":

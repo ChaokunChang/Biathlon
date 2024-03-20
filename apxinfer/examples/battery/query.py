@@ -1,6 +1,6 @@
 from typing import List
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPQueryConfig
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -49,3 +49,11 @@ class BatteryQPAgg(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: BatteryRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_bid']
+
+    def key_to_request(self, request: BatteryRequest, qcfg: XIPQueryConfig, key: str) -> BatteryRequest:
+        new_request = {**request}
+        new_request['req_bid'] = key
+        return new_request

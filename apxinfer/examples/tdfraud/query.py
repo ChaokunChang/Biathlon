@@ -2,7 +2,7 @@ from typing import List
 import pandas as pd
 import datetime as dt
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPQueryConfig
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -57,6 +57,14 @@ class TDFraudQP1(XIPQueryProcessor):
         ]
         return qops
 
+    def request_to_key(self, request: TDFraudRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_ip']
+
+    def key_to_request(self, request: TDFraudRequest, qcfg: XIPQueryConfig, key: str) -> TDFraudRequest:
+        new_request = {**request}
+        new_request['req_ip'] = key
+        return new_request
+
 
 class TDFraudQP2(XIPQueryProcessor):
     def __init__(self, qname: str, qtype: XIPQType, data_loader: XIPDataLoader,
@@ -81,6 +89,18 @@ class TDFraudQP2(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TDFraudRequest, qcfg: XIPQueryConfig) -> str:
+        ip = request["req_ip"]
+        app = request["req_app"]
+        return f"{ip}_{app}"
+
+    def key_to_request(self, request: TDFraudRequest, qcfg: XIPQueryConfig, key: str) -> TDFraudRequest:
+        new_request = {**request}
+        ip, app = key.split("_")
+        new_request['req_ip'] = ip
+        new_request['req_app'] = app
+        return new_request
 
 
 class TDFraudQP3(XIPQueryProcessor):
@@ -108,6 +128,20 @@ class TDFraudQP3(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TDFraudRequest, qcfg: XIPQueryConfig) -> str:
+        ip = request["req_ip"]
+        app = request["req_app"]
+        os = request["req_os"]
+        return f"{ip}_{app}_{os}"
+
+    def key_to_request(self, request: TDFraudRequest, qcfg: XIPQueryConfig, key: str) -> TDFraudRequest:
+        new_request = {**request}
+        ip, app, os = key.split("_")
+        new_request['req_ip'] = ip
+        new_request['req_app'] = app
+        new_request['req_os'] = os
+        return new_request
 
 
 class TDFraudKaggleQP0(XIPQueryProcessor):
@@ -154,3 +188,11 @@ class TDFraudKaggleQP1(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TDFraudRequest, qcfg: XIPQueryConfig) -> str:
+        return request['req_ip']
+
+    def key_to_request(self, request: TDFraudRequest, qcfg: XIPQueryConfig, key: str) -> TDFraudRequest:
+        new_request = {**request}
+        new_request['req_ip'] = key
+        return new_request

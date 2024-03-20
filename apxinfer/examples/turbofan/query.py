@@ -1,6 +1,6 @@
 from typing import List
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPQueryConfig
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -37,3 +37,17 @@ class TurbofanQPAgg(XIPQueryProcessor):
             for i, dcol in enumerate(dcols)
         ]
         return qops
+
+    def request_to_key(self, request: TurbofanRequest, qcfg: XIPQueryConfig) -> str:
+        name = request['req_name']
+        unit = request['req_unit']
+        cycle = request['req_cycle']
+        return f"{name}#{unit}#{cycle}"
+
+    def key_to_request(self, request: TurbofanRequest, qcfg: XIPQueryConfig, key: str) -> TurbofanRequest:
+        new_request = {**request}
+        name, unit, cycle = key.split('#')
+        new_request['req_name'] = name
+        new_request['req_unit'] = int(unit)
+        new_request['req_cycle'] = int(cycle)
+        return new_request

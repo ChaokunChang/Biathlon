@@ -142,4 +142,5 @@ cache/
 
 # Results
 experiment-results
-willump-adaptation/result/*
+willump-adaptation/result*
+!willump-adaptation/result

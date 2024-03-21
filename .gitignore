@@ -139,3 +139,7 @@ dmypy.json
 
 # Plots
 cache/
+
+# Results
+experiment-results
+willump-adaptation/result/*

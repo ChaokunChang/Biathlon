@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from typing import Tuple
+import numpy as np
 
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.prepare import XIPPrepareWorker
@@ -210,6 +211,13 @@ class TDFraudKagglePrepareWorker(TDFraudPrepareWorker):
 
 
 class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
+    def reset_label_ts(self, requests: pd.DataFrame):
+        # if label_ts < ts, set label_ts = ts
+        requests["label_ts"] = requests["label_ts"].where(
+            requests["label_ts"] > requests["ts"], requests["ts"]
+        )
+        return requests
+
     def _extract_requests(
         self,
         start_dt: str = "2017-11-08 16:00:00",
@@ -242,9 +250,10 @@ class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
         )
 
         ip_fraud_df = pd.read_csv(os.path.join(self.working_dir, "ip_fraud.csv"))
-        ip_fraud_df = ip_fraud_df[ip_fraud_df['fraud_rate'] >= 0.01]
-        selected_ips = ip_fraud_df.sample(frac=sampling_rate,
-                                          random_state=0)["ip"].tolist()
+        ip_fraud_df = ip_fraud_df[ip_fraud_df["fraud_rate"] >= 0.01]
+        selected_ips = ip_fraud_df.sample(frac=sampling_rate, random_state=0)[
+            "ip"
+        ].tolist()
         self.logger.info(f"Selected {len(selected_ips)}x of ips")
 
         selected_ips = [str(x) for x in selected_ips]
@@ -266,9 +275,7 @@ class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
         requests["label_ts"] = pd.to_datetime(requests["label_ts"]).astype(int) // 10**9
 
         # if label_ts < ts, set label_ts = ts
-        requests["label_ts"] = requests["label_ts"].where(
-            requests["label_ts"] > requests["ts"], requests["ts"]
-        )
+        requests = self.reset_label_ts(requests)
 
         self.logger.info(f"Got {len(requests)}x of requests")
 
@@ -297,6 +304,89 @@ class TDFraudRalfPrepareWorker(TDFraudPrepareWorker):
 class TDFraudRalfTestPrepareWorker(TDFraudRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         requests = self._extract_requests(start_dt="2017-11-09 15:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TDFraudRalf2DPrepareWorker(TDFraudRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-07 16:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TDFraudRalf2HPrepareWorker(TDFraudRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-09 14:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TDFraudRalfV2PrepareWorker(TDFraudRalfPrepareWorker):
+    def set_label_ts(self, requests: pd.DataFrame):
+        # get distribuion of label_ts
+        sql = f"""
+            SELECT toString(click_time) as click_dt, (attributed_time - click_time) as delay
+            FROM {self.table}.{self.database}
+            WHERE delay >= 0
+            ORDER BY click_time
+        """
+        data = self.db_client.query_df(sql)
+        data['click_dt'] = pd.to_datetime(data['click_dt'])
+        data['timestamp'] = data['click_dt'].astype(int) // 10**9
+        # data['timestamp'] = data['timestamp'] - data['timestamp'].min()
+        data['hour'] = data['click_dt'].dt.hour
+        data['minute'] = data['click_dt'].dt.minute
+        data['second'] = data['click_dt'].dt.second
+        data['time'] = data['hour'] + data['minute']/60 + data['second']/3600
+
+        data['timestamp_min'] = data['timestamp'] // 60
+        gdata = data.groupby('timestamp_min')
+
+        rng = np.random.RandomState(0)
+
+        def update_label_ts(row):
+            if row['label_ts'] >= row['ts']:
+                return row
+            else:
+                delay = 0
+                ts = row['timestamp']
+                ts_min = ts // 60
+                if ts_min in gdata.groups:
+                    group = gdata.get_group(ts_min)
+                    if len(group) > 0:
+                        # get a random row from group
+                        idx = rng.choice(group.index)
+                        delay = group.loc[idx, 'delay']
+                row['label_ts'] = row['ts'] + delay
+                return row
+
+        requests = requests.apply(update_label_ts, axis=1)
+        return requests
+
+
+class TDFraudRalfTestV2PrepareWorker(TDFraudRalfV2PrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-09 15:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TDFraudRalf2HV2PrepareWorker(TDFraudRalfV2PrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-09 14:00:00")
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TDFraudRalf2DV2PrepareWorker(TDFraudRalfV2PrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(start_dt="2017-11-07 16:00:00")
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests

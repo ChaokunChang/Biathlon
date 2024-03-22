@@ -362,9 +362,45 @@ def run_prepare(name: str, args: PrepareArgs):
         from apxinfer.examples.tdfraud.prepare import TDFraudRalfPrepareWorker as Worker
 
         model_type = "classifier"
+    elif name == "tdfraudralf2d":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalf2DPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralf2h":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalf2HPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
     elif name == "tdfraudralftest":
         from apxinfer.examples.tdfraud.prepare import (
             TDFraudRalfTestPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralfv2":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalfV2PrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralf2hv2":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalf2HV2PrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralftestv2":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalfTestV2PrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralf2dv2":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalf2DV2PrepareWorker as Worker,
         )
 
         model_type = "classifier"
@@ -413,11 +449,15 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name.startswith("studentqno"):
         if name == "studentqnotest":
-            from apxinfer.examples.student.prepare import StudentQNoTestPrepareWorker as Worker
+            from apxinfer.examples.student.prepare import (
+                StudentQNoTestPrepareWorker as Worker,
+            )
 
             model_type = "classifier"
         else:
-            from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+            from apxinfer.examples.student.prepare import (
+                StudentQNoPrepareWorker as Worker,
+            )
 
             model_type = "classifier"
 
@@ -425,7 +465,7 @@ def run_prepare(name: str, args: PrepareArgs):
         if name.startswith("studentqno18nf") or name == "studentqnotest":
             qno = 18
         else:
-            qno = int(name[len("studentqno"):])
+            qno = int(name[len("studentqno") :])
         worker: XIPPrepareWorker = Worker(
             DIRHelper.get_prepare_dir(args),
             get_fengine(name, args),

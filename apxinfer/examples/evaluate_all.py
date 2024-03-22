@@ -146,7 +146,9 @@ def get_eval_cmd(
     if args.version == "latest":
         cmd = f"{cmd} --pest biathlon --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf biathlon"
     elif args.version == "submission":
-        cmd = f"{cmd} --pest MC --pest_nsamples 1000 --pest_seed {args.seed} --qinf sobol"
+        cmd = (
+            f"{cmd} --pest MC --pest_nsamples 1000 --pest_seed {args.seed} --qinf sobol"
+        )
     else:
         raise ValueError(f"invalid version {args.version}")
     cmd = f"{cmd} --policy {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch} --max_error {max_error}"
@@ -350,56 +352,11 @@ def run_ccfraud(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
-def run_tdfraud(args: ExpArgs):
+def run_tdfraud(args: ExpArgs, task_name: str = "tdfraud"):
     """
     must models = ["xgb"]
     """
-    task_name = "tdfraud"
     agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
-    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
-
-
-def run_tdfraudralf(args: ExpArgs):
-    """
-    must models = ["xgb"]
-    """
-    task_name = "tdfraudralf"
-    agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
-    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
-
-
-def run_tdfraudralftest(args: ExpArgs):
-    """
-    must models = ["xgb"]
-    """
-    task_name = "tdfraudralftest"
-    agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
-    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
-
-
-def run_tdfraudrandom(args: ExpArgs):
-    """
-    must models = ["xgb"]
-    """
-    task_name = "tdfraudrandom"
-    agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
-    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
-
-
-def run_tdfraudkaggle(args: ExpArgs):
-    """
-    must models = ["xgb"]
-    """
-    task_name = "tdfraudkaggle"
-    agg_qids = "1"
     default_max_errors = [0]
     max_errors = [0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -788,14 +745,8 @@ if __name__ == "__main__":
         run_tripsfeast_vary_window_size(args, nmonths)
     elif args.exp == "tickprice":
         run_tick_price(args)
-    elif args.exp == "tdfraud":
-        run_tdfraud(args)
-    elif args.exp == "tdfraudrandom":
-        run_tdfraudrandom(args)
-    elif args.exp == "tdfraudralf":
-        run_tdfraudralf(args)
-    elif args.exp == "tdfraudralftest":
-        run_tdfraudralftest(args)
+    elif args.exp.startswith("tdfraud"):
+        run_tdfraud(args, task_name=args.exp)
     elif args.exp.startswith("varynsamples"):
         run_vary_nsamples(args)
     elif args.exp == "tdfraudkaggle":

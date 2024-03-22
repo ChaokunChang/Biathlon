@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from apxinfer.core.model import XIPModel, XIPClassifier
@@ -23,7 +24,10 @@ class MachineryTrainer(XIPTrainer):
                 ),
                 multi_class=self.multi_class,
             )
-            model.fit(X.values, y.values)
+            if isinstance(X, pd.DataFrame):
+                model.fit(X.values, y.values)
+            else:
+                model.fit(X, y)
             return model
         else:
             return super().build_model(X, y)

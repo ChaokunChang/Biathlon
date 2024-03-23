@@ -203,14 +203,13 @@ class TripsRalf2HPrepareWorker(TripsRalfPrepareWorker):
 class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # part1 without sampling: 2632114
-        sr1 = 0.001
         part1 = self._extract_requests(trips_from="2015-08-01 00:00:00",
                                        trips_to="2015-08-08 00:00:00",
-                                       sampling_rate=sr1)
+                                       sampling_rate=0.001)
         # around 2.6k in part1
 
         part2 = self._extract_requests(trips_from="2015-08-08 00:00:00",
-                                       trips_to="2015-08-08 1:00:00",
+                                       trips_to="2015-08-08 01:00:00",
                                        sampling_rate=1)
 
         requests = pd.concat([part1, part2])

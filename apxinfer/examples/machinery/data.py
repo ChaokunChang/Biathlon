@@ -272,7 +272,7 @@ def get_dloader(nparts: int = 100, seed: int = 0, verbose: bool = False) -> XIPD
         backend="clickhouse",
         database=f"xip_{seed}",
         table=f"mach_imbalance_{nparts}",
-        seed=0,
+        seed=seed,
         enable_cache=False,
     )
     if verbose:

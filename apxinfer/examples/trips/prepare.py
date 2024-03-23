@@ -57,6 +57,7 @@ class TripsPrepareWorker(XIPPrepareWorker):
                 WHERE {self.database}.{self.table}.pickup_datetime >= '{trips_from}'
                         AND {self.database}.{self.table}.pickup_datetime < '{trips_to}'
                         AND intHash64(trip_id) % ({int(1.0/sampling_rate)}) == 0
+                ORDER BY pickup_datetime
                 """
         requests: pd.DataFrame = self.db_client.query_df(sql)
         # drop requests with invalid pickup/dropoff locations or ntaname is ''
@@ -123,7 +124,7 @@ class TripsRalfPrepareWorker(TripsPrepareWorker):
                 WHERE {self.database}.{self.table}.pickup_datetime >= '{trips_from}'
                         AND {self.database}.{self.table}.pickup_datetime < '{trips_to}'
                         AND intHash64(trip_id) % ({int(1.0/sampling_rate)}) == 0
-                ORDER BY ts
+                ORDER BY pickup_datetime, pickup_ntaname, dropoff_ntaname, trip_id
                 """
         requests: pd.DataFrame = self.db_client.query_df(sql)
         # drop requests with invalid pickup/dropoff locations or ntaname is ''
@@ -142,26 +143,11 @@ class TripsRalfPrepareWorker(TripsPrepareWorker):
         return requests
 
     def get_requests(self) -> pd.DataFrame:
-        # if os.path.exists(os.path.join(self.working_dir, "requests.csv")):
-        #     return pd.read_csv(os.path.join(self.working_dir, "requests.csv"))
-        # else:
-        #     requests = self._extract_requests()
-
-        #     self.logger.info(f"Extracted {len(requests)}x of requests")
-        #     requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
-        #     return requests
-
         requests = self._extract_requests()
 
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
-
-    # def get_features(self, requests: pd.DataFrame) -> pd.DataFrame:
-    #     if os.path.exists(os.path.join(self.working_dir, "features.csv")):
-    #         return pd.read_csv(os.path.join(self.working_dir, "features.csv"))
-    #     else:
-    #         return super().get_features(requests)
 
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         self.logger.info(f"Getting labels for {len(requests)}x requests")
@@ -212,3 +198,29 @@ class TripsRalf2HPrepareWorker(TripsRalfPrepareWorker):
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
+
+
+class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        # part1 without sampling: 2632114
+        sr1 = 0.001
+        part1 = self._extract_requests(trips_from="2015-08-01 00:00:00",
+                                       trips_to="2015-08-08 00:00:00",
+                                       sampling_rate=sr1)
+        # around 2.6k in part1
+
+        part2 = self._extract_requests(trips_from="2015-08-08 00:00:00",
+                                       trips_to="2015-08-08 1:00:00",
+                                       sampling_rate=1)
+
+        requests = pd.concat([part1, part2])
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def split_dataset(self, dataset: pd.DataFrame) -> Tuple[pd.DataFrame]:
+        split_ts = pd.to_datetime("2015-08-08 00:00:00").value // 10**9
+        train_set = dataset[dataset["ts"] < split_ts]
+        test_set = dataset[dataset["ts"] >= split_ts]
+        valid_set = test_set[:100]
+        return train_set, valid_set, test_set

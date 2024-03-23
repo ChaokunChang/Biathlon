@@ -7,7 +7,8 @@ ALL_REG_TASKS = [
     "batteryv2",
     "turbofan",
     "turbofanall",
-    "tripsralf", "tripsralftest", "tripsralf2h",
+    "tripsralf", "tripsralfv2",
+    "tripsralftest", "tripsralf2h",
     "tickralftest", "tickralf"
 ]
 ALL_CLS_TASKS = [

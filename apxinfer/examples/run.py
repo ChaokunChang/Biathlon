@@ -317,8 +317,11 @@ def run_prepare(name: str, args: PrepareArgs):
             )
         elif name == "tripsralf":
             from apxinfer.examples.trips.prepare import TripsRalfPrepareWorker as Worker
+        elif name == "tripsralfv2":
+            from apxinfer.examples.trips.prepare import TripsRalfV2PrepareWorker as Worker
         else:
             from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
+
         model_type = "regressor"
     elif name == "cheaptrips" or name == "cheaptripsfeast":
         from apxinfer.examples.cheaptrips.prepare import (

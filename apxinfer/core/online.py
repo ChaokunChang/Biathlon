@@ -42,7 +42,6 @@ class OnlineExecutor:
         ext_features = dataset[fcols].to_numpy()
         ext_preds = self.ppl.model.predict(ext_features).astype(np.float64)
 
-
         self.requests = requests
         self.labels = labels
         self.ext_features = ext_features

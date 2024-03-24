@@ -219,7 +219,7 @@ class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
 
     def split_dataset(self, dataset: pd.DataFrame) -> Tuple[pd.DataFrame]:
         split_ts = pd.to_datetime("2015-08-08 00:00:00").value // 10**9
-        train_set = dataset[dataset["ts"] < split_ts]
-        test_set = dataset[dataset["ts"] >= split_ts]
+        train_set = dataset[dataset["req_ts"] < split_ts]
+        test_set = dataset[dataset["req_ts"] >= split_ts]
         valid_set = test_set[:100]
         return train_set, valid_set, test_set

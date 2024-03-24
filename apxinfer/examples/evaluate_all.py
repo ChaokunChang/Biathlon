@@ -25,6 +25,7 @@ class ExpArgs(Tap):
     pest_nsamples: int = 1024
     policy: str = "optimizer"
     phase: str = "biathlon"
+    skip_dataset: bool = False
     skip_shared: bool = False
     default_only: bool = False
 
@@ -99,6 +100,8 @@ def run_prepare(args: ExpArgs):
         cmd = f"{cmd} --all_models {models}"
     if not args.skip_shared:
         cmd = f"{cmd} --prepare_again"
+    if args.skip_dataset:
+        cmd = f"{cmd} --skip_dataset"
     os.system(cmd)
 
 

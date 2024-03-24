@@ -11,6 +11,7 @@ class EvalArgs(Tap):
     prep_nparts: int = 100
     all_models: list[str] = ["xgb", "lgbm", "dt", "rf", "lr", "knn", "svm", "mlp"]
     seed: int = 0
+    skip_dataset: bool = False
 
     def process_args(self):
         assert self.task_name is not None
@@ -32,6 +33,8 @@ for nparts in args.all_nparts:
 nparts = args.prep_nparts
 command = f"{interpreter} run.py --example {TASK_NAME} --stage prepare --task {TASK_HOME}/{TASK_NAME} --nparts {nparts} --seed {seed}"
 if args.prepare_again:
+    if args.skip_dataset:
+        command += " --skip_dataset"
     os.system(command=command)
 
 for model in args.all_models:

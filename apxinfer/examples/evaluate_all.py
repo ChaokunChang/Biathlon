@@ -397,8 +397,8 @@ def run_tripsralfv2(args: ExpArgs):
     task_name = "tripsralfv2"
     agg_qids = "1 2"
     # default_max_errors = [0.1, 0.5, 1.0]
-    default_max_errors = [1.0, 2.0]
-    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    default_max_errors = [1.0, 1.5, 2.0]
+    max_errors = [0.1, 0.5, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -484,8 +484,8 @@ def run_turbofan(args: ExpArgs):
     task_name = "turbofan"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [1, 3, 6]
-    max_errors = [1, 3, 6, 10, 20, 50, 80, 100]
+    default_max_errors = [1, 3, 5, 6]
+    max_errors = [1, 3, 5, 6, 10, 20, 50, 80, 100]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -767,8 +767,6 @@ if __name__ == "__main__":
         run_tdfraud(args, task_name=args.exp)
     elif args.exp.startswith("varynsamples"):
         run_vary_nsamples(args)
-    elif args.exp == "tdfraudkaggle":
-        run_tdfraudkaggle(args)
     elif args.exp == "tickpricemiddle":
         run_tick_price_middle(args)
     elif args.exp == "extremetickprice":

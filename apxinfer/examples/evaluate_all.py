@@ -544,8 +544,8 @@ def run_tickralf(args: ExpArgs):
     """
     task_name = "tickralf"
     agg_qids = "6"
-    default_max_errors = [0.01, 0.05]
-    max_errors = [0.001, 0.01, 0.05, 0.1]
+    default_max_errors = [0.01, 0.04, 0.05]
+    max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

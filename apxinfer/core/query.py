@@ -60,12 +60,7 @@ class XIPQueryProcessor:
             self.logger.setLevel(logging.DEBUG)
 
         if self.data_loader is not None:
-            self.database = self.data_loader.database
-            self.table = self.data_loader.table
-            self.dbtable = f"{self.database}.{self.table}"
-            self.tsize = self.data_loader.statistics["tsize"]
-            self.nparts = self.data_loader.statistics["nparts"]
-            self.dbclient = self.data_loader.db_client
+            self.process_data_loader()
 
         self.qops: List[XIPQOperatorDescription] = self.get_query_ops()
         if self.fnames is None:
@@ -89,6 +84,14 @@ class XIPQueryProcessor:
         self.profiles: List[XIPQProfile] = []
 
         self.set_ralf()
+
+    def process_data_loader(self):
+        self.database = self.data_loader.database
+        self.table = self.data_loader.table
+        self.dbtable = f"{self.database}.{self.table}"
+        self.tsize = self.data_loader.statistics["tsize"]
+        self.nparts = self.data_loader.statistics["nparts"]
+        self.dbclient = self.data_loader.db_client
 
     def set_loading_mode(self, mode: int = 0):
         self.loading_mode = mode

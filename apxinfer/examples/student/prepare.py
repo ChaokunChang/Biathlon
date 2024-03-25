@@ -226,7 +226,12 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
         return users_test
 
 
+class StudentQNoV2PrepareWorker(StudentQNoPrepareWorker):
+    def get_test_users(self, USER_LIST, split):
+        return USER_LIST[split:]
+
+
 class StudentQNoTestPrepareWorker(StudentQNoPrepareWorker):
     def get_test_users(self, USER_LIST, split):
         users = super().get_test_users(USER_LIST, split)
-        return users[:200]
+        return users[:50]

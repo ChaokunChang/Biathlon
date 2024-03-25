@@ -25,8 +25,8 @@ ALL_CLS_TASKS = [
     "tdfraud",
     "tdfraudrandom",
     "tdfraudkaggle",
-    "student",
-    "studentqnotest",
+    "student", "studentqnotest",
+    "studentqnov2", "studentqnov2subset", "studentqnov2test",
 ]
 
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]

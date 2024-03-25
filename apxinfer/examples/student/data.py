@@ -215,5 +215,19 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
     txns_ingestor.run()
 
 
+def db_migration(from_dbtable: str, to_dbtable: str, session_ids: list):
+    db_client = DBHelper.get_db_client()
+    sql = f"""
+        CREATE TABLE IF NOT EXISTS {to_dbtable}
+        ENGINE = MergeTree()
+        PARTITION BY `pid`
+        ORDER BY (`session_id`, `level_group`)
+        AS SELECT *
+        FROM {from_dbtable}
+        WHERE session_id IN ({', '.join(map(str, session_ids))})
+        """
+    db_client.command(sql)
+
+
 if __name__ == "__main__":
     ingest()

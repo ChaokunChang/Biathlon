@@ -287,6 +287,16 @@ def run_student(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_studentqnov2(args: ExpArgs, task_name: str = "studentqnov2"):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    agg_qids = list_to_option_str([i for i in range(13)])
+    default_max_errors = [0]
+    max_errors = [0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_machinery(args: ExpArgs):
     """
     must models = ["mlp", "svm", "knn"]
@@ -783,6 +793,8 @@ if __name__ == "__main__":
         run_turbofanall(args)
     elif args.exp == "student":
         run_student(args)
+    elif args.exp.startswith("studentqnov2"):
+        run_studentqnov2(args, task_name=args.exp)
     elif args.exp.startswith("studentqno"):
         qno = int(args.exp[len("studentqno") :])
         run_studentqno(args, qno)

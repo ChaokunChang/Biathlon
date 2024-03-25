@@ -9,13 +9,15 @@ import json
 from matplotlib.transforms import Bbox
 from typing import List
 from tap import Tap
+import logging
 
 from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
+logger = logging.getLogger("VLDBPlotting")
 
 PJNAME = "Biathlon"
 # YLIM_ACC = [0.9, 1.01]
-YLIM_ACC = [0.5, 1.01]
+YLIM_ACC = [0.0, 1.01]
 
 
 REG_TASKS = [
@@ -54,43 +56,43 @@ shared_default_settings = {
     "ncfgs": 100,
     "pest_nsamples": 128,
     "loading_mode": 0,
-    "min_conf": 0.98,
+    "min_conf": 0.95,
     "alpha": 0.05,
     "beta": 0.01,
 }
 task_default_settings = {
     "tripsralf2h": {
-        "model_name": "lgbm",
+        "model": "lgbm",
         "max_error": 4.0,
-        "ralf_budget": 1.0,
+        "ralf_budget": 0.1,
     },
     "tickralf": {
-        "model_name": "lr",
+        "model": "lr",
         "max_error": 0.01,
         "ralf_budget": 0.1,
     },
     "batteryv2": {
-        "model_name": "lgbm",
+        "model": "lgbm",
         "max_error": 120.0,
         "ralf_budget": 0.0,
     },
     "turbofan": {
-        "model_name": "rf",
-        "max_error": 3,
+        "model": "rf",
+        "max_error": 3.0,
         "ralf_budget": 0.0,
     },
     "tdfraudralf": {
-        "model_name": "xgb",
+        "model": "xgb",
         "max_error": 0.0,
-        "ralf_budget": 0.0,
+        "ralf_budget": 0.1,
     },
     "machineryralf": {
-        "model_name": "mlp",
+        "model": "mlp",
         "max_error": 0.0,
         "ralf_budget": 0.0,
     },
     "studentqno18": {
-        "model_name": "rf",
+        "model": "rf",
         "max_error": 0.0,
         "ralf_budget": 0.0,
     },
@@ -107,15 +109,19 @@ class EvalArgs(Tap):
     score_type: str = "similarity"
     cls_score: str = "acc"
     reg_score: str = "meet_rate"
+    debug: bool = False
 
     def process_args(self):
         if self.filename is None:
             # filename should be like evals-YYYYMMDDHH
             # get the filename with latest timestamp
             files = os.listdir(self.home_dir)
-            files = [f for f in files if f.startswith("evals-")]
+            files = [f for f in files if f.startswith("avg_") and f.endswith(".csv")]
             files.sort(reverse=True)
             self.filename = files[0]
+
+        logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
+        logger.info(f"Using {self.filename} for evaluation")
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -139,8 +145,6 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     df["alpha"] = df["scheduler_init"] / df["ncfgs"]
     df["beta"] = df["scheduler_batch"] / df["ncfgs"]
     df["beta"] /= df["naggs"]
-    df = df[df["beta"] <= 1.0]
-    df = df[df["beta"] >= 0.01]
 
     for task_name in TASKS:
         if task_name in REG_TASKS:
@@ -197,7 +201,6 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
     # deduplicate
     df = df.drop_duplicates(
         subset=[
-            "task_home",
             "task_name",
             "policy",
             "ncores",
@@ -238,9 +241,7 @@ def shared_filter(
         value = shared_default_settings[key]
         df_tmp = df_tmp[df_tmp[key] == value]
 
-    df_tmp = df_tmp[
-        df_tmp["model_name"] == task_default_settings[task_name]["model_name"]
-    ]
+    df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
     return df_tmp
 
 
@@ -254,32 +255,12 @@ def df_filter(
     return df_tmp
 
 
-def get_evals_basic(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
-    selected_df = []
-    for task_name in TASKS:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, task_name, args)
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        selected_df.append(df_tmp)
-    selected_df = pd.concat(selected_df)
-
-    return selected_df
-
-
 def get_evals_baseline(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     selected_df = []
     for task_name in TASKS:
         df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, task_name, args)
-        df_tmp = df_filter(
-            df_tmp, task_name=task_name, alpha=True, beta=True, args=args
-        )
-        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[
-            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
-        ]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
+        df_tmp = df_tmp[df_tmp["system"] == "exact"]
+        assert len(df_tmp) == 1, df_tmp
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
@@ -287,9 +268,97 @@ def get_evals_baseline(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     return selected_df
 
 
-def get_evals_with_default_settings(
-    df: pd.DataFrame, args: EvalArgs = None
-) -> pd.DataFrame:
+def get_evals_ralf_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = df_tmp[df_tmp["system"] == "ralf"]
+        df_tmp = df_tmp[
+            df_tmp["ralf_budget"] == task_default_settings[task_name]["ralf_budget"]
+        ]
+        assert (
+            len(df_tmp) == 1
+        ), f'{len(df_tmp)} \n {df_tmp[["task_name", "system", "ralf_budget"]]}'
+
+        if task_name in ALL_REG_TASKS:
+            max_error = task_default_settings[task_name]["max_error"]
+            # if f'meet_rate_{max_error}' not in df.columns:
+            #     print([col for col in df.columns if col.startswith("meet_rate_")])
+            df_tmp["meet_rate"] = df[f"meet_rate_{max_error}"]
+            if args.reg_score == "meet_rate":
+                df_tmp["similarity"] = df_tmp["meet_rate"]
+
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    # print(selected_df)
+    return selected_df
+
+
+def get_evals_willump_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
+    selected_df = [
+        {
+            "task_name": "tripsralf2h",
+            "accuracy": 0.0,
+            "similarity": 0.0,
+            "speedup": 0.0,
+            "avg_latency": 0.0,
+        },
+        {
+            "task_name": "tickralf",
+            "accuracy": 0.0,
+            "similarity": 0.0,
+            "speedup": 0.0,
+            "avg_latency": 0.0,
+        },
+        {
+            "task_name": "batterv2",
+            "accuracy": 0.0,
+            "similarity": 0.0,
+            "speedup": 0.0,
+            "avg_latency": 0.0,
+        },
+        {
+            "task_name": "turbofan",
+            "accuracy": 0.0,
+            "similarity": 0.0,
+            "speedup": 0.0,
+            "avg_latency": 0.0,
+        },
+        {
+            "task_name": "tdfraudralf",
+            "accuracy": 0.9438026238496182,
+            "similarity": 0.9678872136283533,
+            "speedup": 1482.54,
+            "avg_latency": 0.001,
+        },
+        {
+            "task_name": "machineryralf",
+            "accuracy": 0.9171597633136095,
+            "similarity": 0.9822485207100592,
+            "speedup": 8.12,
+            "avg_latency": 0.37,
+        },
+        {
+            "task_name": "studentqno18",
+            "accuracy": 0.9532908704883227,
+            "similarity": 1.0,
+            "speedup": 12.76,
+            "avg_latency": 0.73,
+        },
+    ]
+    selected_df = pd.DataFrame(selected_df)
+    selected_df["sampling_rate"] = 0
+    selected_df["avg_nrounds"] = 0
+    selected_df["BD:AFC"] = 0
+    selected_df["BD:AMI"] = 0
+    selected_df["BD:Sobol"] = 0
+    selected_df["BD:Others"] = 0
+
+    return selected_df
+
+
+def get_evals_biathlon_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
     selected_df = []
     for task_name in TASKS:
         df_tmp = df[df["task_name"] == task_name]
@@ -362,15 +431,20 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     Baseline A: single-core, no sampling
     """
     baseline_df = get_evals_baseline(df)
-    default_df = get_evals_with_default_settings(df)
+    ralf_df = get_evals_ralf_default(df, args)
+    willump_df = get_evals_willump_default(df)
+    default_df = get_evals_biathlon_default(df)
     assert len(baseline_df) == len(default_df), f"{(baseline_df)}, {(default_df)}"
+    assert len(baseline_df) == len(ralf_df), f"{(baseline_df)}, {(ralf_df)}"
+    assert len(baseline_df) == len(willump_df), f"{(baseline_df)}, {(willump_df)}"
+
     required_cols = [
         "task_name",
         "avg_latency",
         "speedup",
         "accuracy",
-        "acc_loss",
-        "acc_loss_pct",
+        # "acc_loss",
+        # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
         "similarity",
@@ -380,11 +454,23 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     baseline_df = baseline_df[required_cols]
+    ralf_df = ralf_df[required_cols]
+    willump_df = willump_df[required_cols]
     default_df = default_df[required_cols]
+
     print(baseline_df)
+    print(ralf_df)
+    print(willump_df)
     print(default_df)
+
     baseline_df.to_csv(
         os.path.join(args.home_dir, args.plot_dir, "lat_comparison_baseline.csv")
+    )
+    ralf_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_ralf.csv")
+    )
+    willump_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_willump.csv")
     )
     default_df.to_csv(
         os.path.join(args.home_dir, args.plot_dir, "lat_comparison_default.csv")
@@ -399,23 +485,37 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         if name in default_df["task_name"].values
     ]
 
-    width = 0.4
-    x = [i for i in range(len(xticklabels))]
-    x1 = [i - width for i in x]
-    x2 = [(x[i] + x1[i]) / 2 for i in range(len(x))]
+    width = 0.2
+    x = np.arange(len(xticklabels))
+    # x_baseline = x - 3 * width
+    # x_ralf = x - 2 * width
+    # x_willump = x - 1 * width
+    # x_biathlon = x
+
+    # x_ralf = x - 2 * width
+    # x_biathlon = x - 1 * width
+
+    # x_willump = x - 2 * width
+    # x_biathlon = x - 1 * width
+
+    x_baseline = x - 3 * width
+    x_ralf = x - 2 * width
+    x_biathlon = x - 1 * width
+
+    x_ticks = x_biathlon
 
     ax = axes[0]  # latency comparison
     ax.set_xticks(
-        ticks=x2, labels=xticklabels, fontsize=10
+        ticks=x_ticks, labels=xticklabels, fontsize=10
     )  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
 
     # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
     rng = np.random.RandomState(0)
     tmp_arr = np.array([rng.uniform(0.03, 0.05) for _ in range(len(xticklabels))])
-    ax.bar(x1, baseline_df["BD:AFC"], width, label="Baseline-FC")
+    ax.bar(x_baseline, baseline_df["BD:AFC"], width, label="Baseline-FC")
     ax.bar(
-        x1,
+        x_baseline,
         baseline_df["BD:AMI"] + baseline_df["BD:Sobol"] + tmp_arr,
         width,
         bottom=baseline_df["BD:AFC"],
@@ -423,9 +523,12 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         color="green",
     )
 
-    # draw default on x, from bottom to up is AFC, AMI, Sobol, Others
+    ax.bar(x_ralf, ralf_df["avg_latency"], width, label="Ralf")
+    # ax.bar(x_willump, willump_df["avg_latency"], width, label="Willump")
+
+    # draw biathlon default on x, from bottom to up is AFC, AMI, Sobol, Others
     bar = ax.bar(
-        x,
+        x_biathlon,
         default_df["BD:AFC"] + default_df["BD:AMI"] + default_df["BD:Sobol"],
         width,
         label=f"{PJNAME}",
@@ -449,7 +552,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     ax.legend(loc="best", fontsize=8)
 
     ax = axes[1]  # similarity comparison
-    ax.set_xticks(x2, xticklabels, fontsize=10)  # center the xticks with the bars
+    ax.set_xticks(x_ticks, xticklabels, fontsize=10)  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
     if args.score_type == "similarity":
         # ax.set_ylim(ymin=0.9, ymax=1.01)
@@ -461,14 +564,16 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     else:
         ax.set_ylim(ymin=0.5, ymax=1.01)
         ax.set_yticks(
-            ticks=np.arange(0.5, 1.01, 0.05),
-            labels=list(f"{i}%" for i in range(50, 101, 5)),
+            ticks=np.arange(0.0, 1.01, 0.05),
+            labels=list(f"{i}%" for i in range(0, 101, 5)),
         )
 
     # draw baseline on x1, similarity
-    bar1 = ax.bar(x1, baseline_df[args.score_type], width, label="Baseline")
+    bar1 = ax.bar(x_baseline, baseline_df[args.score_type], width, label="Baseline")
+    ax.bar(x_ralf, ralf_df[args.score_type], width, label="Ralf")
+    # ax.bar(x_willump, willump_df[args.score_type], width, label="Willump")
     # draw default on x, similarity
-    bar2 = ax.bar(x, default_df[args.score_type], width, label=f"{PJNAME}")
+    bar2 = ax.bar(x_biathlon, default_df[args.score_type], width, label=f"{PJNAME}")
 
     for i, (rect, task_name) in enumerate(zip(bar2, default_df["task_name"])):
         height = rect.get_height()
@@ -592,7 +697,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     """
     # sns.set_style("whitegrid", {'axes.grid' : False})
 
-    selected_df = get_evals_with_default_settings(df)
+    selected_df = get_evals_biathlon_default(df)
 
     # plot one figure, where
     # x-axis: task_name
@@ -660,9 +765,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_filter(
             df_tmp, task_name=task_name, alpha=True, beta=True, args=args
         )
-        df_tmp = df_tmp[
-            df_tmp["model_name"] == task_default_settings[task_name]["model_name"]
-        ]
+        df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
         df_tmp = df_tmp[
             df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
         ]
@@ -678,8 +781,8 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         "speedup",
         "similarity",
         "accuracy",
-        "acc_loss",
-        "acc_loss_pct",
+        # "acc_loss",
+        # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
         "avg_latency",
@@ -780,8 +883,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         "speedup",
         "similarity",
         "accuracy",
-        "acc_loss",
-        "acc_loss_pct",
+        # "acc_loss",
+        # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
         "avg_latency",
@@ -882,8 +985,8 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         "speedup",
         "similarity",
         "accuracy",
-        "acc_loss",
-        "acc_loss_pct",
+        # "acc_loss",
+        # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
         "avg_latency",
@@ -1005,8 +1108,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         "speedup",
         "similarity",
         "accuracy",
-        "acc_loss",
-        "acc_loss_pct",
+        # "acc_loss",
+        # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
         "seed",

@@ -161,9 +161,12 @@ def main():
         # for list_cols, take the mean of each element
         # print(f'non_list_cols: {non_list_cols}')
         df_non_list = df_grp[non_list_cols].mean().reset_index()
+        df_list = []
         for col in list_cols:
-            df_list = df_grp[col].apply(lambda x: np.mean(x.tolist(), axis=0).tolist()).reset_index()
-        df = pd.merge(df_non_list, df_list, on=keys)
+            df_list.append(df_grp[col].apply(lambda x: np.mean(x.tolist(), axis=0).tolist()).reset_index())
+        df = df_non_list
+        for tmp in df_list:
+            df = pd.merge(df, tmp, on=keys)
 
     # add column naggs, which = len(agg_qids)
     df['naggs'] = df['agg_qids'].apply(lambda x: len(json.loads(x)))

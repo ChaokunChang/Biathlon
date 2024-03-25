@@ -8,6 +8,7 @@ from apxinfer.core.config import BaseXIPArgs
 from apxinfer.core.config import PrepareArgs, TrainerArgs
 from apxinfer.core.config import OfflineArgs, OnlineArgs
 
+from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimator
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator, BiathlonPredictionEstimator
@@ -318,7 +319,9 @@ def run_prepare(name: str, args: PrepareArgs):
         elif name == "tripsralf":
             from apxinfer.examples.trips.prepare import TripsRalfPrepareWorker as Worker
         elif name == "tripsralfv2":
-            from apxinfer.examples.trips.prepare import TripsRalfV2PrepareWorker as Worker
+            from apxinfer.examples.trips.prepare import (
+                TripsRalfV2PrepareWorker as Worker,
+            )
         else:
             from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
 
@@ -457,6 +460,24 @@ def run_prepare(name: str, args: PrepareArgs):
             )
 
             model_type = "classifier"
+        elif name == "studentqnov2":
+            from apxinfer.examples.student.prepare import (
+                StudentQNoV2PrepareWorker as Worker,
+            )
+
+            model_type = "classifier"
+        elif name == "studentqnov2subset":
+            from apxinfer.examples.student.prepare import (
+                StudentQNoPrepareWorker as Worker,
+            )
+
+            model_type = "classifier"
+        elif name == "studentqnov2test":
+            from apxinfer.examples.student.prepare import (
+                StudentQNoTestPrepareWorker as Worker,
+            )
+
+            model_type = "classifier"
         else:
             from apxinfer.examples.student.prepare import (
                 StudentQNoPrepareWorker as Worker,
@@ -465,7 +486,7 @@ def run_prepare(name: str, args: PrepareArgs):
             model_type = "classifier"
 
     if name.startswith("studentqno"):
-        if name.startswith("studentqno18nf") or name == "studentqnotest":
+        if name.startswith("studentqno18nf") or name in ["studentqnotest", "studentqnov2", "studentqnov2subset", "studentqnov2test"]:
             qno = 18
         else:
             qno = int(name[len("studentqno") :])
@@ -605,6 +626,22 @@ def run_online(name: str, args: OnlineArgs):
 
     # create a feature engine for this task
     fengine = get_fengine(name, args)
+
+    if name in ["studentqnov2", "studentqnov2subset", "studentqnov2test"]:
+        from apxinfer.examples.student.data import db_migration
+        for qry in fengine.queries:
+            if qry.data_loader is not None:
+                db_migration(qry.dbtable, qry.dbtable + "_v2", test_set['req_session_id'].tolist())
+
+                data_loader = XIPDataLoader(
+                    backend=qry.data_loader.backend,
+                    database=qry.data_loader.database,
+                    table=qry.data_loader.table + "_v2",
+                    seed=qry.data_loader.seed,
+                    enable_cache=qry.data_loader.enable_cache,
+                )
+                qry.data_loader = data_loader
+                qry.process_data_loader()
 
     # create a prediction estimator for this task
     if args.pest == "MC":

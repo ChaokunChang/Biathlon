@@ -631,12 +631,13 @@ def run_online(name: str, args: OnlineArgs):
         from apxinfer.examples.student.data import db_migration
         for qry in fengine.queries:
             if qry.data_loader is not None:
-                db_migration(qry.dbtable, qry.dbtable + "_v2", test_set['req_session_id'].tolist())
+                suffix = name.replace("studentqno", "")
+                db_migration(qry.dbtable, qry.dbtable + f"_{suffix}", test_set['req_session_id'].tolist())
 
                 data_loader = XIPDataLoader(
                     backend=qry.data_loader.backend,
                     database=qry.data_loader.database,
-                    table=qry.data_loader.table + "_v2",
+                    table=qry.data_loader.table + f"_{suffix}",
                     seed=qry.data_loader.seed,
                     enable_cache=qry.data_loader.enable_cache,
                 )

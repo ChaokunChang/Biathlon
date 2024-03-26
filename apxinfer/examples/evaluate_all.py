@@ -394,8 +394,8 @@ def run_tripsralf(args: ExpArgs):
     """
     task_name = "tripsralf"
     agg_qids = "1 2"
-    default_max_errors = [0.1, 0.5, 1.0]
-    max_errors = [0.1, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    default_max_errors = [1.0, 2.0, 2.68, 5.35]
+    max_errors = [0.1, 0.5, 1.0, 2.0, 2.68, 4.0, 5.35, 6.0, 8.0, 10.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -406,9 +406,8 @@ def run_tripsralfv2(args: ExpArgs):
     """
     task_name = "tripsralfv2"
     agg_qids = "1 2"
-    # default_max_errors = [0.1, 0.5, 1.0]
-    default_max_errors = [1.0, 1.5, 2.0]
-    max_errors = [0.1, 0.5, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    default_max_errors = [0.75, 1.0, 1.5, 2.0]
+    max_errors = [0.1, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -481,8 +480,8 @@ def run_batteryv2(args: ExpArgs):
     """
     task_name = "batteryv2"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [60, 94.5, 120, 189, 369]
-    max_errors = [30, 60, 94.5, 120, 189, 369, 300, 600, 900, 1200, 1800, 2400, 3000, 3600, 4800, 7200]
+    default_max_errors = [60, 93.35, 120, 186.7]
+    max_errors = [30, 60, 93.35, 120, 186.7, 300, 600, 900, 1200, 1800, 2400, 3000, 3600, 4800, 7200]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -494,8 +493,8 @@ def run_turbofan(args: ExpArgs):
     task_name = "turbofan"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [1, 3, 5, 6]
-    max_errors = [1, 3, 5, 6, 10, 20, 50, 80, 100]
+    default_max_errors = [1, 2.44, 3, 4.88, 6]
+    max_errors = [1, 2.44, 3, 4.88, 6, 10, 20, 50, 80, 100]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -554,8 +553,8 @@ def run_tickralf(args: ExpArgs):
     """
     task_name = "tickralf"
     agg_qids = "6"
-    default_max_errors = [0.01, 0.04, 0.05]
-    max_errors = [0.001, 0.01, 0.04, 0.05, 0.1]
+    default_max_errors = [0.01, 0.02, 0.04, 0.05]
+    max_errors = [0.001, 0.01, 0.02, 0.04, 0.05, 0.1]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

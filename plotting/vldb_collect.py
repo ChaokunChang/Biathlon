@@ -38,12 +38,6 @@ def path_parser(args: VLDBArgs, path: str) -> dict:
     1. {data_dir}/{server}/{task_name}/seed-{seed}/{stage}/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/{system}/evals_exact.json
     2. {data_dir}/{server}/{task_name}/seed-{seed}/{stage}/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/ncfgs-{ncfgs}/pest-{pest_constraint}-{pest}-{pest_nsamples}-{pest_seed}/qinf-{qinf}/scheduler-{policy}-{scheduler_init}-{scheduler_batch}/evals_{condition_type}-{max_relerror}-{max_error}-{min_conf}-{max_time}-{max_time}-{max_rounds}.json
     3. {data_dir}/{server}/{task_name}/seed-{seed}/{stage}/{model}/ncores-{ncores}/ldnthreads-{loading_mode}/nparts-{nparts}/{system}/evals_ralf_{ralf_budget}_..._{ralf_budget}.json
-
-    examples:
-    # /home/ckchang/.cache/biathlon/vldb2024/servers/2024032508/ssd3/studentqno18/seed-3/online/rf/ncores-1/ldnthreads-0/nparts-100/exact/evals_exact.json
-    # /home/ckchang/.cache/biathlon/vldb2024/servers/2024032508/ssd3/studentqno18/seed-3/online/rf/ncores-1/ldnthreads-0/nparts-100/ncfgs-100/pest-error-biathlon-128-0/qinf-biathlon/scheduler-optimizer-2-13/evals_conf-0.05-0.0-0.95-60.0-2048.0-1000.json
-    # /home/ckchang/.cache/biathlon/vldb2024/servers/2024032508/ssd3/studentqno18/seed-3/online/rf/ncores-1/ldnthreads-3000/nparts-100/exact/evals_ralf_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0_0.0.json
-
     extract all the settings in the path
     """
     assert path.startswith(args.data_dir), f"{path} does not start with {args.data_dir}"

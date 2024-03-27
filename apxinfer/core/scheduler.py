@@ -231,6 +231,8 @@ class XIPSchedulerGreedy(XIPScheduler):
                     qcfgs[qid]["qsample"] = next_sample
                     qcfgs[qid]["qcfg_id"] = np.round(next_sample / grans) - 1
                     updated = True
+        if updated:
+            self.logger.debug(f'next cfgs by hueristics {[qcfg["qsample"] for qcfg in qcfgs]}')
         return qcfgs, updated
 
     def get_delta_qsamples(self, qcfgs: List[XIPQueryConfig]) -> np.ndarray:
@@ -273,7 +275,6 @@ class XIPSchedulerGreedy(XIPScheduler):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
-            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)
@@ -348,7 +349,6 @@ class XIPSchedulerUniform(XIPSchedulerGreedy):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
-            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)
@@ -404,7 +404,6 @@ class XIPSchedulerOptimizer(XIPSchedulerWQCost):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
-            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)
@@ -461,7 +460,6 @@ class XIPSchedulerStepGradient(XIPSchedulerWQCost):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
-            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)
@@ -536,7 +534,6 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
 
         next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
         if early_ret:
-            self.logger.debug(f"next cfgs by hueristics {next_qcfgs}")
             return next_qcfgs
 
         delta_qsamples = self.get_delta_qsamples(next_qcfgs)

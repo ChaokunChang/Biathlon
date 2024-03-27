@@ -8,7 +8,7 @@ from tqdm import tqdm
 import time
 from collections.abc import MutableMapping
 
-from apxinfer.core.utils import XIPQType
+from apxinfer.core.utils import XIPQType, XIPExecutionProfile
 from apxinfer.core.festimator import evaluate_features
 from apxinfer.core.model import evaluate_model
 from apxinfer.core.pipeline import XIPPipeline
@@ -54,6 +54,22 @@ class OnlineExecutor:
             "ext_preds": ext_preds,
         }
 
+    def get_trace(self, history: List[XIPExecutionProfile], sample_grans) -> str:
+        trace = []
+        # for i in range(1, len(history)):
+        #     qcfgs_1 = history[i - 1]['qcfgs']
+        #     qcfgs_2 = history[i]['qcfgs']
+        #     deltas = []
+        #     for qcfg1, qcfg2, gran in zip(qcfgs_1, qcfgs_2, sample_grans):
+        #         delta = qcfg2['qsample'] - qcfg1['qsample']
+        #         deltas.append(int(delta / gran))
+        #     trace.append('-'.join(map(str, deltas)))
+        for pf in history:
+            qcfgs = pf['qcfgs']
+            qsamples = [int(qcfg['qsample'] * 1000) // int(gran * 1000) for qcfg, gran in zip(qcfgs, sample_grans)]
+            trace.append('-'.join(map(str, qsamples)))
+        return '#'.join(trace)
+
     def collect_preds(self, requests: List[dict], exact: bool) -> dict:
         preds = []
         pred_errors = []
@@ -66,6 +82,7 @@ class OnlineExecutor:
         qcomp_time_list = []
         bootstrap_time_list = []
         ppl_time_list = []
+        traces = []
 
         ralf_pending_labels: MutableMapping[int, list] = {}
 
@@ -100,6 +117,9 @@ class OnlineExecutor:
             nrounds = len(self.ppl.scheduler.history)
             last_qcfgs = self.ppl.scheduler.history[-1]["qcfgs"]
             last_qcosts = self.ppl.scheduler.history[-1]["qcosts"]
+            trace = self.get_trace(self.ppl.scheduler.history,
+                                   self.ppl.scheduler.sample_grans)
+            traces.append(trace)
 
             preds.append(xip_pred)
             # pred_errors.append(abs(xip_pred["pred_value"] - self.labels[i]))
@@ -124,9 +144,10 @@ class OnlineExecutor:
             self.logger.debug(f'pred[{i}]         = {xip_pred["pred_value"]}')
             self.logger.debug(f'pred[{i}] error   = {xip_pred["pred_error"]}')
             self.logger.debug(f'pred[{i}] conf    = {xip_pred["pred_conf"]}')
-            self.logger.debug(f"last_qcfgs[{i}]   = {last_qcfgs}")
-            self.logger.debug(f"last_qcosts[{i}]  = {last_qcosts}")
-            self.logger.debug(f"nrounds[{i}]      = {nrounds}")
+            self.logger.debug(f"last_qcfgs        = {last_qcfgs}")
+            self.logger.debug(f"last_qcosts       = {last_qcosts}")
+            self.logger.debug(f"nrounds           = {nrounds}")
+            self.logger.debug(f"trace             = {trace}")
             self.logger.debug("Cumulative query time: {}".format(query_time_list[-1]))
             self.logger.debug("prediction time: {}".format(pred_time_list[-1]))
             self.logger.debug("Scheduler time: {}".format(scheduler_time_list[-1]))
@@ -142,6 +163,7 @@ class OnlineExecutor:
             "ppl_time_list": ppl_time_list,
             "qcomp_time_list": qcomp_time_list,
             "bootstrap_time_list": bootstrap_time_list,
+            "traces": traces
         }
 
     def evaluate(self, results: dict) -> dict:
@@ -301,6 +323,7 @@ class OnlineExecutor:
             qsamples_list,
             columns=[f"qsamples_{i}" for i in range(len(qsamples_list[0]))],
         )
+        traces_df = pd.DataFrame(results["traces"], columns=["trace"])
 
         final_df = pd.concat(
             [
@@ -311,6 +334,7 @@ class OnlineExecutor:
                 ext_preds_df,
                 xip_preds_df,
                 xip_fvals_df,
+                traces_df,
             ],
             axis=1,
         )

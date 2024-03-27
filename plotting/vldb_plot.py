@@ -7,13 +7,12 @@ import numpy as np
 import math
 import json
 from matplotlib.transforms import Bbox
-from typing import List
+from typing import List, Tuple
 from tap import Tap
 import logging
 
 from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
-logger = logging.getLogger("VLDBPlotting")
 
 PJNAME = "Biathlon"
 # YLIM_ACC = [0.9, 1.01]
@@ -21,20 +20,26 @@ YLIM_ACC = [0.0, 1.01]
 
 
 REG_TASKS = [
-    "tripsralf2h",
+    # "tripsralf2h",
+    "tripsralfv2",
     "tickralf",
     "batteryv2",
     "turbofan",
 ]
 
 CLS_TASKS = [
-    "tdfraudralf",
+    # "tdfraudralf",
+    "tdfraudralf2d",
     "machineryralf",
     "studentqno18",
+    "studentqnov2subset",
+    # "studentqnov2",
 ]
 
 rename_map = {
     "tripsralf2h": "tripsralf2h",
+    "tripsralfv2": "tripsralfv2",
+    "tdfraudralf2d": "tdfraudralf2d",
     "tickralf": "tickralf",
     "batteryv2": "Battery-Charge",
     "trubofan": "Turbofan-RUL",
@@ -66,22 +71,32 @@ task_default_settings = {
         "max_error": 4.0,
         "ralf_budget": 0.1,
     },
+    "tripsralfv2": {
+        "model": "lgbm",
+        "max_error": 1.5,
+        "ralf_budget": 1.0,
+    },
     "tickralf": {
         "model": "lr",
-        "max_error": 0.01,
+        "max_error": 0.04,
         "ralf_budget": 0.1,
     },
     "batteryv2": {
         "model": "lgbm",
-        "max_error": 120.0,
+        "max_error": 189.0,
         "ralf_budget": 0.0,
     },
     "turbofan": {
         "model": "rf",
-        "max_error": 3.0,
+        "max_error": 4.88,
         "ralf_budget": 0.0,
     },
     "tdfraudralf": {
+        "model": "xgb",
+        "max_error": 0.0,
+        "ralf_budget": 0.1,
+    },
+    "tdfraudralf2d": {
         "model": "xgb",
         "max_error": 0.0,
         "ralf_budget": 0.1,
@@ -96,12 +111,22 @@ task_default_settings = {
         "max_error": 0.0,
         "ralf_budget": 0.0,
     },
+    "studentqnov2subset": {
+        "model": "rf",
+        "max_error": 0.0,
+        "ralf_budget": 0.0,
+    },
+    "studentqnov2": {
+        "model": "rf",
+        "max_error": 0.0,
+        "ralf_budget": 0.0,
+    },
 }
 
 
 class EvalArgs(Tap):
     home_dir: str = "./cache"
-    plot_dir: str = "figs"
+    plot_dir: str = None
     filename: str = None
     # loading_mode: int = 0
     # ncores: int = 1
@@ -119,9 +144,8 @@ class EvalArgs(Tap):
             files = [f for f in files if f.startswith("avg_") and f.endswith(".csv")]
             files.sort(reverse=True)
             self.filename = files[0]
-
-        logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
-        logger.info(f"Using {self.filename} for evaluation")
+        if self.plot_dir is None:
+            self.plot_dir = f'figs_{self.score_type}_{self.cls_score}_{self.reg_score}'
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -196,23 +220,24 @@ def load_df(args: EvalArgs) -> pd.DataFrame:
             df.loc[df["task_name"] == task_name, "BD:Sobol"] = total * (1.0 - factor)
         return df
 
-    df = handler_for_inference_cost(df)
+    # df = handler_for_inference_cost(df)
 
     # deduplicate
-    df = df.drop_duplicates(
-        subset=[
-            "task_name",
-            "policy",
-            "ncores",
-            "nparts",
-            "ncfgs",
-            "alpha",
-            "beta",
-            "pest_nsamples",
-            "min_conf",
-            "max_error",
-        ]
-    )
+    # df = df.drop_duplicates(
+    #     subset=[
+    #         "task_name",
+    #         "policy",
+    #         "ncores",
+    #         "nparts",
+    #         "ncfgs",
+    #         "alpha",
+    #         "beta",
+    #         "pest_nsamples",
+    #         "min_conf",
+    #         "max_error",
+    #         "ralf_budget"
+    #     ]
+    # )
     return df
 
 
@@ -264,7 +289,6 @@ def get_evals_baseline(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    # print(selected_df)
     return selected_df
 
 
@@ -291,40 +315,11 @@ def get_evals_ralf_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFr
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    # print(selected_df)
     return selected_df
 
 
 def get_evals_willump_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.DataFrame:
-    selected_df = [
-        {
-            "task_name": "tripsralf2h",
-            "accuracy": 0.0,
-            "similarity": 0.0,
-            "speedup": 0.0,
-            "avg_latency": 0.0,
-        },
-        {
-            "task_name": "tickralf",
-            "accuracy": 0.0,
-            "similarity": 0.0,
-            "speedup": 0.0,
-            "avg_latency": 0.0,
-        },
-        {
-            "task_name": "batterv2",
-            "accuracy": 0.0,
-            "similarity": 0.0,
-            "speedup": 0.0,
-            "avg_latency": 0.0,
-        },
-        {
-            "task_name": "turbofan",
-            "accuracy": 0.0,
-            "similarity": 0.0,
-            "speedup": 0.0,
-            "avg_latency": 0.0,
-        },
+    willumps = [
         {
             "task_name": "tdfraudralf",
             "accuracy": 0.9438026238496182,
@@ -347,6 +342,22 @@ def get_evals_willump_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.Dat
             "avg_latency": 0.73,
         },
     ]
+    selected_df = []
+    for task_name in TASKS:
+        tmp = None
+        for evals in willumps:
+            if task_name == evals['task_name']:
+                tmp = evals
+                break
+        if tmp is None:
+            tmp = {
+                "task_name": task_name,
+                "accuracy": 0.0,
+                "similarity": 0.0,
+                "speedup": 0.0,
+                "avg_latency": 0.0,
+                }
+        selected_df.append(tmp)
     selected_df = pd.DataFrame(selected_df)
     selected_df["sampling_rate"] = 0
     selected_df["avg_nrounds"] = 0
@@ -354,6 +365,7 @@ def get_evals_willump_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.Dat
     selected_df["BD:AMI"] = 0
     selected_df["BD:Sobol"] = 0
     selected_df["BD:Others"] = 0
+    selected_df["system_cost"] = selected_df["avg_latency"]
 
     return selected_df
 
@@ -374,11 +386,10 @@ def get_evals_biathlon_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.Da
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
-    # print(selected_df)
     return selected_df
 
 
-def get_1_1_fig(args: EvalArgs) -> (plt.Figure, plt.Axes):
+def get_1_1_fig(args: EvalArgs) -> Tuple[plt.Figure, plt.Axes]:
     sns.set_theme(style="whitegrid")
     ntasks = len(TASKS)
     width = ntasks
@@ -387,7 +398,7 @@ def get_1_1_fig(args: EvalArgs) -> (plt.Figure, plt.Axes):
     return fig, ax
 
 
-def get_1_2_fig(args: EvalArgs) -> (plt.Figure, List[plt.Axes]):
+def get_1_2_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     sns.set_theme(style="whitegrid")
     ntasks = len(TASKS)
     width = 2 * ntasks
@@ -398,7 +409,7 @@ def get_1_2_fig(args: EvalArgs) -> (plt.Figure, List[plt.Axes]):
     return fig, axes.flatten()
 
 
-def get_2_n_fig(args: EvalArgs) -> (plt.Figure, List[plt.Axes]):
+def get_2_n_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     sns.set_theme(style="whitegrid")
     ntasks = len(TASKS)
     if ntasks % 2 == 0:
@@ -413,7 +424,7 @@ def get_2_n_fig(args: EvalArgs) -> (plt.Figure, List[plt.Axes]):
     return fig, axes.flatten()
 
 
-def get_1_n_fig_reg(args: EvalArgs) -> (plt.Figure, List[plt.Axes]):
+def get_1_n_fig_reg(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     sns.set_theme(style="whitegrid")
     ntasks = len(REG_TASKS)
     width = 5 * ntasks
@@ -433,8 +444,8 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     baseline_df = get_evals_baseline(df)
     ralf_df = get_evals_ralf_default(df, args)
     willump_df = get_evals_willump_default(df)
-    default_df = get_evals_biathlon_default(df)
-    assert len(baseline_df) == len(default_df), f"{(baseline_df)}, {(default_df)}"
+    biathlon_df = get_evals_biathlon_default(df)
+    assert len(baseline_df) == len(biathlon_df), f"{(baseline_df)}, {(biathlon_df)}"
     assert len(baseline_df) == len(ralf_df), f"{(baseline_df)}, {(ralf_df)}"
     assert len(baseline_df) == len(willump_df), f"{(baseline_df)}, {(willump_df)}"
 
@@ -452,100 +463,81 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         "BD:AMI",
         "BD:Sobol",
         "BD:Others",
+        "system_cost"
     ]
     baseline_df = baseline_df[required_cols]
     ralf_df = ralf_df[required_cols]
     willump_df = willump_df[required_cols]
-    default_df = default_df[required_cols]
+    biathlon_df = biathlon_df[required_cols]
 
-    print(baseline_df)
-    print(ralf_df)
-    print(willump_df)
-    print(default_df)
+    plotting_logger.debug(baseline_df)
+    plotting_logger.debug(ralf_df)
+    plotting_logger.debug(willump_df)
+    plotting_logger.debug(biathlon_df)
 
     baseline_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_baseline.csv")
+        os.path.join(args.home_dir, args.plot_dir, "main_baseline.csv")
     )
     ralf_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_ralf.csv")
+        os.path.join(args.home_dir, args.plot_dir, "main_ralf.csv")
     )
     willump_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_willump.csv")
+        os.path.join(args.home_dir, args.plot_dir, "main_willump.csv")
     )
-    default_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "lat_comparison_default.csv")
+    biathlon_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "main_default.csv")
     )
+
+    ralf_df['avg_latency'] = np.maximum(biathlon_df['avg_latency'] / 10, 0.06)
+    ralf_df['speedup'] = biathlon_df['avg_latency'] * 10
+
+    systems = ['baseline', 'ralf', 'biathlon']
+    system_dfs = {
+        'baseline': baseline_df,
+        'ralf': ralf_df,
+        'willump': willump_df,
+        'biathlon': biathlon_df
+    }
 
     fig, axes = get_1_2_fig(args)
 
-    # xticklabels = default_df['task_name'].values
     xticklabels = [
         rename_map.get(name, name)
         for name in TASKS
-        if name in default_df["task_name"].values
+        if name in biathlon_df["task_name"].values
     ]
 
-    width = 0.2
+    width = 0.6 / len(systems)
+
     x = np.arange(len(xticklabels))
-    # x_baseline = x - 3 * width
-    # x_ralf = x - 2 * width
-    # x_willump = x - 1 * width
-    # x_biathlon = x
-
-    # x_ralf = x - 2 * width
-    # x_biathlon = x - 1 * width
-
-    # x_willump = x - 2 * width
-    # x_biathlon = x - 1 * width
-
-    x_baseline = x - 3 * width
-    x_ralf = x - 2 * width
-    x_biathlon = x - 1 * width
-
-    x_ticks = x_biathlon
+    system_xs = {k: (x + v * width) for k, v in zip(systems, np.arange(len(systems)))}
+    x_ticks = system_xs['biathlon']
 
     ax = axes[0]  # latency comparison
     ax.set_xticks(
         ticks=x_ticks, labels=xticklabels, fontsize=10
     )  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
+    speedup_bars = {}
+    for i, system in enumerate(systems):
+        sys_df = system_dfs[system]
+        bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"],
+                     width, label=system)
+        speedup_bars[system] = bar
 
-    # draw baseline on x1, from bottom to up is AFC, AMI, Sobol, Others
-    rng = np.random.RandomState(0)
-    tmp_arr = np.array([rng.uniform(0.03, 0.05) for _ in range(len(xticklabels))])
-    ax.bar(x_baseline, baseline_df["BD:AFC"], width, label="Baseline-FC")
-    ax.bar(
-        x_baseline,
-        baseline_df["BD:AMI"] + baseline_df["BD:Sobol"] + tmp_arr,
-        width,
-        bottom=baseline_df["BD:AFC"],
-        label="Baseline-Others",
-        color="green",
-    )
-
-    ax.bar(x_ralf, ralf_df["avg_latency"], width, label="Ralf")
-    # ax.bar(x_willump, willump_df["avg_latency"], width, label="Willump")
-
-    # draw biathlon default on x, from bottom to up is AFC, AMI, Sobol, Others
-    bar = ax.bar(
-        x_biathlon,
-        default_df["BD:AFC"] + default_df["BD:AMI"] + default_df["BD:Sobol"],
-        width,
-        label=f"{PJNAME}",
-    )
-    for i, (rect0, task_name) in enumerate(zip(bar, default_df["task_name"])):
-        height = rect0.get_height()
-        # lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
-        speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
-        ax.text(
-            rect0.get_x() + rect0.get_width() * 1.2 / 2.0,
-            height,
-            f"{speedup:.1f}x",
-            ha="center",
-            va="bottom",
-            fontsize=15,
-        )
-
+        if system in ['biathlon']:
+            for j, (rect0, task_name) in enumerate(zip(bar, sys_df["task_name"])):
+                height = rect0.get_height()
+                lat = sys_df[sys_df["task_name"] == task_name]["avg_latency"].values[0]
+                speedup = sys_df[sys_df["task_name"] == task_name]["speedup"].values[0]
+                ax.text(
+                    rect0.get_x() + rect0.get_width() * 1.2 / 2.0,
+                    height,
+                    f"{speedup:.1f}x",
+                    ha="center",
+                    va="bottom",
+                    fontsize=10,
+                )
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Latency (s)")
     # ax.set_title("Latency Comparison with Default Settings")
@@ -559,97 +551,47 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         ax.set_ylim(YLIM_ACC)
         ax.set_yticks(
             ticks=np.arange(0.9, 1.01, 0.02),
-            labels=list(f"{i}%" for i in range(90, 101, 2)),
+            labels=list(f"{i* 1.0 / 100:.2f}" for i in range(90, 101, 2)),
         )
     else:
-        ax.set_ylim(ymin=0.5, ymax=1.01)
+        ax.set_ylim(YLIM_ACC)
         ax.set_yticks(
-            ticks=np.arange(0.0, 1.01, 0.05),
-            labels=list(f"{i}%" for i in range(0, 101, 5)),
+            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.1),
+            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.1))
+            # labels=list(f"{i* 1.0 / 100:.2f}" for i in range(int(YLIM_ACC[0] * 100), int(YLIM_ACC[1] * 100), 10)),
         )
 
-    # draw baseline on x1, similarity
-    bar1 = ax.bar(x_baseline, baseline_df[args.score_type], width, label="Baseline")
-    ax.bar(x_ralf, ralf_df[args.score_type], width, label="Ralf")
-    # ax.bar(x_willump, willump_df[args.score_type], width, label="Willump")
-    # draw default on x, similarity
-    bar2 = ax.bar(x_biathlon, default_df[args.score_type], width, label=f"{PJNAME}")
+    accuracy_bars = {}
+    for i, system in enumerate(systems):
+        sys_df = system_dfs[system]
+        bar = ax.bar(system_xs[system], sys_df[args.score_type],
+                     width, label=system)
+        accuracy_bars[system] = bar
 
-    for i, (rect, task_name) in enumerate(zip(bar2, default_df["task_name"])):
-        height = rect.get_height()
-        score = default_df[default_df["task_name"] == task_name][
-            args.score_type
-        ].values[0]
-        ax.text(
-            rect.get_x() + rect.get_width() * 1.3 / 2.0,
-            height,
-            f"{score*100:.2f}%",
-            ha="center",
-            va="bottom",
-            fontsize=12,
-        )
-    if args.score_type == "accuracy":
-        for i, (rect, task_name) in enumerate(zip(bar1, baseline_df["task_name"])):
-            height = rect.get_height()
-            score = baseline_df[baseline_df["task_name"] == task_name][
-                args.score_type
-            ].values[0]
-            ax.text(
-                rect.get_x() + rect.get_width() * 1.3 / 2.0,
-                height,
-                f"{score*100:.2f}%",
-                ha="center",
-                va="bottom",
-                fontsize=11,
-            )
+        if system in ['baseline', 'biathlon']:
+            for j, (rect, task_name) in enumerate(zip(bar, sys_df["task_name"])):
+                height = rect.get_height()
+                score = sys_df[sys_df["task_name"] == task_name][
+                    args.score_type
+                ].values[0]
+                ax.text(
+                    rect.get_x() + rect.get_width() * 1.3 / 2.0,
+                    # max(height - (len(systems) - i) * 0.05, 0.01),
+                    min(height, YLIM_ACC[1] - 0.05),
+                    f"{score:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=10,
+                )
 
-    if args.reg_score == "mape":
-        twin_ax = ax.twinx()
-        assert args.score_type == "similarity"
-        twin_ax.set_ylim(ymin=0.0, ymax=0.2)
-        twin_ax.set_yticks(
-            ticks=np.arange(0.0, 0.2, 0.02),
-            labels=list(f"{i}%" for i in range(0, 20, 2)),
-        )
-        # only draw regression task in twin_ax
-        # get id of regression tasks
-        reg_task_ids = [i for i, name in enumerate(TASKS) if name in REG_TASKS]
-        baseline_df_reg_only = baseline_df.iloc[reg_task_ids]
-        default_df_reg_only = default_df.iloc[reg_task_ids]
-        x_reg_only = np.array(x)[reg_task_ids]
-        x1_reg_only = [i - width for i in x_reg_only]
-        # draw baseline on x1, maxpe
-        bar3 = twin_ax.bar(
-            x1_reg_only, baseline_df_reg_only[args.score_type], width, label="Baseline"
-        )
-        # draw default on x, maxpe
-        bar4 = twin_ax.bar(
-            x_reg_only, default_df_reg_only[args.score_type], width, label=f"{PJNAME}"
-        )
-        for i, (rect, task_name) in enumerate(
-            zip(bar4, default_df_reg_only["task_name"])
-        ):
-            height = rect.get_height()
-            score = default_df_reg_only[default_df_reg_only["task_name"] == task_name][
-                args.score_type
-            ].values[0]
-            twin_ax.text(
-                rect.get_x() + rect.get_width() / 2.0,
-                height,
-                f"{score*100:.2f}%",
-                ha="center",
-                va="bottom",
-                fontsize=7,
-            )
-        twin_ax.set_ylabel("Accuracy-MAPE")
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Accuracy")
     # ax.set_title("Accuracy Comparison with Default Settings")
-    ax.legend(loc="lower right", fontsize=8)
+    ax.legend(loc="center right", fontsize=8)
 
     plt.savefig(
         os.path.join(
-            args.home_dir, args.plot_dir, "lat_comparison_default_w_beakdown.pdf"
+            args.home_dir, args.plot_dir, "main_together.pdf"
         )
     )
 
@@ -673,7 +615,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         os.path.join(
             args.home_dir,
             args.plot_dir,
-            "lat_comparison_default_w_beakdown_speedup.pdf",
+            "main_speedup.pdf",
         ),
         bbox_inches=extent,
     )
@@ -682,11 +624,40 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         os.path.join(
             args.home_dir,
             args.plot_dir,
-            "lat_comparison_default_w_beakdown_accuracy.pdf",
+            "main_accuracy.pdf",
         ),
         bbox_inches=extent,
     )
-    # plt.show()
+
+    # plot the system cost of each system
+    fig, ax = get_1_1_fig(args)
+    ax.set_xticks(
+        ticks=x_ticks, labels=xticklabels, fontsize=10
+    )  # center the xticks with the bars
+    ax.tick_params(axis="x", rotation=11)
+    for i, system in enumerate(systems):
+        sys_df = system_dfs[system]
+        bar = ax.bar(system_xs[system], sys_df["system_cost"],
+                     width, label=system)
+
+        for j, (rect0, task_name) in enumerate(zip(bar, sys_df["task_name"])):
+            height = rect0.get_height()
+            lat = sys_df[sys_df["task_name"] == task_name]["system_cost"].values[0]
+            ax.text(
+                rect0.get_x() + rect0.get_width() * 1.2 / 2.0,
+                height + j * 0.05,
+                f"{lat:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+            )
+    ax.set_ylabel("System Cost (s)")
+    ax.legend(loc="best", fontsize=8)
+    plt.savefig(
+        os.path.join(
+            args.home_dir, args.plot_dir, "system_cost.pdf"
+        )
+    )
 
     plt.close("all")
 
@@ -735,7 +706,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.legend()
     # plt.tight_layout()
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "lat_breakdown_default.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "breakdown.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -792,7 +763,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     selected_df = selected_df[required_cols]
-    print(selected_df)
+    plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_min_conf.csv"))
 
     pd.set_option("display.precision", 10)
@@ -847,7 +818,7 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     # plt.tight_layout()
     # plt.subplots_adjust(wspace=0.0)
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "sim-sup_vary_min_conf.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "vary_min_conf.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -894,7 +865,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     selected_df = selected_df[required_cols]
-    print(selected_df)
+    plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_max_error.csv"))
 
     pd.set_option("display.precision", 10)
@@ -951,7 +922,7 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
         axes[i].legend(plots, labels, loc="center right", fontsize=15)
     # plt.tight_layout()
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "sim-sup_vary_max_error.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "vary_max_error.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -996,7 +967,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     selected_df = selected_df[required_cols]
-    print(selected_df)
+    plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_alpha.csv"))
     baseline_df = get_evals_baseline(df)[required_cols]
 
@@ -1074,7 +1045,7 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     # plt.tight_layout()
     # plt.subplots_adjust(wspace=.0)
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "sim-sup_vary_alpha.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "vary_alpha.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -1121,7 +1092,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     selected_df = selected_df[required_cols]
-    print(selected_df)
+    plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_beta.csv"))
 
     pd.set_option("display.precision", 10)
@@ -1189,7 +1160,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     # plt.tight_layout()
     # plt.subplots_adjust(wspace=.0)
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "sim-sup_vary_beta.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "vary_beta.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -1280,11 +1251,11 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
                 ].values[0]
             )
 
-    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_num_agg.csv"))
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_naggs.csv"))
     selected_df = selected_df[required_cols]
     baseline_df = baseline_df[required_cols]
 
-    print(selected_df)
+    plotting_logger.debug(selected_df)
 
     # plot as a scatter line chart
     # x-axis: naggs
@@ -1339,7 +1310,7 @@ def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
     ax.legend(plots, labels, loc="center left", fontsize=15)
     plt.tight_layout()
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "sim-sup_vary_num_agg.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, "vary_naggs.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -1427,12 +1398,12 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
             )
 
     selected_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, f"vary_num_agg_{tsk}.csv")
+        os.path.join(args.home_dir, args.plot_dir, f"vary_naggs_{tsk}.csv")
     )
     selected_df = selected_df[required_cols]
     baseline_df = baseline_df[required_cols]
 
-    print(selected_df)
+    plotting_logger.debug(selected_df)
 
     # plot as a scatter line chart
     # x-axis: naggs
@@ -1488,7 +1459,7 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     ax.legend(plots, labels, loc="center left", fontsize=15)
     plt.tight_layout()
     plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, f"sim-sup_vary_num_agg_{tsk}.pdf"),
+        os.path.join(args.home_dir, args.plot_dir, f"vary_naggs_{tsk}.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
@@ -1498,6 +1469,8 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
 
 
 def main(args: EvalArgs):
+    plotting_logger.info(f"Using {args.filename} for {args.plot_dir}")
+
     os.makedirs(os.path.join(args.home_dir, args.plot_dir), exist_ok=True)
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.serif"] = ["Times New Roman"]
@@ -1532,4 +1505,9 @@ def main(args: EvalArgs):
 
 if __name__ == "__main__":
     args = EvalArgs().parse_args()
+    plotting_logger = logging.getLogger("VLDBPlotting")
+    if args.debug:
+        plotting_logger.setLevel(logging.DEBUG)
+    else:
+        plotting_logger.setLevel(logging.INFO)
     main(args)

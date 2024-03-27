@@ -16,20 +16,15 @@ from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
 
 class VLDBArgs(Tap):
-    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024032508"
+    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024032709"
     out_dir: str = "./cache"
     filename: str = None
-
-    avg: bool = False
     debug: bool = False
 
     def process_args(self) -> None:
         if self.filename is None:
             name = os.path.basename(self.data_dir)
-            if self.avg:
-                self.filename = f"avg_{name}.csv"
-            else:
-                self.filename = f"full_{name}.csv"
+            self.filename = f"{name}.csv"
 
 
 def path_parser(args: VLDBArgs, path: str) -> dict:
@@ -154,7 +149,7 @@ if __name__ == "__main__":
     args = VLDBArgs().parse_args()
     data_dir = args.data_dir
 
-    # final all evals_{xxx}.json and final_df_{xxxx}.csv in data_dir (recursivly)
+    # final all evals_{xxx}.json and final_df_{xxxx}.csv in data_dir (recursively)
     path2evals_dict = {'exact': [], 'biathlon': [], 'ralf': []}
     path2dfs_dict = {'exact': [], 'biathlon': [], 'ralf': []}
     bsl_dfs = {}
@@ -197,13 +192,20 @@ if __name__ == "__main__":
         bsl_avg_lat = bsl_df['latency'].mean()
 
         item = {**settings}
-        item['avg_latency'] = evals['avg_ppl_time']
-        item['speedup'] = bsl_avg_lat / evals['avg_ppl_time']
-        item['BD:AFC'] = evals['avg_query_time']
+        item['system_cost'] = evals['avg_ppl_time']
+        if item['system'] == 'ralf':
+            item['avg_latency'] = evals['avg_ppl_time'] - evals['avg_query_time']
+            item['BD:AFC'] = 1e-2
+        else:
+            item['avg_latency'] = evals['avg_ppl_time']
+            item['BD:AFC'] = evals['avg_query_time']
+
         item['BD:AMI'] = evals['avg_pred_time']
         item['BD:Sobol'] = evals['avg_scheduler_time']
         item['avg_nrounds'] = evals['avg_nrounds']
         item['sampling_rate'] = evals['avg_sample']
+
+        item['speedup'] = bsl_avg_lat / item['avg_latency']
 
         agg_fnames = [col for col in bsl_df.columns if col.startswith('AGG_')]
         agg_ops = [fname.split('_')[-1] for fname in agg_fnames]
@@ -278,9 +280,7 @@ if __name__ == "__main__":
         data.append(item)
 
     df = pd.DataFrame(data)
+    df.to_csv(f"{args.out_dir}/full_{args.filename}", index=False)
 
-    if args.avg:
-        df = aggregate_data(args, df)
-
-    # save df
-    df.to_csv(f"{args.out_dir}/{args.filename}", index=False)
+    df = aggregate_data(args, df)
+    df.to_csv(f"{args.out_dir}/avg_{args.filename}", index=False)

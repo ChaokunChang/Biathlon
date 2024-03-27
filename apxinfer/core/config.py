@@ -63,12 +63,12 @@ class OnlineArgs(OfflineArgs):
     pest_constraint: Literal[
         "conf", "error", "relative_error"
     ] = "error"  # prediction estimation constraint
-    pest: Literal["MC", "biathlon"] = "MC"  # prediction estimation method
-    pest_nsamples: int = 1000  # number of samples for prediction estimation
+    pest: Literal["MC", "biathlon", "biathlon+"] = "biathlon"  # prediction estimation method
+    pest_nsamples: int = 128  # number of samples for prediction estimation
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol", "sobolT", "biathlon"] = "sobol"  # query inference method
+    qinf: Literal["direct", "by_finf", "sobol", "sobolT", "biathlon"] = "biathlon"  # query inference method
 
     scheduler: Literal[
         "greedy", "random", "greedy_plus",
@@ -85,9 +85,9 @@ class OnlineArgs(OfflineArgs):
     ] = "conf"  # termination condition
     max_relative_error: float = 0.05  # maximum relative error
     max_error: float = 0.5  # maximum error
-    min_conf: float = 0.99  # minimum confidence
+    min_conf: float = 0.98  # minimum confidence
     max_time: float = 60.0  # maximum time
-    max_memory: float = 2048 * 1.0  # maximum memory
+    max_memory: float = 2048.0  # maximum memory
     max_rounds: int = 1000  # maximum rounds
 
     exact: bool = False  # run exact version

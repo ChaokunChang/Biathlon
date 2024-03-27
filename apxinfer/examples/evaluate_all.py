@@ -15,16 +15,18 @@ class ExpArgs(Tap):
     interpreter = "/home/ckchang/anaconda3/envs/apx/bin/python"
     version: str = "latest"
     exp: str = None
+    phase: str = "biathlon"
     model: str = None  # see each exp
     ncores: int = 1  # 1, 0
     loading_mode: int = 0  # 0, 1, 2, 5, 10
     nparts: int = 100
     ncfgs: int = 100
     seed: int = 0
+    pest: str = 'biathlon'
     pest_seed: int = 0
     pest_nsamples: int = 1024
+    qinf: str = 'biathlon'
     policy: str = "optimizer"
-    phase: str = "biathlon"
     skip_dataset: bool = False
     skip_shared: bool = False
     default_only: bool = False
@@ -147,7 +149,7 @@ def get_eval_cmd(
 ):
     cmd = get_base_cmd(args, task_name, model, agg_qids)
     if args.version == "latest":
-        cmd = f"{cmd} --pest biathlon --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf biathlon"
+        cmd = f"{cmd} --pest {args.pest} --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf {args.qinf}"
     elif args.version == "submission":
         cmd = (
             f"{cmd} --pest MC --pest_nsamples 1000 --pest_seed {args.seed} --qinf sobol"

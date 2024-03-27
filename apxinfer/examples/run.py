@@ -12,6 +12,7 @@ from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.festimator import XIPFeatureEstimator, XIPFeatureErrorEstimator
 from apxinfer.core.model import XIPModel
 from apxinfer.core.prediction import MCPredictionEstimator, BiathlonPredictionEstimator
+from apxinfer.core.prediction import BiathlonPlusPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
 from apxinfer.core.qinfluence import XIPQInfEstimatorSobol, XIPQInfEstimatorSTIndex
 from apxinfer.core.qinfluence import BiathlonQInfEstimator
@@ -486,7 +487,12 @@ def run_prepare(name: str, args: PrepareArgs):
             model_type = "classifier"
 
     if name.startswith("studentqno"):
-        if name.startswith("studentqno18nf") or name in ["studentqnotest", "studentqnov2", "studentqnov2subset", "studentqnov2test"]:
+        if name.startswith("studentqno18nf") or name in [
+            "studentqnotest",
+            "studentqnov2",
+            "studentqnov2subset",
+            "studentqnov2test",
+        ]:
             qno = 18
         else:
             qno = int(name[len("studentqno") :])
@@ -629,10 +635,15 @@ def run_online(name: str, args: OnlineArgs):
 
     if name in ["studentqnov2", "studentqnov2subset", "studentqnov2test"]:
         from apxinfer.examples.student.data import db_migration
+
         for qry in fengine.queries:
             if qry.data_loader is not None:
                 suffix = name.replace("studentqno", "")
-                db_migration(qry.dbtable, qry.dbtable + f"_{suffix}", test_set['req_session_id'].tolist())
+                db_migration(
+                    qry.dbtable,
+                    qry.dbtable + f"_{suffix}",
+                    test_set["req_session_id"].tolist(),
+                )
 
                 data_loader = XIPDataLoader(
                     backend=qry.data_loader.backend,
@@ -645,38 +656,30 @@ def run_online(name: str, args: OnlineArgs):
                 qry.process_data_loader()
 
     # create a prediction estimator for this task
+    constraint_type = args.pest_constraint
+    if constraint_type == "conf":
+        constraint_value = args.min_conf
+    elif constraint_type == "error":
+        constraint_value = args.max_error
+    elif constraint_type == "relative_error":
+        constraint_value = args.max_relative_error
+    else:
+        raise ValueError("Invalid constraint type")
+    pest_args = {
+        "constraint_type": constraint_type,
+        "constraint_value": constraint_value,
+        "seed": args.pest_seed,
+        "n_samples": args.pest_nsamples,
+        "pest_point": args.pest_point,
+        "verbose": verbose,
+    }
     if args.pest == "MC":
-        constraint = args.pest_constraint
-        if constraint == "conf":
-            constraint_value = args.min_conf
-        elif constraint == "error":
-            constraint_value = args.max_error
-        elif constraint == "relative_error":
-            constraint_value = args.max_relative_error
-        pred_estimator = MCPredictionEstimator(
-            constraint_type=constraint,
-            constraint_value=constraint_value,
-            seed=args.pest_seed,
-            n_samples=args.pest_nsamples,
-            pest_point=args.pest_point,
-            verbose=verbose,
-        )
+        pred_estimator = MCPredictionEstimator(**pest_args)
     elif args.pest == "biathlon":
-        constraint = args.pest_constraint
-        if constraint == "conf":
-            constraint_value = args.min_conf
-        elif constraint == "error":
-            constraint_value = args.max_error
-        elif constraint == "relative_error":
-            constraint_value = args.max_relative_error
-        pred_estimator = BiathlonPredictionEstimator(
-            constraint_type=constraint,
-            constraint_value=constraint_value,
-            fextractor=fengine,
-            seed=args.pest_seed,
-            n_samples=args.pest_nsamples,
-            pest_point=args.pest_point,
-            verbose=verbose,
+        pred_estimator = BiathlonPredictionEstimator(**pest_args, fextractor=fengine)
+    elif args.pest == "biathlon+":
+        pred_estimator = BiathlonPlusPredictionEstimator(
+            **pest_args, fextractor=fengine
         )
     else:
         raise ValueError("Invalid prediction estimator")

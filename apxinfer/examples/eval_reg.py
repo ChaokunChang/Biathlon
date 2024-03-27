@@ -20,12 +20,12 @@ class EvalArgs(Tap):
     agg_qids: list[int] = None
     model: str = None
 
-    pest: str = "MC"
+    pest: str = "biathlon"
     pest_constraint: str = "error"
     pest_nsamples: int = 1000
     pest_seed: int = 0
 
-    qinf: str = "sobol"
+    qinf: str = "biathlon"
 
     policy: str = "optimizer"
     scheduler_init: int = 1

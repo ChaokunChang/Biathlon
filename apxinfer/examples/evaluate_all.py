@@ -52,6 +52,9 @@ class ExpArgs(Tap):
         assert self.exp is not None
         assert self.model is not None
 
+        if self.interpreter != "python":
+            self.interpreter = f"sudo {self.interpreter}"
+
         if self.version == "submission":
             self.pest = "MC"
             self.pest_nsamples = 1000

@@ -1,5 +1,6 @@
 from tap import Tap
 import os
+from typing import List
 
 from apxinfer.core.config import EXP_HOME
 
@@ -37,6 +38,7 @@ class ExpArgs(Tap):
     policy: str = "optimizer"
 
     ralf_budget: float = 1.0
+    ralf_budgets: list[float] = None
 
     default_alpha: int = 5
     default_beta: int = 1
@@ -112,9 +114,7 @@ def list_to_option_str(values: list):
     return " ".join([f"{v}" for v in values])
 
 
-def get_shared_cmd(args: ExpArgs,
-                   task_name: str,
-                   model: str):
+def get_shared_cmd(args: ExpArgs, task_name: str, model: str):
     shared_cmd = f"{args.interpreter} run.py --example {task_name} \
                     --task {args.task_home}/{task_name} --model {model} \
                     --nparts {args.nparts} --ncores {args.ncores} \
@@ -122,96 +122,87 @@ def get_shared_cmd(args: ExpArgs,
     return shared_cmd
 
 
-def get_shared_path(args: ExpArgs,
-                    task_name: str,
-                    model: str):
-    shared_path = os.path.join(EXP_HOME, args.task_home,
-                               task_name, f'seed-{args.seed}')
+def get_shared_path(args: ExpArgs, task_name: str, model: str):
+    shared_path = os.path.join(EXP_HOME, args.task_home, task_name, f"seed-{args.seed}")
     return shared_path
 
 
-def run_ingest(args: ExpArgs,
-               task_name: str,
-               model: str):
+def run_ingest(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
-    ingest_cmd = f'{shared_cmd} --stage ingest'
+    ingest_cmd = f"{shared_cmd} --stage ingest"
     os.system(ingest_cmd)
 
 
-def run_prepare(args: ExpArgs,
-                task_name: str,
-                model: str):
+def run_prepare(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
-    prepare_cmd = f'{shared_cmd} --stage prepare'
+    prepare_cmd = f"{shared_cmd} --stage prepare"
     if args.skip_dataset:
-        prepare_cmd = f'{prepare_cmd} --skip_dataset'
+        prepare_cmd = f"{prepare_cmd} --skip_dataset"
     os.system(prepare_cmd)
 
 
-def run_training(args: ExpArgs,
-                 task_name: str,
-                 model: str):
+def run_training(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
-    training_cmd = f'{shared_cmd} --stage train'
+    training_cmd = f"{shared_cmd} --stage train"
     os.system(training_cmd)
 
 
-def get_base_cmd(args: ExpArgs,
-                 task_name: str,
-                 model: str):
+def get_base_cmd(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
-    base_cmd = f'{shared_cmd} --ncfgs {args.ncfgs} \
-                --offline_nreqs {args.offline_nreqs}'
+    base_cmd = f"{shared_cmd} --ncfgs {args.ncfgs} \
+                --offline_nreqs {args.offline_nreqs}"
     return base_cmd
 
 
-def get_offline_path(args: ExpArgs,
-                     task_name: str,
-                     model: str):
+def get_offline_path(args: ExpArgs, task_name: str, model: str):
     shared_path = get_shared_path(args, task_name, model)
-    offline_path = os.path.join(shared_path, 'offline', model,
-                                f'ncores-{args.ncores}',
-                                f'ldnthreads-{args.loading_mode}',
-                                f'nparts-{args.nparts}',
-                                f'ncfgs-{args.ncfgs}',
-                                f'nreqs-{args.offline_nreqs}',
-                                'model')
+    offline_path = os.path.join(
+        shared_path,
+        "offline",
+        model,
+        f"ncores-{args.ncores}",
+        f"ldnthreads-{args.loading_mode}",
+        f"nparts-{args.nparts}",
+        f"ncfgs-{args.ncfgs}",
+        f"nreqs-{args.offline_nreqs}",
+        "model",
+    )
     # qcm_path = os.path.join(offline_path, 'xip_qcm.pkl')
     return offline_path
 
 
 def run_offline(args: ExpArgs, task_name: str, model: str):
     base_cmd = get_base_cmd(args, task_name, model)
-    offline_cmd = f'{base_cmd} --stage offline'
+    offline_cmd = f"{base_cmd} --stage offline"
     if args.nocache:
-        offline_cmd = f'{offline_cmd} --clear_cache'
+        offline_cmd = f"{offline_cmd} --clear_cache"
     os.system(offline_cmd)
 
 
-def get_baseline_path(args: ExpArgs,
-                      task_name: str,
-                      model: str) -> str:
+def get_baseline_path(args: ExpArgs, task_name: str, model: str) -> str:
     shared_path = get_shared_path(args, task_name, model)
-    baseline_path = os.path.join(shared_path, 'online', model,
-                                 f'ncores-{args.ncores}',
-                                 f'ldnthreads-{args.loading_mode}',
-                                 f'nparts-{args.nparts}',
-                                 'exact')
+    baseline_path = os.path.join(
+        shared_path,
+        "online",
+        model,
+        f"ncores-{args.ncores}",
+        f"ldnthreads-{args.loading_mode}",
+        f"nparts-{args.nparts}",
+        "exact",
+    )
     return baseline_path
 
 
 def run_baseline(args: ExpArgs, task_name: str, model: str):
     base_cmd = get_base_cmd(args, task_name, model)
-    baseline_cmd = f'{base_cmd} --stage online --exact'
+    baseline_cmd = f"{base_cmd} --stage online --exact"
     baseline_path = get_baseline_path(args, task_name, model)
     evals_path = os.path.join(baseline_path, "evals_exact.json")
     if args.nocache or (not os.path.exists(evals_path)):
         os.system(baseline_cmd)
 
 
-def get_ralf_path(args: ExpArgs,
-                  task_name: str,
-                  model: str) -> str:
+def get_ralf_path(args: ExpArgs, task_name: str, model: str) -> str:
     assert args.loading_mode >= 3000
     return get_baseline_path(args, task_name, model)
 
@@ -219,119 +210,137 @@ def get_ralf_path(args: ExpArgs,
 def run_ralf(args: ExpArgs, task_name: str, model: str):
     assert args.loading_mode >= 3000
     base_cmd = get_base_cmd(args, task_name, model)
-    ralf_cmd = f'{base_cmd} --stage online --exact --ralf_budget {args.ralf_budget}'
+    ralf_cmd = f"{base_cmd} --stage online --exact --ralf_budget {args.ralf_budget}"
 
     if not args.nocache:
         ralf_path = get_baseline_path(args, task_name, model)
         if os.path.exists(ralf_path):
             for file in os.listdir(ralf_path):
-                if file.startswith('evals_ralf_'):
-                    ralf_budgets = file.replace('evals_ralf_', '').replace('.json', '').split('_')
+                if file.startswith("evals_ralf_"):
+                    ralf_budgets = (
+                        file.replace("evals_ralf_", "").replace(".json", "").split("_")
+                    )
                     if float(ralf_budgets[0]) == args.ralf_budget:
                         return None
 
     os.system(ralf_cmd)
 
 
-def get_biathlon_cmd(args: ExpArgs,
-                     task_name: str,
-                     model: str,
-                     scheduler_init: int,
-                     scheduler_batch: int,
-                     max_error: float,
-                     min_conf: float):
+def get_biathlon_cmd(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
     shared_cmd = get_base_cmd(args, task_name, model)
-    online_cmd = f'{shared_cmd} --stage online'
+    online_cmd = f"{shared_cmd} --stage online"
 
     pest_qinf_opts = f"--pest {args.pest} --pest_constraint error --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf {args.qinf}"
     scheduler_opts = f"--scheduler {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
     acc_opts = f"--max_error {max_error} --min_conf {min_conf}"
 
-    biathlon_cmd = f'{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts}'
+    biathlon_cmd = f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts}"
 
     return biathlon_cmd
 
 
-def get_biathlon_path(args: ExpArgs,
-                      task_name: str,
-                      model: str,
-                      scheduler_init: int,
-                      scheduler_batch: int,
-                      max_error: float,
-                      min_conf: float):
+def get_biathlon_path(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
     shared_path = get_shared_path(args, task_name, model)
     pest_constraint = "error"
-    biathlon_path = os.path.join(shared_path, 'online', model,
-                                 f'ncores-{args.ncores}',
-                                 f'ldnthreads-{args.loading_mode}',
-                                 f'nparts-{args.nparts}',
-                                 f'ncfgs-{args.ncfgs}',
-                                 f'pest-{pest_constraint}-{args.pest}-{args.pest_nsamples}-{args.pest_seed}',
-                                 f'qinf-{args.qinf}',
-                                 f'scheduler-{args.policy}-{scheduler_init}-{scheduler_batch}')
+    biathlon_path = os.path.join(
+        shared_path,
+        "online",
+        model,
+        f"ncores-{args.ncores}",
+        f"ldnthreads-{args.loading_mode}",
+        f"nparts-{args.nparts}",
+        f"ncfgs-{args.ncfgs}",
+        f"pest-{pest_constraint}-{args.pest}-{args.pest_nsamples}-{args.pest_seed}",
+        f"qinf-{args.qinf}",
+        f"scheduler-{args.policy}-{scheduler_init}-{scheduler_batch}",
+    )
     return biathlon_path
 
 
-def run_biathlon(args: ExpArgs,
-                 task_name: str,
-                 model: str,
-                 scheduler_init: int,
-                 scheduler_batch: int,
-                 max_error: float,
-                 min_conf: float):
-    biathlon_cmd = get_biathlon_cmd(args, task_name, model,
-                                    scheduler_init, scheduler_batch,
-                                    max_error, min_conf)
-    biathlon_path = get_biathlon_path(args, task_name, model,
-                                      scheduler_init, scheduler_batch,
-                                      max_error, min_conf)
+def run_biathlon(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
+    biathlon_cmd = get_biathlon_cmd(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
+    biathlon_path = get_biathlon_path(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
     evals_file = f'evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"'
     evals_path = os.path.join(biathlon_path, evals_file)
     if args.nocache or (not os.path.exists(evals_path)):
         os.system(biathlon_cmd)
 
 
-def run_profile(args: ExpArgs,
-                task_name: str,
-                model: str,
-                scheduler_init: int,
-                scheduler_batch: int,
-                max_error: float,
-                min_conf: float):
+def run_profile(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
 
-    biathlon_cmd = get_biathlon_cmd(args, task_name, model,
-                                    scheduler_init, scheduler_batch,
-                                    max_error, min_conf)
+    biathlon_cmd = get_biathlon_cmd(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
 
     offline_path = get_offline_path(args, task_name, model)
-    profile_dir = os.path.join(offline_path, '..', 'profile')
+    profile_dir = os.path.join(offline_path, "..", "profile")
     os.makedirs(profile_dir, exist_ok=True)
 
-    profile_tag = f'biathlon_default_{scheduler_init}_{scheduler_batch}_{max_error}_{min_conf}'
+    profile_tag = (
+        f"biathlon_default_{scheduler_init}_{scheduler_batch}_{max_error}_{min_conf}"
+    )
 
-    profling_opts = f'-m cProfile -s cumtime -o {profile_dir}/{profile_tag}.pstats'
+    profling_opts = f"-m cProfile -s cumtime -o {profile_dir}/{profile_tag}.pstats"
     # add profiling opts after args.interpreter
     cmd = biathlon_cmd.replace(args.interpreter, f"{args.interpreter} {profling_opts}")
     os.system(cmd)
 
-    cmd = f'gprof2dot -f pstats {profile_dir}/{profile_tag}.pstats | dot -Tsvg -o {profile_dir}/{profile_tag}.svg'
+    cmd = f"gprof2dot -f pstats {profile_dir}/{profile_tag}.pstats | dot -Tsvg -o {profile_dir}/{profile_tag}.svg"
     os.system(cmd)
 
-    print(f'profiling results in {profile_dir}/{profile_tag}.svg')
+    print(f"profiling results in {profile_dir}/{profile_tag}.svg")
 
 
-def run_verbose(args: ExpArgs,
-                task_name: str,
-                model: str,
-                scheduler_init: int,
-                scheduler_batch: int,
-                max_error: float,
-                min_conf: float):
+def run_verbose(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
     nreqs = 1
-    biathlon_cmd = get_biathlon_cmd(args, task_name, model,
-                                    scheduler_init, scheduler_batch,
-                                    max_error, min_conf)
-    cmd = f'{biathlon_cmd} --verbose --nreqs {nreqs}'
+    biathlon_cmd = get_biathlon_cmd(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
+    cmd = f"{biathlon_cmd} --verbose --nreqs {nreqs}"
     os.system(cmd)
 
 
@@ -363,20 +372,46 @@ def run_pipeline(
         run_baseline(args, task_name, model)
     elif args.phase == "ralf":
         run_ralf(args, task_name, model)
+    elif args.phase == "ralfs":
+        assert args.ralf_budgets is not None
+        ralf_budget_cache = args.ralf_budget
+        for ralf_budget in args.ralf_budgets:
+            args.ralf_budget = ralf_budget
+            run_ralf(args, task_name, model)
+        args.ralf_budget = ralf_budget_cache
     elif args.phase == "default":
-        run_biathlon(args, task_name, model,
-                     args.default_alpha, args.default_beta * naggs,
-                     args.default_error, args.default_conf)
+        run_biathlon(
+            args,
+            task_name,
+            model,
+            args.default_alpha,
+            args.default_beta * naggs,
+            args.default_error,
+            args.default_conf,
+        )
     elif args.phase == "warmup":
         run_biathlon(args, task_name, model, 1000, 1000 * naggs, 0.0, 1.1)
     elif args.phase == "profile":
-        run_profile(args, task_name, model,
-                    args.default_alpha, args.default_beta * naggs,
-                    args.default_error, args.default_conf)
+        run_profile(
+            args,
+            task_name,
+            model,
+            args.default_alpha,
+            args.default_beta * naggs,
+            args.default_error,
+            args.default_conf,
+        )
     elif args.phase == "verbose":
-        run_verbose(args, task_name, model, agg_qids,
-                    args.default_alpha, args.default_beta * naggs,
-                    args.default_error, args.default_conf)
+        run_verbose(
+            args,
+            task_name,
+            model,
+            agg_qids,
+            args.default_alpha,
+            args.default_beta * naggs,
+            args.default_error,
+            args.default_conf,
+        )
     elif args.phase == "biathlon":
         default_cfgs = get_default_scheduler_cfgs(args, naggs)
         cfgs = get_scheduler_cfgs(args, naggs)
@@ -388,9 +423,9 @@ def run_pipeline(
         for sch_init, sch_batch in default_cfgs:
             for max_error in default_max_errors:
                 for min_conf in default_min_confs:
-                    run_biathlon(args, task_name, model,
-                                 sch_init, sch_batch,
-                                 max_error, min_conf)
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
         if default_only or args.default_only:
             return
 
@@ -398,25 +433,25 @@ def run_pipeline(
         for sch_init, sch_batch in default_cfgs:
             for max_error in max_errors:
                 for min_conf in default_min_confs:
-                    run_biathlon(args, task_name, model,
-                                 sch_init, sch_batch,
-                                 max_error, min_conf)
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
 
         # vary cfgs only
         for sch_init, sch_batch in cfgs:
             for max_error in default_max_errors:
                 for min_conf in default_min_confs:
-                    run_biathlon(args, task_name, model,
-                                 sch_init, sch_batch,
-                                 max_error, min_conf)
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
 
         # vary min_conf
         for sch_init, sch_batch in default_cfgs:
             for max_error in default_max_errors:
                 for min_conf in min_confs:
-                    run_biathlon(args, task_name, model,
-                                 sch_init, sch_batch,
-                                 max_error, min_conf)
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
     else:
         raise ValueError(f"invalid phase {args.phase}")
 

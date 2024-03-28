@@ -195,9 +195,16 @@ class BiathlonPredictionEstimator(XIPPredictionEstimator):
         return self.preds
 
     def compute_S1_indices(self):
+        warnings.simplefilter("ignore", RuntimeWarning)
+        warnings.simplefilter("ignore", DeprecationWarning)
+        warnings.simplefilter("ignore", UserWarning)
         self.Si = sobol_analyze.analyze(
-            self.problem, self.preds, calc_second_order=False, seed=self.seed
+            self.problem,
+            self.preds,
+            calc_second_order=False,
+            seed=self.seed,
         )
+        warnings.resetwarnings()
         return self.Si["S1"]
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:
@@ -228,9 +235,15 @@ class BiathlonPlusPredictionEstimator(BiathlonPredictionEstimator):
         pest_point: bool = False,
         verbose: bool = False,
     ) -> None:
-        super().__init__(constraint_type, constraint_value,
-                         seed, fextractor, n_samples,
-                         pest_point, verbose)
+        super().__init__(
+            constraint_type,
+            constraint_value,
+            seed,
+            fextractor,
+            n_samples,
+            pest_point,
+            verbose,
+        )
         self.init_sobol_seq = None
 
     def get_sobol_samples(
@@ -304,7 +317,9 @@ class BiathlonPlusPredictionEstimator(BiathlonPredictionEstimator):
             # Cross-sample elements of "B" into "A"
             for k in range(Dg):
                 for j in range(D):
-                    if (not groups and j == k) or (groups and group_names[k] == groups[j]):
+                    if (not groups and j == k) or (
+                        groups and group_names[k] == groups[j]
+                    ):
                         saltelli_sequence[index, j] = base_sequence[i, j + D]
                     else:
                         saltelli_sequence[index, j] = base_sequence[i, j]

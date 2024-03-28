@@ -38,7 +38,7 @@ class ExpArgs(Tap):
     policy: str = "optimizer"
 
     ralf_budget: float = 1.0
-    ralf_budgets: list[float] = None
+    ralf_budgets: List[float] = None
 
     default_alpha: int = 5
     default_beta: int = 1

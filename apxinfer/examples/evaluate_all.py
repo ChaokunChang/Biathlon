@@ -291,10 +291,12 @@ def run_biathlon(
     biathlon_path = get_biathlon_path(
         args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
     )
-    evals_file = f'evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"'
+    evals_file = f"evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
     evals_path = os.path.join(biathlon_path, evals_file)
     if args.nocache or (not os.path.exists(evals_path)):
         os.system(biathlon_cmd)
+    else:
+        print(f"skip {evals_path}")
 
 
 def run_profile(
@@ -465,8 +467,8 @@ def run_studentqno(args: ExpArgs, qno: int):
     """
     task_name = f"studentqno{qno}"
     agg_qids = list_to_option_str([i for i in range(13)])
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -476,8 +478,8 @@ def run_studentqnotest(args: ExpArgs):
     """
     task_name = "studentqnotest"
     agg_qids = list_to_option_str([i for i in range(13)])
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -487,8 +489,8 @@ def run_student(args: ExpArgs):
     """
     task_name = "student"
     agg_qids = list_to_option_str([i + 1 for i in range(13)])
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -497,8 +499,8 @@ def run_studentqnov2(args: ExpArgs, task_name: str = "studentqnov2"):
     models = [lgbm, gbm, tfgbm]
     """
     agg_qids = list_to_option_str([i for i in range(13)])
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -508,8 +510,8 @@ def run_machinery(args: ExpArgs):
     """
     task_name = "machinery"
     agg_qids = "0 1 2 3 4 5 6 7"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -519,8 +521,8 @@ def run_machineryralftest(args: ExpArgs):
     """
     task_name = "machineryralftest"
     agg_qids = "0 1 2 3 4 5 6 7"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -530,8 +532,8 @@ def run_machineryralf(args: ExpArgs):
     """
     task_name = "machineryralf"
     agg_qids = "0 1 2 3 4 5 6 7"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -541,8 +543,8 @@ def run_machinerymulti(args: ExpArgs):
     """
     task_name = "machinerymulti"
     agg_qids = "0 1 2 3 4 5 6 7"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -553,8 +555,8 @@ def run_cheaptrips(args: ExpArgs):
     """
     task_name = "cheaptrips"
     agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -565,8 +567,8 @@ def run_ccfraud(args: ExpArgs):
     """
     task_name = "ccfraud"
     agg_qids = "3 4 5 6"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -575,8 +577,8 @@ def run_tdfraud(args: ExpArgs, task_name: str = "tdfraud"):
     must models = ["xgb"]
     """
     agg_qids = "1 2 3"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -660,9 +662,9 @@ def run_batterytest(args: ExpArgs):
     """
     task_name = "batterytest"
     agg_qids = "0 1 2 3 4"
-    # default_max_errors = [120, 300]
-    default_max_errors = [300]
-    max_errors = [60, 120, 300, 600, 900, 1200, 3600, 7200]
+    # default_max_errors = [120.0, 300.0]
+    default_max_errors = [300.0]
+    max_errors = [60.0, 120.0, 300.0, 600.0, 900.0, 1200.0, 3600.0, 7200.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -673,8 +675,8 @@ def run_battery(args: ExpArgs):
     """
     task_name = "battery"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [120, 300]
-    max_errors = [60, 120, 300, 600, 900, 1200, 3600, 7200]
+    default_max_errors = [120.0, 300.0]
+    max_errors = [60.0, 120.0, 300.0, 600.0, 900.0, 1200.0, 3600.0, 7200.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -685,23 +687,23 @@ def run_batteryv2(args: ExpArgs):
     """
     task_name = "batteryv2"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [60, 93.35, 120, 186.7]
+    default_max_errors = [60.0, 93.35, 120.0, 186.7]
     max_errors = [
-        30,
-        60,
+        30.0,
+        60.0,
         93.35,
         120,
         186.7,
-        300,
-        600,
-        900,
-        1200,
-        1800,
-        2400,
-        3000,
-        3600,
-        4800,
-        7200,
+        300.0,
+        600.0,
+        900.0,
+        1200.0,
+        1800.0,
+        2400.0,
+        3000.0,
+        3600.0,
+        4800.0,
+        7200.0,
     ]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -714,8 +716,8 @@ def run_turbofan(args: ExpArgs):
     task_name = "turbofan"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [1, 2.44, 3, 4.88, 6]
-    max_errors = [1, 2.44, 3, 4.88, 6, 10, 20, 50, 80, 100]
+    default_max_errors = [1.0, 2.44, 3.0, 4.88, 6.0]
+    max_errors = [1.0, 2.44, 3.0, 4.88, 6.0, 10.0, 20.0, 50.0, 80.0, 100.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -727,8 +729,8 @@ def run_turbofanall(args: ExpArgs):
     task_name = "turbofanall"
     naggs = 44
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [1, 3, 6]
-    max_errors = [1, 3, 6, 10, 20, 50, 80, 100]
+    default_max_errors = [1.0, 3.0, 6.0]
+    max_errors = [1.0, 3.0, 6.0, 10.0, 20.0, 50.0, 80.0, 100.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -739,8 +741,8 @@ def run_cheaptripsfeast(args: ExpArgs):
     """
     task_name = "cheaptripsfeast"
     agg_qids = "1 2"
-    default_max_errors = [0]
-    max_errors = [0]
+    default_max_errors = [0.0]
+    max_errors = [0.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
@@ -881,55 +883,6 @@ def run_extreme_tick_price(args: ExpArgs):
     )
 
 
-def run_vary_nsamples(args: ExpArgs):
-    """
-    args.exp = varynsamples-{task_name}
-    """
-    task_name = args.exp.split("-")[1]
-    agg_qids = None
-    if task_name == "tripsfeast":
-        agg_qids = "1 2"
-        naggs = 2
-        default_max_errors = [1.0, 1.66]
-    elif task_name in ["tickv2", "tickvaryNM1"]:
-        agg_qids = "6"
-        naggs = 1
-        default_max_errors = [0.01, 0.05]
-    elif task_name == "machinery":
-        agg_qids = "0 1 2 3 4 5 6 7"
-        naggs = 8
-        default_max_errors = [0.0]
-    elif task_name == "machinerymulti":
-        agg_qids = "0 1 2 3 4 5 6 7"
-        naggs = 8
-        default_max_errors = [0.0]
-    elif task_name == "tdfraud":
-        agg_qids = "1 2 3"
-        naggs = 3
-        default_max_errors = [0.0]
-    else:
-        raise ValueError(f"invalid task_name {task_name}")
-    model = args.model
-
-    default_cfgs = get_default_scheduler_cfgs(args, naggs)
-    default_min_confs_str = list_to_option_str(get_default_min_confs(args))
-    nsamples_list = [50, 100, 256, 500, 768, 1000, 1024, 2048]
-    for scheduler_init, scheduler_batch in default_cfgs:
-        for max_error in default_max_errors:
-            for nsamples in nsamples_list:
-                cmd = get_eval_cmd(
-                    args,
-                    task_name,
-                    model,
-                    agg_qids,
-                    scheduler_init,
-                    scheduler_batch,
-                    max_error,
-                )
-                cmd = f"{cmd} --min_confs {default_min_confs_str} --pest_nsamples {nsamples}"
-                os.system(cmd)
-
-
 if __name__ == "__main__":
     args = ExpArgs().parse_args()
     if args.exp == "tripsralf":
@@ -993,8 +946,6 @@ if __name__ == "__main__":
         run_tick_price(args)
     elif args.exp.startswith("tdfraud"):
         run_tdfraud(args, task_name=args.exp)
-    elif args.exp.startswith("varynsamples"):
-        run_vary_nsamples(args)
     elif args.exp == "tickpricemiddle":
         run_tick_price_middle(args)
     elif args.exp == "extremetickprice":

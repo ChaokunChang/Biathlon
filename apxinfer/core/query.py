@@ -646,7 +646,7 @@ class XIPQueryProcessor:
             num_updates = 1
         else:
             last_ts = last_update[1]
-            if self.budget <= 1e-6:
+            if self.budget <= 1e-9:
                 # num_updates = int(req_ts != last_ts)
                 num_updates = 0
             else:

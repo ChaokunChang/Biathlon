@@ -10,6 +10,7 @@ ALL_REG_TASKS = [
     "tripsralf", "tripsralfv2",
     "tripsralftest", "tripsralf2h",
     "tickralftest", "tickralf"
+    "tickralfv2test", "tickralfv2"
 ]
 ALL_CLS_TASKS = [
     "tdfraudralftest", "tdfraudralf",

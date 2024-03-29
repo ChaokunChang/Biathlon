@@ -434,6 +434,14 @@ def run_prepare(name: str, args: PrepareArgs):
             from apxinfer.examples.tick.prepare import TickRalfPrepareWorker as Worker
 
             model_type = "regressor"
+        elif name == "tickralfv2":
+            from apxinfer.examples.tick.prepare import TickRalfV2PrepareWorker as Worker
+
+            model_type = "regressor"
+        elif name == "tickralfv2test":
+            from apxinfer.examples.tick.prepare import TickRalfV2TestPrepareWorker as Worker
+
+            model_type = "regressor"
         else:
             from apxinfer.examples.tick.prepare import TickPrepareWorker as Worker
 
@@ -622,9 +630,13 @@ def run_online(name: str, args: OnlineArgs):
     test_set = LoadingHelper.load_dataset(
         args, "test", args.nreqs, offset=args.nreqs_offset
     )
-    if name == "tdfraudrandom" and args.model == "xgb":
-        if len(test_set) > 1000:
-            test_set = test_set.sample(n=500, random_state=0)
+    if name == "tickralf":
+        # in the old version, the time unit is 1h,
+        # we need to divide 3600 to get the correct time unit
+        req0 = test_set.iloc[0]
+        if req0["req_label_ts"] - req0["req_ts"] >= 3600:
+            test_set["req_ts"] = test_set["req_ts"] // 3600
+            test_set["req_ts"] = test_set["req_ts"] // 3600
     verbose = args.verbose and len(test_set) <= 10
 
     # load xip model

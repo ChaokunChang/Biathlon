@@ -145,7 +145,6 @@ class TickRalfPrepareWorker(TickPrepareWorker):
             requests = requests[:max_num]
 
         self.logger.info(f"Got of {len(requests)}x of requests")
-        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
 
     def get_requests(self) -> pd.DataFrame:
@@ -167,6 +166,62 @@ class TickRalfPrepareWorker(TickPrepareWorker):
 
 
 class TickRalfTestPrepareWorker(TickRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        requests = self._extract_requests(max_num=self.max_requests)
+
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+
+class TickRalfV2PrepareWorker(TickRalfPrepareWorker):
+    def _extract_requests(
+        self,
+        start_dt: str = "2022-02-01 00:00:00.000",
+        end_dt: str = "2022-03-01 00:00:00.000",
+        sampling_rate: float = 1,
+        max_num: int = 0,
+    ) -> pd.DataFrame:
+        self.logger.info("Getting requests")
+
+        sql = f""" WITH makeDateTime64(year, month, day, hour, 0, 0) as dt
+                SELECT count()
+                FROM xip.tick_fstore_hour
+                WHERE dt >= '{start_dt}' AND dt <= '{end_dt}'
+            """
+        cnt: int = self.db_client.command(sql)
+        self.logger.info(f"number of possible requests: {cnt}")
+        self.logger.info(f"requests sampling: {sampling_rate}")
+
+        sql = f"""
+                WITH makeDateTime64(year, month, day, hour, 0, 0) as clk_dt
+                SELECT
+                    toString(clk_dt) as ts,
+                    toString(addHours(clk_dt, 1)) as label_ts,
+                    cpair, toString(clk_dt) as dt
+                FROM xip.tick_fstore_hour
+                WHERE (cityHash64(clk_dt) % {int(1.0 / sampling_rate)}) == 0
+                        AND clk_dt >= '{start_dt}'
+                        AND clk_dt <= '{end_dt}'
+                ORDER BY (cpair, year, month, day, hour)
+                """
+        requests: pd.DataFrame = self.db_client.query_df(sql)
+        requests["ts"] = pd.to_datetime(requests["ts"]).astype(int) // 10**9
+        requests["label_ts"] = pd.to_datetime(requests["label_ts"]).astype(int) // 10**9
+
+        min_ts = requests["ts"].min()
+        requests["ts"] = (requests["ts"] - min_ts) // 3600
+        requests["label_ts"] = (requests["label_ts"] - min_ts) // 3600
+        requests = requests.sort_values(by=["ts", "cpair"])
+
+        if max_num > 0 and max_num < len(requests):
+            requests = requests[:max_num]
+
+        self.logger.info(f"Got of {len(requests)}x of requests")
+        return requests
+
+
+class TickRalfV2TestPrepareWorker(TickRalfV2PrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         requests = self._extract_requests(max_num=self.max_requests)
 

@@ -793,6 +793,30 @@ def run_tickralftest(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tickralfv2(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralfv2"
+    agg_qids = "6"
+    default_max_errors = [0.01, 0.02, 0.04, 0.05]
+    max_errors = [0.001, 0.01, 0.02, 0.04, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tickralfv2test(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralfv2test"
+    agg_qids = "6"
+    default_max_errors = [0.05]
+    max_errors = [0.001, 0.01, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_studentqno18_vary_nf(args: ExpArgs, nf: int):
     """
     models = [lgbm, gbm, tfgbm]
@@ -903,6 +927,10 @@ if __name__ == "__main__":
         run_tickralf(args)
     elif args.exp == "tickralftest":
         run_tickralftest(args)
+    elif args.exp == "tickralfv2":
+        run_tickralfv2(args)
+    elif args.exp == "tickralfv2test":
+        run_tickralfv2test(args)
     elif args.exp == "cheaptrips":
         run_cheaptrips(args)
     elif args.exp == "machinery":

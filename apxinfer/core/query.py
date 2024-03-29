@@ -578,8 +578,8 @@ class XIPQueryProcessor:
             self.logger.debug(f"{self.qname} sql return {rrdata.dtype} {rrdata.shape}")
             return rrdata
 
-    def set_ralf_budget(self, budget):
-        self.budget = budget
+    def set_ralf_budget(self, budget: float):
+        self.budget: float = budget
 
     def set_ralf(self, budget: float = 1.0):
         self.ralf_fstore = RALFStore(self.qname)
@@ -652,6 +652,7 @@ class XIPQueryProcessor:
             else:
                 assert req_ts >= last_ts
                 num_updates = int((req_ts - last_ts) * self.budget)
+        assert num_updates >= 0
         return num_updates
 
     def ralf_update(self, request: XIPRequest, qcfg: XIPQueryConfig) -> int:

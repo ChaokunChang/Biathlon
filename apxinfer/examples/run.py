@@ -166,6 +166,14 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name in [f"machineryralfnf{i}" for i in range(1, 9)]:
+        from apxinfer.examples.machinery.data import get_dloader
+        from apxinfer.examples.machinery.query import get_qps_varynf
+        from apxinfer.examples.machinery.engine import get_qengine
+
+        dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
+        qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
+        fengine = get_qengine(qps, args.ncores, args.verbose)
     elif name == "battery":
         from apxinfer.examples.battery.engine import get_battery_engine
 

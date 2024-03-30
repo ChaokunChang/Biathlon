@@ -75,7 +75,7 @@ class OnlineArgs(OfflineArgs):
         "uniform", "blqcost", "optimizer",
         "gradient", "stepgradient"
     ] = "optimizer"  # scheduler
-    scheduler_init: int = 1
+    scheduler_init: int = 5
     scheduler_batch: int = 1
 
     # pipeline settings
@@ -84,8 +84,8 @@ class OnlineArgs(OfflineArgs):
         "min_max", "pvar"
     ] = "conf"  # termination condition
     max_relative_error: float = 0.05  # maximum relative error
-    max_error: float = 0.5  # maximum error
-    min_conf: float = 0.98  # minimum confidence
+    max_error: float = 0.0  # maximum error
+    min_conf: float = 0.95  # minimum confidence
     max_time: float = 60.0  # maximum time
     max_memory: float = 2048.0  # maximum memory
     max_rounds: int = 1000  # maximum rounds
@@ -170,6 +170,25 @@ class DIRHelper:
             )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir
+
+    def get_eval_tag(args: OnlineArgs, nops: int = 0) -> str:
+        if args.exact:
+            if args.loading_mode == 3000:
+                assert nops != 0
+                tag = 'ralf'
+                for i in range(nops):
+                    tag += f"_{args.ralf_budget}"
+            else:
+                tag = "exact"
+        else:
+            tag = '-'.join([f'{args.termination_condition}',
+                            f'{args.max_relative_error}',
+                            f'{args.max_error}',
+                            f'{args.min_conf}',
+                            f'{args.max_time}',
+                            f'{args.max_memory}',
+                            f'{args.max_rounds}'])
+        return tag
 
 
 class LoadingHelper:

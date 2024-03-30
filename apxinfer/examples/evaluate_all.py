@@ -10,6 +10,7 @@ MachineryVaryNF = [f"machinerynf{i}" for i in range(1, 8)]
 MachineryVaryXNF = [f"machineryxf{i}" for i in range(1, 9)]
 MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)]
 MachineryMultiVaryXNF = [f"machinerymultixf{i}" for i in range(1, 9)]
+MachineryRalfVaryNF = [f"machineryralfnf{i}" for i in range(1, 8)]
 TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 30)]
 TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 1000)]
 
@@ -822,6 +823,18 @@ def run_studentqno18_vary_nf(args: ExpArgs, nf: int):
     models = [lgbm, gbm, tfgbm]
     """
     task_name = f"studentqno18nf{nf}"
+    agg_qids = list_to_option_str([i for i in range(nf)])
+    run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
+
+
+def run_machineryralf_vary_nf(args: ExpArgs, nf: int, fixed: bool = False):
+    """
+    must models = ["mlp", "svm", "knn"]
+    """
+    if fixed:
+        task_name = f"machineryralfxf{nf}"
+    else:
+        task_name = f"machineryralfnf{nf}"
     agg_qids = list_to_option_str([i for i in range(nf)])
     run_pipeline(args, task_name, agg_qids, [0.0], [0.0], default_only=True)
 

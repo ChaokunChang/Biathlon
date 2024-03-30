@@ -971,6 +971,9 @@ if __name__ == "__main__":
     elif args.exp in MachineryMultiVaryNF:
         nf = int(args.exp[len("machinerymultinf") :])
         run_machinerymulti_vary_nf(args, nf)
+    elif args.exp in MachineryRalfVaryNF:
+        nf = int(args.exp[len("machineryralfnf") :])
+        run_machineryralf_vary_nf(args, nf)
     elif args.exp in MachineryVaryXNF:
         nf = int(args.exp[len("machineryxf") :])
         run_machinery_vary_nf(args, nf, fixed=True)

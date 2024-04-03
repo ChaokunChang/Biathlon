@@ -255,6 +255,9 @@ class XIPFeatureErrorEstimator:
         self.bs_random_tcost = 0.0
         self.bs_resampling_tcost = 0
 
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+
     def estimate(
         self, samples: np.ndarray, p: float, tsize: int, features: np.ndarray, agg: str
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -272,6 +275,7 @@ class XIPFeatureErrorEstimator:
             if estimator is not None:
                 fests = estimator(samples, p, tsize)
             else:
+                self.logger.debug(f"Bootstrapping for {agg} aggregation")
                 bs_estimations = self.bootstrap(samples, p, tsize, agg)
                 fests = np.std(bs_estimations, axis=0, ddof=1)
                 if self.bs_type == "descrete":
@@ -466,8 +470,11 @@ class XIPFeatureEstimator:
         else:
             self.err_module = XIPFeatureErrorEstimator()
         self.aggregator = self.err_module.aggregator
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
 
     def extract(self, samples: np.ndarray, p: float, tsize: int, agg: str):
+        self.logger.debug(f"Extracting features with {agg} aggregation. p={p}, tsize={tsize}")
         features = self.aggregator.estimate(samples, p, agg)
         features, fstds = self.err_module.estimate(samples, p, tsize, features, agg)
         fnames = [f"{agg}_f{i}" for i in range(features.shape[0])]

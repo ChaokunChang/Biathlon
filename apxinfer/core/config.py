@@ -48,7 +48,7 @@ class TrainerArgs(BaseXIPArgs):
 
 
 class OfflineArgs(BaseXIPArgs):
-    offline_nreqs: int = 100  # number of requests for offline
+    offline_nreqs: int = 50  # number of requests for offline
     ncfgs: int = 100  # number of query configurations
     nreqs_offset: int = 0
     clear_cache: bool = False
@@ -170,6 +170,12 @@ class DIRHelper:
             )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir
+
+    def get_temponline_dir(args: OnlineArgs) -> str:
+        online_dir = DIRHelper.get_online_dir(args)
+        temponline_dir = online_dir.replace('/online/', '/temponline/')
+        os.makedirs(temponline_dir, exist_ok=True)
+        return temponline_dir
 
     def get_eval_tag(args: OnlineArgs, nops: int = 0) -> str:
         if args.exact:

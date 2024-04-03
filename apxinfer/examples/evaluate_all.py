@@ -300,6 +300,31 @@ def run_biathlon(
         print(f"skip {evals_path}")
 
 
+def run_tempbiathlon(
+    args: ExpArgs,
+    task_name: str,
+    model: str,
+    scheduler_init: int,
+    scheduler_batch: int,
+    max_error: float,
+    min_conf: float,
+):
+    biathlon_cmd = get_biathlon_cmd(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
+    biathlon_path = get_biathlon_path(
+        args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
+    )
+    biathlon_cmd = biathlon_cmd.replace('--stage online', '--stage temponline')
+    biathlon_path = biathlon_path.replace('/online/', '/temponline/')
+    evals_file = f"evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
+    evals_path = os.path.join(biathlon_path, evals_file)
+    if args.nocache or (not os.path.exists(evals_path)):
+        os.system(biathlon_cmd)
+    else:
+        print(f"skip {evals_path}")
+
+
 def run_profile(
     args: ExpArgs,
     task_name: str,
@@ -387,6 +412,16 @@ def run_pipeline(
         args.ralf_budget = ralf_budget_cache
     elif args.phase == "default":
         run_biathlon(
+            args,
+            task_name,
+            model,
+            args.default_alpha,
+            args.default_beta * naggs,
+            args.default_error,
+            args.default_conf,
+        )
+    elif args.phase == "tempdefault":
+        run_tempbiathlon(
             args,
             task_name,
             model,

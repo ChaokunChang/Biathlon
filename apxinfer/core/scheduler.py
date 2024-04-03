@@ -78,6 +78,13 @@ class XIPScheduler:
         self.logger.debug(f"min_qsamples: {self.min_qsamples}")
         self.logger.debug(f"max_qsamples: {self.max_qsamples}")
 
+    def set_min_qsamples(self, min_qsamples: List[float]):
+        self.min_qsamples = min_qsamples
+        self.max_qcfg_ids = [
+            int((self.max_qsamples[i] - self.min_qsamples[i]) / self.sample_grans[i])
+            for i in range(self.fextractor.num_queries)
+        ]
+
     def get_init_qcfgs(self, request: XIPRequest) -> List[XIPQueryConfig]:
         """Get the initial set of qcfgs to start the scheduler"""
         return [

@@ -202,7 +202,22 @@ class XIPQueryProcessor:
 
     def load_rrdata(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         if self.qtype in [XIPQType.AGG, XIPQType.ExactAGG]:
-            rrdata = self.load_rrdata_agg(request, qcfg)
+            if request.get("syn_data", None) is not None:
+                if request["syn_data"].get(self.qname, None) is not None:
+                    # patch for synthetic data
+                    if request.get('keep_latency', False):
+                        _ = self.load_rrdata_agg(request, qcfg)
+                    self.logger.debug(f"synthetic data for {self.qname}")
+                    rrdata: np.ndarray = request["syn_data"][self.qname]
+                    qoffset = qcfg.get("qoffset", 0.0)
+                    qsample = qcfg.get("qsample", 1.0)
+                    s = round(rrdata.shape[0] * qoffset)
+                    n = round(rrdata.shape[0] * qsample)
+                    rrdata = rrdata[s:n]
+                else:
+                    rrdata = self.load_rrdata_agg(request, qcfg)
+            else:
+                rrdata = self.load_rrdata_agg(request, qcfg)
         elif self.qtype in [XIPQType.FSTORE, XIPQType.KeySearch]:
             rrdata = self.load_rrdata_ks(request, qcfg)
         elif self.qtype in [XIPQType.NORMAL, XIPQType.TRANSFORM]:
@@ -353,6 +368,7 @@ class XIPQueryProcessor:
                     fvals = np.array([op(rrdata)])
                     fvec = self.get_fvec_with_default_est(fvals)
                 fvecs.append(fvec)
+        self.logger.debug(f"{self.qname} fvecs: {fvecs}")
         return merge_fvecs(fvecs, new_names=self.fnames)
 
     def estimate_cardinality(self, rrdata: np.ndarray, qcfg: XIPQueryConfig) -> int:
@@ -676,9 +692,9 @@ class RALFItem(TypedDict, total=True):
 
 
 class RALFStore:
-    def __init__(self, name: str,
-                 min_regret: float = None,
-                 max_regret: float = None) -> None:
+    def __init__(
+        self, name: str, min_regret: float = None, max_regret: float = None
+    ) -> None:
         """
         key: str
         item: RALFItem
@@ -701,7 +717,7 @@ class RALFStore:
         # self.logger.propagate = False
 
     def get_features(self, key: str) -> XIPFeatureVec:
-        self.logger.debug(f'get_features (key={key})')
+        self.logger.debug(f"get_features (key={key})")
         item = self.fstore.get(key, None)
         if item is not None:
             return item["features"]
@@ -709,7 +725,7 @@ class RALFStore:
             return None
 
     def update_features(self, key: str, ts: int, features: XIPFeatureVec) -> None:
-        self.logger.debug(f'update_features (key={key}, ts={ts})')
+        self.logger.debug(f"update_features (key={key}, ts={ts})")
         if self.fstore.get(key, None) is None:
             # new key
             self.fstore[key] = {"key": key}
@@ -719,10 +735,12 @@ class RALFStore:
 
         self.key_to_priorities[key] = 0.0
         self.update_history.append((key, ts))
-        self.logger.debug(f'fstore status: {self.fstore.keys()}')
+        self.logger.debug(f"fstore status: {self.fstore.keys()}")
 
     def update_errors(self, key: str, ts: int, error: float) -> None:
-        self.logger.debug(f'update_errors (key={key}, ts={ts}), fstore.keys={self.fstore.keys()}')
+        self.logger.debug(
+            f"update_errors (key={key}, ts={ts}), fstore.keys={self.fstore.keys()}"
+        )
         assert self.fstore.get(key, None) is not None
         if self.fstore[key]["errors"] is None:
             self.fstore[key]["errors"] = {ts: [error]}
@@ -739,7 +757,7 @@ class RALFStore:
 
     def update_priorities(self, cur_ts: int) -> list:
         # iterate through all keys, and compute the priority
-        self.logger.debug(f'update_priorities at {cur_ts}')
+        self.logger.debug(f"update_priorities at {cur_ts}")
         for key, item in self.fstore.items():
             cum_regret = 0.0
             if item["errors"] is not None:
@@ -757,16 +775,16 @@ class RALFStore:
                 priority = cum_regret
             self.key_to_priorities[key] = priority
 
-        self.logger.debug(f'priorities: {self.key_to_priorities}')
+        self.logger.debug(f"priorities: {self.key_to_priorities}")
 
     def select_keys(self, budget: int) -> list:
-        self.logger.debug(f'select_keys(budget={budget})')
+        self.logger.debug(f"select_keys(budget={budget})")
         # sort keys by priority, and select the top budget keys
         sorted_keys = sorted(
             self.key_to_priorities.items(), key=lambda x: x[1], reverse=True
         )
         selected_keys = [key for key, _ in sorted_keys[:budget]]
-        self.logger.debug(f'selected keys : {selected_keys}')
+        self.logger.debug(f"selected keys : {selected_keys}")
         return selected_keys
 
 

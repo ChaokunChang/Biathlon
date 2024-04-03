@@ -1,6 +1,7 @@
 from tap import Tap
 import os
 import joblib
+import pandas as pd
 
 from apxinfer.core.prepare import XIPPrepareWorker
 from apxinfer.core.config import DIRHelper, LoadingHelper
@@ -633,20 +634,9 @@ def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
     return model
 
 
-def run_online(name: str, args: OnlineArgs):
-    # load test data
-    test_set = LoadingHelper.load_dataset(
-        args, "test", args.nreqs, offset=args.nreqs_offset
-    )
-    if name == "tickralf":
-        # in the old version, the time unit is 1h,
-        # we need to divide 3600 to get the correct time unit
-        req0 = test_set.iloc[0]
-        if req0["req_label_ts"] - req0["req_ts"] >= 3600:
-            test_set["req_ts"] = test_set["req_ts"] // 3600
-            test_set["req_ts"] = test_set["req_ts"] // 3600
-    verbose = args.verbose and len(test_set) <= 10
-
+def get_ppl(name: str, args: OnlineArgs,
+            requests: pd.DataFrame,
+            verbose: bool) -> XIPPipeline:
     # load xip model
     model: XIPModel = LoadingHelper.load_model(args)
 
@@ -662,7 +652,7 @@ def run_online(name: str, args: OnlineArgs):
                 db_migration(
                     qry.dbtable,
                     qry.dbtable + f"_{suffix}",
-                    test_set["req_session_id"].tolist(),
+                    requests["req_session_id"].tolist(),
                 )
 
                 data_loader = XIPDataLoader(
@@ -782,11 +772,49 @@ def run_online(name: str, args: OnlineArgs):
         settings=ppl_settings,
         verbose=verbose,
     )
+    return ppl
+
+
+def run_online(name: str, args: OnlineArgs):
+    # load test data
+    test_set = LoadingHelper.load_dataset(
+        args, "test", args.nreqs, offset=args.nreqs_offset
+    )
+    if name == "tickralf":
+        # in the old version, the time unit is 1h,
+        # we need to divide 3600 to get the correct time unit
+        req0 = test_set.iloc[0]
+        if req0["req_label_ts"] - req0["req_ts"] >= 3600:
+            test_set["req_ts"] = test_set["req_ts"] // 3600
+            test_set["req_ts"] = test_set["req_ts"] // 3600
+    verbose = args.verbose and len(test_set) <= 10
 
     # run pipline to serve online requests
+    ppl = get_ppl(name, args, test_set, verbose)
     online_dir = DIRHelper.get_online_dir(args)
     executor = OnlineExecutor(ppl=ppl, working_dir=online_dir, verbose=verbose)
     executor.run(test_set, args.exact)
+
+
+def run_temponline(name: str, args: OnlineArgs):
+    # load test data
+    test_set = LoadingHelper.load_dataset(
+        args, "test", args.nreqs, offset=args.nreqs_offset
+    )
+    if name == "tickralf":
+        # in the old version, the time unit is 1h,
+        # we need to divide 3600 to get the correct time unit
+        req0 = test_set.iloc[0]
+        if req0["req_label_ts"] - req0["req_ts"] >= 3600:
+            test_set["req_ts"] = test_set["req_ts"] // 3600
+            test_set["req_ts"] = test_set["req_ts"] // 3600
+    verbose = args.verbose and len(test_set) <= 10
+
+    # run pipline to serve online requests
+    ppl = get_ppl(name, args, test_set, verbose)
+    working_dir = DIRHelper.get_temponline_dir(args)
+    executor = OnlineExecutor(ppl=ppl, working_dir=working_dir, verbose=verbose)
+    executor.run(test_set, args.exact, keep_all=True)
 
 
 class RunArgs(Tap):
@@ -816,5 +844,9 @@ if __name__ == "__main__":
         staget_args = OnlineArgs().parse_args(known_only=True)
         # print(f"run {args.stage} with {staget_args}")
         run_online(args.example, staget_args)
+    elif args.stage == "temponline":
+        staget_args = OnlineArgs().parse_args(known_only=True)
+        # print(f"run {args.stage} with {staget_args}")
+        run_temponline(args.example, staget_args)
     else:
         raise ValueError(f"unsupported stage {args.stage}")

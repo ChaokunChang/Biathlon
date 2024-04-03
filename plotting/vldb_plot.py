@@ -22,7 +22,8 @@ YLIM_ACC = [0.0, 1.01]
 REG_TASKS = [
     # "tripsralf2h",
     "tripsralfv2",
-    "tickralf",
+    # "tickralf",
+    "tickralfv2",
     "batteryv2",
     "turbofan",
 ]
@@ -37,13 +38,8 @@ CLS_TASKS = [
 ]
 
 rename_map = {
-    "tripsralf2h": "tripsralf2h",
-    "tripsralfv2": "tripsralfv2",
-    "tdfraudralf2d": "tdfraudralf2d",
-    "tickralf": "tickralf",
     "batteryv2": "Battery-Charge",
     "trubofan": "Turbofan-RUL",
-    "tdfraudralf": "tdfraudralf",
     "machineryralf": "Bearing-Imbalance",
     "studentqno18": "QA-Correctness",
 }
@@ -81,6 +77,11 @@ task_default_settings = {
         "max_error": 0.04,
         "ralf_budget": 0.1,
     },
+    "tickralfv2": {
+        "model": "lr",
+        "max_error": 0.04,
+        "ralf_budget": 5.0,
+    },
     "batteryv2": {
         "model": "lgbm",
         "max_error": 189.0,
@@ -99,7 +100,7 @@ task_default_settings = {
     "tdfraudralf2d": {
         "model": "xgb",
         "max_error": 0.0,
-        "ralf_budget": 0.1,
+        "ralf_budget": 0.05,
     },
     "machineryralf": {
         "model": "mlp",
@@ -144,6 +145,7 @@ class EvalArgs(Tap):
             files = [f for f in files if f.startswith("avg_") and f.endswith(".csv")]
             files.sort(reverse=True)
             self.filename = files[0]
+            print(f"Using {self.filename}")
         if self.plot_dir is None:
             self.plot_dir = f'figs_{self.score_type}_{self.cls_score}_{self.reg_score}'
 

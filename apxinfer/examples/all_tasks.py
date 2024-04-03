@@ -9,7 +9,7 @@ ALL_REG_TASKS = [
     "turbofanall",
     "tripsralf", "tripsralfv2",
     "tripsralftest", "tripsralf2h",
-    "tickralftest", "tickralf"
+    "tickralftest", "tickralf",
     "tickralfv2test", "tickralfv2"
 ]
 ALL_CLS_TASKS = [
@@ -44,6 +44,9 @@ MachineryMultiVaryNF = [f"machinerymultif{i}" for i in range(1, 8)] + [
 ]
 ALL_CLS_TASKS += MachineryVaryNF
 ALL_CLS_TASKS += MachineryMultiVaryNF
+
+MachineryRalfVaryNF = [f"machineryralfnf{i}" for i in range(1, 8)]
+ALL_CLS_TASKS += MachineryRalfVaryNF
 
 TickVaryNMonths = [f"tickvaryNM{i}" for i in range(1, 30)]
 ALL_REG_TASKS += TickVaryNMonths

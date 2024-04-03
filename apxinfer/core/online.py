@@ -272,7 +272,9 @@ class OnlineExecutor:
 
         return evals
 
-    def run(self, dataset: pd.DataFrame, exact: bool = False) -> dict:
+    def run(self, dataset: pd.DataFrame,
+            exact: bool = False,
+            keep_all: bool = False) -> dict:
         self.logger.info("Running online executor")
         results = self.preprocess(dataset)
 
@@ -285,10 +287,6 @@ class OnlineExecutor:
         # save evals to json
         with open(f"{self.working_dir}/evals.json", "w") as f:
             json.dump(evals, f, indent=4)
-
-        # save results
-        # with open(f"{self.working_dir}/results.pkl", "wb") as f:
-        #     pickle.dump(results, f)
 
         # duplicate to tagged file
         if exact:
@@ -376,4 +374,15 @@ class OnlineExecutor:
         qcosts_str = [f"{qcost:.4f}" for qcost in evals["avg_qtime_query"]]
         self.logger.info(f"avg(qsamples) : {', '. join(qsamples_str)}")
         self.logger.info(f"avg(qcosts)   : {', '. join(qcosts_str)}")
+
+        if keep_all:
+            tmp = results.copy()
+            tmp['ext_features'] = None
+            tmp['ext_preds'] = None
+            tmp['labels'] = None
+            tmp['requests'] = None
+            # save results
+            with open(f"{self.working_dir}/results_{tag}.pkl", "wb") as f:
+                pickle.dump(tmp, f)
+
         return results

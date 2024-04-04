@@ -85,7 +85,7 @@ def plot_qids(
 
     for i, ax in enumerate(axes):
         ax.legend()
-        ax.set_xlabel("p of reviewer distribution")
+        ax.set_xlabel("median query ID")
         # ax.set_xscale("log")
         ax.set_xticks(x_values)
         ax.set_xticklabels([f"{alpha}" for alpha in x_values], rotation=45)

@@ -281,7 +281,7 @@ def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
             return res
 
     # print(f'sim_args: {sim_args}')
-    args = get_online_args(sim_args)
+    args: OnlineArgs = get_online_args(sim_args)
     # print(f'args: {args}')
 
     test_set: pd.DataFrame = LoadingHelper.load_dataset(

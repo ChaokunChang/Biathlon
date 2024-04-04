@@ -1,0 +1,335 @@
+import os
+import sys
+import numpy as np
+import json
+import math
+import time
+from typing import List
+from tap import Tap
+from tqdm import tqdm
+import joblib
+import logging
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
+from matplotlib.transforms import Bbox
+import seaborn as sns
+from sklearn import metrics
+from scipy import stats
+import warnings
+
+from SALib.sample import sobol as sobol_sample
+from SALib.analyze import sobol as sobol_analyze
+
+from apxinfer.core.config import OnlineArgs
+from apxinfer.core.config import DIRHelper, LoadingHelper
+from apxinfer.core.utils import is_same_float, XIPQType
+from apxinfer.core.data import DBHelper
+from apxinfer.core.pipeline import XIPPipeline
+from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
+from apxinfer.examples.run import get_ppl
+
+
+task_meta = {
+    "machineryralf": {
+        "nops": 8,
+        "naggs": 8,
+        "agg_ids": list(range(8)),
+        "is_aggop": [True] * 8,
+        "model": "mlp",
+        "max_error": 0.0,
+    },
+    "tickralfv2": {
+        "nops": 7,
+        "naggs": 1,
+        "agg_ids": [6],
+        "is_aggop": [False] * 6 + [True],
+        "model": "lr",
+        "max_error": 0.04,
+    },
+    "turbofan": {
+        "nops": 9,
+        "naggs": 9,
+        "agg_ids": list(range(9)),
+        "is_aggop": [True] * 9,
+        "model": "rf",
+        "max_error": 4.8,
+    },
+}
+
+
+class SimulationArgs(Tap):
+    task_home: str = "final"
+    task_name: str = "machineryralf"
+
+    bs_type: str = "descrete"
+    bs_nresamples: int = 128
+
+    pest: str = "biathlon"
+    pest_nsamples: int = 128
+    min_conf: float = 0.95
+
+    alpha: int = 5
+    beta: int = 1
+
+    dsize: int = 100_000 + 1
+    synv: float = -100.0
+    dist: str = "reviewer"
+    dist_param: float = 1e-5
+
+    op_type: str = "median"
+    selected_qid: int = 0
+    seed: int = 0
+    syndb_seed: int = 0
+    rid: int = 0
+
+    keep_latency: bool = False
+
+    debug: bool = False
+    save_dir: str = "/home/ckchang/ApproxInfer/cache"
+    logfile: str = "debug.log"
+
+    nocache: bool = False
+
+    def process_args(self) -> None:
+        if self.task_name == "tickralfv2":
+            assert self.selected_qid == 6, "Only support selected_qid=6 for tickralfv2"
+
+    def get_tag(self):
+        tag = "_".join(
+            [
+                self.task_name,
+                f"{self.rid}",
+                f"{self.selected_qid}",
+                f"{self.op_type}",
+                f"{self.dist}",
+                f"{self.synv}",
+                f"{self.dist_param}",
+                f"{self.dsize}",
+                f"{self.seed}",
+                f"{self.syndb_seed}",
+                f"{self.bs_type}",
+                f"{self.bs_nresamples}",
+                f"{self.pest}",
+                f"{self.pest_nsamples}",
+                f"{self.min_conf}",
+                f"{self.alpha}",
+                f"{self.beta}",
+            ]
+        )
+        return tag
+
+
+def generate_synthetic_data(
+    x: float, operator: str, dsize: int, seed: int, ddist: str, **kwargs
+) -> np.ndarray:
+    # generate {dsize} synthetic data that
+    # following {ddsit} distribution with {dist_args}
+    # make sure that x == {operator}(data)
+    rng = np.random.default_rng(0)
+    if ddist == "norm":
+        std_value = kwargs.get("arg")
+        data = rng.normal(x, std_value, dsize)
+    elif ddist == "uni":
+        half_range = kwargs.get("arg")
+        data = rng.uniform(x - half_range, x + half_range, dsize)
+    elif ddist == "zipf":
+        alpha = kwargs.get("arg")
+        data = rng.zipf(alpha, dsize).astype(float)
+        data = np.minimum(data, dsize)
+    elif ddist == "reviewer":
+        p = kwargs.get("arg")
+        synv = kwargs.get("synv")
+        x_num = int(dsize * (0.5 + p))
+        data = np.array([x] * x_num + [synv] * (dsize - x_num))
+    else:
+        raise ValueError(f"Invalid distribution: {ddist}")
+
+    if operator == "mean":
+        if not is_same_float(x, np.mean(data)):
+            data = data + (x - np.mean(data))
+        assert is_same_float(x, np.mean(data)), f"{x} != {np.mean(data)}"
+    elif operator == "median":
+        if not is_same_float(x, np.median(data)):
+            data = data + (x - np.median(data))
+        assert is_same_float(x, np.median(data)), f"{x} != {np.median(data)}"
+    elif operator == "max":
+        if not is_same_float(x, np.max(data)):
+            data = data + (x - np.max(data))
+        assert is_same_float(x, np.max(data)), f"{x} != {np.max(data)}"
+    elif operator == "min":
+        if not is_same_float(x, np.min(data)):
+            data = data + (x - np.min(data))
+        assert is_same_float(x, np.min(data)), f"{x} != {np.min(data)}"
+    else:
+        raise ValueError(f"Invalid aggregation type: {operator}")
+
+    # shuffule data
+    rng = np.random.default_rng(seed)
+    rng.shuffle(data)
+    return data
+
+
+def run(
+    ppl: XIPPipeline,
+    request: dict,
+    dsizes: List[int],
+    ddists: List[int],
+    dist_args: List[float],
+    operators: List[List[str] | None],
+    syndb_seed: int,
+    synv: float,
+    keep_latency: bool = False,
+) -> dict:
+    fnames = [f"f_{fname}" for fname in ppl.fextractor.fnames]
+    x = np.array([request[fname] for fname in fnames])
+    y_true = request["label"]
+    y_exact = ppl.model.predict(x.reshape(1, -1))[0]
+
+    dataset = {
+        qry.qname: generate_synthetic_data(
+            x[qid],
+            operators[qid][0],
+            dsizes[qid],
+            syndb_seed,
+            ddists[qid],
+            arg=dist_args[qid],
+            synv=synv,
+        ).reshape(-1, 1)
+        for qid, qry in enumerate(ppl.fextractor.queries)
+        if operators[qid] is not None
+    }
+    request["syn_data"] = dataset
+    if keep_latency:
+        request["keep_latency"] = True
+
+    for qid, qry in enumerate(ppl.fextractor.queries):
+        for i in range(len(qry.qops)):
+            if operators[qid] is not None:
+                qry.qops[i]["dops"] = operators[qid]
+
+    xip_pred = ppl.serve(request, exact=False)
+    latency = time.time() - ppl.start_time
+
+    for qid, qry in enumerate(ppl.fextractor.queries):
+        qry.set_enable_qcache()
+        qry.set_enable_dcache()
+
+    return {
+        "xip_pred": xip_pred,
+        "feature": x,
+        "y_true": y_true,
+        "y_exact": y_exact,
+        "history": ppl.scheduler.history,
+        "latency": latency,
+        "request": request,
+    }
+
+
+def set_logger(level: int = logging.INFO, log_file: str = None):
+    # set logging level for all registered loggers
+    import logging
+
+    for key in logging.Logger.manager.loggerDict:
+        if level == logging.DEBUG:
+            if "XIP" in key or "apxinf" in key:
+                print(f"Set {key} to {level}")
+                logging.getLogger(key).setLevel(level)
+        else:
+            logging.getLogger(key).setLevel(level)
+        # set logging file
+        if log_file is not None:
+            print(f"Log to {log_file}")
+            fh = logging.FileHandler(filename=log_file)
+            logging.getLogger(key).addHandler(fh)
+            logging.getLogger(key).propagate = False
+
+
+def get_online_args(args: SimulationArgs) -> OnlineArgs:
+    meta = task_meta[args.task_name]
+    settings = {
+        "task": os.path.join(args.task_home, args.task_name),
+        "model": meta["model"],
+        "seed": args.seed,
+        "bs_type": args.bs_type,
+        "bs_nresamples": args.bs_nresamples,
+        "pest": args.pest,
+        "pest_nsamples": args.pest_nsamples,
+        "scheduler_init": args.alpha,
+        "scheduler_batch": meta["naggs"] * args.beta,
+        "max_error": meta["max_error"],
+        "min_conf": args.min_conf,
+    }
+    ol_args = OnlineArgs().from_dict(settings)
+    return ol_args
+
+
+def pred_check(task_name: str, y_pred, y_oracle) -> bool:
+    max_error = task_meta[task_name]["max_error"]
+    return np.abs(y_pred - y_oracle) < max_error + 1e-9
+
+
+def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
+    if not sim_args.nocache:
+        tag = sim_args.get_tag()
+        os.makedirs(os.path.join(sim_args.save_dir, "results"), exist_ok=True)
+        res_path = os.path.join(sim_args.save_dir, "results", f"res_{tag}.pkl")
+        if os.path.exists(res_path):
+            if verbose:
+                print(f"Load result from {res_path}")
+            res = joblib.load(res_path)
+            return res
+
+    # print(f'sim_args: {sim_args}')
+    args = get_online_args(sim_args)
+    # print(f'args: {args}')
+
+    test_set: pd.DataFrame = LoadingHelper.load_dataset(
+        args, "test", args.nreqs, offset=args.nreqs_offset
+    )
+    # fnames = [col for col in test_set.columns if col.startswith("f_")]
+    # features = test_set[fnames].values
+    # targets = test_set["label"].values
+
+    ppl: XIPPipeline = get_ppl(sim_args.task_name, args, test_set, verbose=False)
+    if sim_args.debug:
+        set_logger(logging.DEBUG, os.path.join(sim_args.save_dir, sim_args.logfile))
+
+    request = test_set.iloc[sim_args.rid].to_dict()
+    dsizes = [sim_args.dsize] * len(ppl.fextractor.queries)
+    ddists = [sim_args.dist] * len(ppl.fextractor.queries)
+    dist_args = [sim_args.dist_param] * len(ppl.fextractor.queries)
+    operators = [
+        [sim_args.op_type] if i == sim_args.selected_qid else None
+        for i in range(len(ppl.fextractor.queries))
+    ]
+
+    res = run(
+        ppl=ppl,
+        request=request,
+        dsizes=dsizes,
+        ddists=ddists,
+        dist_args=dist_args,
+        operators=operators,
+        syndb_seed=sim_args.syndb_seed,
+        synv=sim_args.synv,
+        keep_latency=sim_args.keep_latency,
+    )
+    if verbose:
+        print(
+            len(res["history"]),
+            pred_check(sim_args.task_name, res["xip_pred"]["pred_value"], res["y_exact"]),
+            res["latency"],
+            [qcfg["qsample"] for qcfg in res["history"][-1]["qcfgs"]],
+        )
+
+    joblib.dump(res, res_path)
+    if verbose:
+        print(f"Saved result to {res_path}")
+
+    return res
+
+
+if __name__ == "__main__":
+    sim_args = SimulationArgs().parse_args()
+    run_default(sim_args)

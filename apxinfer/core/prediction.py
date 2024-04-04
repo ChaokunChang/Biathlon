@@ -326,9 +326,9 @@ class BiathlonPredictionEstimator(XIPPredictionEstimator):
             seed=self.seed,
         )
         warnings.resetwarnings()
-        # sis = [f'{v:.4f}' for v in self.Si["S1"]]
-        # print(f'({self.count:02d}) ({np.var(self.preds):.4f}) Si: {", ".join(sis)}')
-        # self.count += 1
+        sis = [f'{v:.4f}' for v in self.Si["S1"]]
+        self.logger.debug(f'({self.count:02d}) ({np.var(self.preds):.4f}) Si: {", ".join(sis)}')
+        self.count += 1
         return self.Si["S1"]
 
     def estimate(self, model: XIPModel, fvec: XIPFeatureVec) -> XIPPredEstimation:

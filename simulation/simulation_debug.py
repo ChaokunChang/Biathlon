@@ -318,7 +318,7 @@ axes[3].set_ylabel("Feature Value")
 axes[3].legend()
 axes[3].grid()
 
-axes[4].plot(qsamples_trace[:, default_opid], label=f"f_{i}")
+axes[4].plot(qsamples_trace[:, default_opid], label=f"f_{default_opid}")
 axes[4].scatter(x, qsamples_trace[:, default_opid])
 axes[4].set_title("Query Sample Frac")
 axes[4].set_xlabel("Iteration")

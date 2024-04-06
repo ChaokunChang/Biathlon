@@ -11,7 +11,7 @@ from apxinfer.core.utils import XIPFeatureVec, XIPPredEstimation
 from apxinfer.core.utils import XIPPipelineSettings, is_same_float
 from apxinfer.core.fengine import XIPFEngine as XIPFeatureExtractor
 from apxinfer.core.model import XIPModel
-from apxinfer.core.prediction import XIPPredictionEstimator
+from apxinfer.core.prediction import XIPPredictionEstimator, BiathlonPredictionEstimator
 from apxinfer.core.scheduler import XIPScheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -104,12 +104,13 @@ class XIPPipeline:
         self.scheduler.record(request, qcfgs, fvec, xip_pred, qcosts)
         return xip_pred
 
-    def run_apx(self, request: XIPRequest) -> XIPPredEstimation:
+    def run_apx(self, request: XIPRequest, keep_qmc: bool = False) -> XIPPredEstimation:
         self.start_time = time.time()
         self.cumulative_qtimes = np.zeros(self.fextractor.num_queries)
         self.cumulative_pred_time = 0
         self.cumulative_scheduler_time = 0
 
+        qmc_states = []
         qcfgs = self.scheduler.start(request)
         round_id = 0
         while round_id < self.settings.max_rounds:
@@ -119,6 +120,9 @@ class XIPPipeline:
             st = time.time()
             pred = self.pred_estimator.estimate(self.model, fvec)
             self.cumulative_pred_time += time.time() - st
+
+            if keep_qmc and isinstance(self.pred_estimator, BiathlonPredictionEstimator):
+                qmc_states.append(self.pred_estimator.preds)
 
             self.scheduler.record(request, qcfgs, fvec, pred, qcosts)
             terminated = self.meet_termination_condition(request, qcfgs, fvec, pred)
@@ -133,6 +137,7 @@ class XIPPipeline:
             round_id += 1
 
         pred["fvec"] = fvec
+        pred['qmc_preds'] = np.array(qmc_states)
         return pred
 
     def serve(self, request: XIPRequest, exact: bool = False) -> XIPPredEstimation:

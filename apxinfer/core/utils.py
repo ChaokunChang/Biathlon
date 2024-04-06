@@ -52,6 +52,7 @@ class XIPPredEstimation(TypedDict, total=False):
     pred_conf: float
     pred_var: float
     fvec: XIPFeatureVec
+    qmc_preds: np.ndarray
 
 
 class XIPFInfEstimation(TypedDict, total=False):

@@ -23,8 +23,9 @@ from SALib.analyze import sobol as sobol_analyze
 
 from apxinfer.core.config import OnlineArgs
 from apxinfer.core.config import DIRHelper, LoadingHelper
-from apxinfer.core.utils import is_same_float, XIPQType
+from apxinfer.core.utils import is_same_float, XIPQType, XIPFeatureVec
 from apxinfer.core.data import DBHelper
+from apxinfer.core.prediction import BiathlonPredictionEstimator
 from apxinfer.core.pipeline import XIPPipeline
 from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 from apxinfer.examples.run import get_ppl
@@ -55,6 +56,14 @@ task_meta = {
         "model": "rf",
         "max_error": 4.8,
     },
+    "tripsralfv2": {
+        "nops": 3,
+        "naggs": 2,
+        "agg_ids": [1, 2],
+        "is_aggop": [False, True, True],
+        "model": "lgbm",
+        "max_error": 1.5,
+    },
 }
 
 
@@ -67,6 +76,7 @@ class SimulationArgs(Tap):
 
     pest: str = "biathlon"
     pest_nsamples: int = 128
+    pest_seed: int = 0
     min_conf: float = 0.95
 
     alpha: int = 5
@@ -82,6 +92,8 @@ class SimulationArgs(Tap):
     seed: int = 0
     syndb_seed: int = 0
     rid: int = 0
+
+    scaling_factor: float = 1.0
 
     keep_latency: bool = False
 
@@ -112,9 +124,11 @@ class SimulationArgs(Tap):
                 f"{self.bs_nresamples}",
                 f"{self.pest}",
                 f"{self.pest_nsamples}",
+                f"{self.pest_seed}",
                 f"{self.min_conf}",
                 f"{self.alpha}",
                 f"{self.beta}",
+                f"{self.scaling_factor}"
             ]
         )
         return tag
@@ -255,6 +269,7 @@ def get_online_args(args: SimulationArgs) -> OnlineArgs:
         "bs_nresamples": args.bs_nresamples,
         "pest": args.pest,
         "pest_nsamples": args.pest_nsamples,
+        "pest_seed": args.pest_seed,
         "scheduler_init": args.alpha,
         "scheduler_batch": meta["naggs"] * args.beta,
         "max_error": meta["max_error"],
@@ -270,10 +285,10 @@ def pred_check(task_name: str, y_pred, y_oracle) -> bool:
 
 
 def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
+    tag = sim_args.get_tag()
+    os.makedirs(os.path.join(sim_args.save_dir, "results"), exist_ok=True)
+    res_path = os.path.join(sim_args.save_dir, "results", f"res_{tag}.pkl")
     if not sim_args.nocache:
-        tag = sim_args.get_tag()
-        os.makedirs(os.path.join(sim_args.save_dir, "results"), exist_ok=True)
-        res_path = os.path.join(sim_args.save_dir, "results", f"res_{tag}.pkl")
         if os.path.exists(res_path):
             if verbose:
                 print(f"Load result from {res_path}")
@@ -322,6 +337,83 @@ def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
             res["latency"],
             [qcfg["qsample"] for qcfg in res["history"][-1]["qcfgs"]],
         )
+
+    joblib.dump(res, res_path)
+    if verbose:
+        print(f"Saved result to {res_path}")
+
+    return res
+
+
+def run_qmc(
+    sim_args: SimulationArgs,
+    verbose: bool = False,
+) -> dict:
+    args: OnlineArgs = get_online_args(sim_args)
+    task_name = sim_args.task_name
+    meta = task_meta[task_name]
+    rid = sim_args.rid
+    scaling_factor = sim_args.scaling_factor
+
+    os.makedirs(os.path.join(sim_args.save_dir, "qmc"), exist_ok=True)
+    tag = sim_args.get_tag()
+    res_path = os.path.join(sim_args.save_dir, "qmc", f"res_{tag}.pkl")
+    if not sim_args.nocache:
+        if os.path.exists(res_path):
+            if verbose:
+                print(f"Load result from {res_path}")
+            res = joblib.load(res_path)
+            return res
+
+    test_set: pd.DataFrame = LoadingHelper.load_dataset(
+        args, "test", args.nreqs, offset=args.nreqs_offset
+    )
+
+    ppl = get_ppl(task_name, args, test_set, verbose=False)
+    assert isinstance(ppl.pred_estimator, BiathlonPredictionEstimator)
+
+    fnames = ppl.fextractor.fnames
+    features = test_set[[f"f_{col}" for col in fnames]].values
+    targets = test_set["label"].values
+    fstds = np.std(features, axis=0)
+
+    rid = sim_args.rid
+    request = test_set.iloc[rid].to_dict()
+    x = features[rid]
+    y_true = targets[rid]
+    y_exact = ppl.model.predict(x.reshape(1, -1))[0]
+    if verbose:
+        print(f"(rid={rid}) y_true: {y_true}, y_exact: {y_exact}")
+
+    fests = np.zeros_like(fstds)
+    fdists = ["fixed"] * len(ppl.fextractor.fnames)
+    for qid in meta["agg_ids"]:
+        for fname in ppl.fextractor.queries[qid].fnames:
+            fid = fnames.index(fname)
+            fests[fid] = fstds[fid] * scaling_factor
+            fdists[fid] = "normal"
+    fvecs = XIPFeatureVec(
+        fnames=fnames,
+        fvals=x,
+        fests=fests,
+        fdists=fdists,
+    )
+
+    ppl.pred_estimator.n_samples = sim_args.pest_nsamples
+    ppl.pred_estimator.seed = sim_args.pest_seed
+    qmc_preds = ppl.pred_estimator.get_qmc_preds(ppl.model, fvecs)
+    res = {
+        "qmc_preds": qmc_preds,
+        "pred_mean": np.mean(qmc_preds),
+        "pred_std": np.std(qmc_preds),
+        "nsamples":  sim_args.pest_nsamples,
+        "seed": sim_args.pest_seed,
+        "rid": rid,
+        "fvals": x,
+        "fstds": fstds,
+        "y_exact": y_exact,
+        "y_true": y_true,
+    }
 
     joblib.dump(res, res_path)
     if verbose:

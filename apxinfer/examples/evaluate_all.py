@@ -49,6 +49,8 @@ class ExpArgs(Tap):
     default_only: bool = False
     nocache: bool = False
 
+    try_execution: bool = False
+
     def process_args(self):
         assert self.exp is not None
         assert self.model is not None
@@ -134,7 +136,10 @@ def get_shared_path(args: ExpArgs, task_name: str, model: str):
 def run_ingest(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
     ingest_cmd = f"{shared_cmd} --stage ingest"
-    os.system(ingest_cmd)
+    if args.try_execution:
+        print(ingest_cmd)
+    else:
+        os.system(ingest_cmd)
 
 
 def run_prepare(args: ExpArgs, task_name: str, model: str):
@@ -142,13 +147,19 @@ def run_prepare(args: ExpArgs, task_name: str, model: str):
     prepare_cmd = f"{shared_cmd} --stage prepare"
     if args.skip_dataset:
         prepare_cmd = f"{prepare_cmd} --skip_dataset"
-    os.system(prepare_cmd)
+    if args.try_execution:
+        print(prepare_cmd)
+    else:
+        os.system(prepare_cmd)
 
 
 def run_training(args: ExpArgs, task_name: str, model: str):
     shared_cmd = get_shared_cmd(args, task_name, model)
     training_cmd = f"{shared_cmd} --stage train"
-    os.system(training_cmd)
+    if args.try_execution:
+        print(training_cmd)
+    else:
+        os.system(training_cmd)
 
 
 def get_base_cmd(args: ExpArgs, task_name: str, model: str):
@@ -180,7 +191,10 @@ def run_offline(args: ExpArgs, task_name: str, model: str):
     offline_cmd = f"{base_cmd} --stage offline"
     if args.nocache:
         offline_cmd = f"{offline_cmd} --clear_cache"
-    os.system(offline_cmd)
+    if args.try_execution:
+        print(offline_cmd)
+    else:
+        os.system(offline_cmd)
 
 
 def get_baseline_path(args: ExpArgs, task_name: str, model: str) -> str:
@@ -203,7 +217,10 @@ def run_baseline(args: ExpArgs, task_name: str, model: str):
     baseline_path = get_baseline_path(args, task_name, model)
     evals_path = os.path.join(baseline_path, "evals_exact.json")
     if args.nocache or (not os.path.exists(evals_path)):
-        os.system(baseline_cmd)
+        if args.try_execution:
+            print(baseline_cmd)
+        else:
+            os.system(baseline_cmd)
 
 
 def get_ralf_path(args: ExpArgs, task_name: str, model: str) -> str:
@@ -226,8 +243,10 @@ def run_ralf(args: ExpArgs, task_name: str, model: str):
                     )
                     if float(ralf_budgets[0]) == args.ralf_budget:
                         return None
-
-    os.system(ralf_cmd)
+    if args.try_execution:
+        print(ralf_cmd)
+    else:
+        os.system(ralf_cmd)
 
 
 def get_biathlon_cmd(
@@ -295,7 +314,10 @@ def run_biathlon(
     evals_file = f"evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
     evals_path = os.path.join(biathlon_path, evals_file)
     if args.nocache or (not os.path.exists(evals_path)):
-        os.system(biathlon_cmd)
+        if args.try_execution:
+            print(biathlon_cmd)
+        else:
+            os.system(biathlon_cmd)
     else:
         print(f"skip {evals_path}")
 
@@ -320,7 +342,10 @@ def run_tempbiathlon(
     evals_file = f"evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
     evals_path = os.path.join(biathlon_path, evals_file)
     if args.nocache or (not os.path.exists(evals_path)):
-        os.system(biathlon_cmd)
+        if args.try_execution:
+            print(biathlon_cmd)
+        else:
+            os.system(biathlon_cmd)
     else:
         print(f"skip {evals_path}")
 
@@ -350,10 +375,16 @@ def run_profile(
     profling_opts = f"-m cProfile -s cumtime -o {profile_dir}/{profile_tag}.pstats"
     # add profiling opts after args.interpreter
     cmd = biathlon_cmd.replace(args.interpreter, f"{args.interpreter} {profling_opts}")
-    os.system(cmd)
+    if args.try_execution:
+        print(cmd)
+    else:
+        os.system(cmd)
 
     cmd = f"gprof2dot -f pstats {profile_dir}/{profile_tag}.pstats | dot -Tsvg -o {profile_dir}/{profile_tag}.svg"
-    os.system(cmd)
+    if args.try_execution:
+        print(cmd)
+    else:
+        os.system(cmd)
 
     print(f"profiling results in {profile_dir}/{profile_tag}.svg")
 
@@ -372,7 +403,10 @@ def run_verbose(
         args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
     )
     cmd = f"{biathlon_cmd} --verbose --nreqs {nreqs}"
-    os.system(cmd)
+    if args.try_execution:
+        print(cmd)
+    else:
+        os.system(cmd)
 
 
 def run_pipeline(
@@ -531,6 +565,16 @@ def run_student(args: ExpArgs):
 
 
 def run_studentqnov2(args: ExpArgs, task_name: str = "studentqnov2"):
+    """
+    models = [lgbm, gbm, tfgbm]
+    """
+    agg_qids = list_to_option_str([i for i in range(13)])
+    default_max_errors = [0.0]
+    max_errors = [0.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_performance(args: ExpArgs, task_name: str = "performance18"):
     """
     models = [lgbm, gbm, tfgbm]
     """
@@ -1046,5 +1090,7 @@ if __name__ == "__main__":
     elif args.exp.startswith("studentqno"):
         qno = int(args.exp[len("studentqno") :])
         run_studentqno(args, qno)
+    elif args.exp.startswith("performance"):
+        run_performance(args, task_name=args.exp)
     else:
         raise ValueError(f"invalid exp {args.exp}")

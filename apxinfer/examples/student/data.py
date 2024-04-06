@@ -229,5 +229,22 @@ def db_migration(from_dbtable: str, to_dbtable: str, session_ids: list):
     db_client.command(sql)
 
 
+def db_migration_v2(from_dbtable: str, to_dbtable: str,
+                    session_ids: list,
+                    level_group: str):
+    db_client = DBHelper.get_db_client()
+    sql = f"""
+        CREATE TABLE IF NOT EXISTS {to_dbtable}
+        ENGINE = MergeTree()
+        PARTITION BY `pid`
+        ORDER BY (`session_id`, `level_group`)
+        AS SELECT *
+        FROM {from_dbtable}
+        WHERE level_group = '{level_group}' 
+            AND session_id IN ({', '.join(map(str, session_ids))})
+        """
+    db_client.command(sql)
+
+
 if __name__ == "__main__":
     ingest()

@@ -80,11 +80,11 @@ class StudentPrepareWorker(XIPPrepareWorker):
         )
         df = labels
         df["level_group"] = df["qno"].apply(get_query_group)
-        df = df.merge(df_features, on=['session_id', 'level_group'], how='left')
+        df = df.merge(df_features, on=["session_id", "level_group"], how="left")
         df = df.reset_index()
 
         df.insert(0, "ts", range(len(df)))
-        df['label_ts'] = df['ts']
+        df["label_ts"] = df["ts"]
 
         df.to_csv(os.path.join(self.working_dir, "extracted_df.csv"), index=False)
         self._cached_df = df
@@ -108,7 +108,7 @@ class StudentPrepareWorker(XIPPrepareWorker):
             right_on=["session_id", "qno"],
             how="left",
         )
-        df['req_qno_0'] = df["req_qno"]
+        df["req_qno_0"] = df["req_qno"]
         fnames = []
         qfeatures_list = []
         qcosts = []
@@ -117,17 +117,18 @@ class StudentPrepareWorker(XIPPrepareWorker):
             fnames.extend(query.fnames)
 
             self.logger.info(f"Extracting features {query.fnames}")
-            qtype = query.qtype
-            if qtype == XIPQType.AGG:
-                cols = [
-                    "_".join(fname.split("_")[1:-1]) for fname in query.fnames
-                ]
-            elif qtype == XIPQType.NORMAL:
-                cols = [
-                    "_".join(fname.split("_")[1:-1]) for fname in query.fnames
-                ]
-            else:
-                raise ValueError(f"Unknown query type {qtype}")
+            # qtype = query.qtype
+            # if qtype == XIPQType.AGG:
+            #     cols = [
+            #         "_".join(fname.split("_")[1:-1]) for fname in query.fnames
+            #     ]
+            # elif qtype == XIPQType.NORMAL:
+            #     cols = [
+            #         "_".join(fname.split("_")[1:-1]) for fname in query.fnames
+            #     ]
+            # else:
+            #     raise ValueError(f"Unknown query type {qtype}")
+            cols = ["_".join(fname.split("_")[1:-1]) for fname in query.fnames]
             qfeatures = df[cols].values
             self.logger.info(f"Extracted features {query.fnames}")
 

@@ -225,6 +225,14 @@ def get_fengine(name: str, args: BaseXIPArgs):
                 seed=args.seed,
                 verbose=args.verbose,
             )
+    elif name.startswith("performance"):
+        from apxinfer.examples.student.engine import get_performance_engine
+        fengine = get_performance_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            verbose=args.verbose,
+        )
 
     for qry in fengine.queries:
         fest = XIPFeatureEstimator(
@@ -310,7 +318,7 @@ def run_ingest(name: str, args: BaseXIPArgs):
         from apxinfer.examples.turbofan.data import ingest
 
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
-    elif name.startswith("student"):
+    elif name.startswith("student") or name.startswith("performance"):
         from apxinfer.examples.student.data import ingest
 
         ingest(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
@@ -502,6 +510,10 @@ def run_prepare(name: str, args: PrepareArgs):
             )
 
             model_type = "classifier"
+    elif name.startswith("performance"):
+        from apxinfer.examples.student.prepare import StudentQNoPrepareWorker as Worker
+
+        model_type = "classifier"
 
     if name.startswith("studentqno"):
         if name.startswith("studentqno18nf") or name in [
@@ -513,6 +525,20 @@ def run_prepare(name: str, args: PrepareArgs):
             qno = 18
         else:
             qno = int(name[len("studentqno") :])
+        worker: XIPPrepareWorker = Worker(
+            DIRHelper.get_prepare_dir(args),
+            get_fengine(name, args),
+            args.max_requests,
+            args.train_ratio,
+            args.valid_ratio,
+            model_type,
+            args.model,
+            args.seed,
+            args.nparts,
+            qno,
+        )
+    elif name.startswith("performance"):
+        qno = int(name[len("performance") :])
         worker: XIPPrepareWorker = Worker(
             DIRHelper.get_prepare_dir(args),
             get_fengine(name, args),
@@ -585,6 +611,10 @@ def run_trainer(name: str, args: TrainerArgs):
         from apxinfer.examples.student.trainer import StudentQNoTrainer as Trainer
 
         model_type = "classifier"
+    elif name.startswith("performance"):
+        from apxinfer.examples.student.trainer import StudentQNoTrainer as Trainer
+
+        model_type = "classifier"
 
     trainer = Trainer(
         DIRHelper.get_prepare_dir(args),
@@ -653,6 +683,30 @@ def get_ppl(name: str, args: OnlineArgs,
                     qry.dbtable,
                     qry.dbtable + f"_{suffix}",
                     requests["req_session_id"].tolist(),
+                )
+
+                data_loader = XIPDataLoader(
+                    backend=qry.data_loader.backend,
+                    database=qry.data_loader.database,
+                    table=qry.data_loader.table + f"_{suffix}",
+                    seed=qry.data_loader.seed,
+                    enable_cache=qry.data_loader.enable_cache,
+                )
+                qry.data_loader = data_loader
+                qry.process_data_loader()
+    elif name.startswith("performance"):
+        from apxinfer.examples.student.query import get_query_group
+        from apxinfer.examples.student.data import db_migration_v2
+
+        level_group = get_query_group(int(name[len("performance"):]))
+        for qry in fengine.queries:
+            if qry.data_loader is not None:
+                suffix = name
+                db_migration_v2(
+                    qry.dbtable,
+                    qry.dbtable + f"_{suffix}",
+                    requests["req_session_id"].tolist(),
+                    level_group
                 )
 
                 data_loader = XIPDataLoader(

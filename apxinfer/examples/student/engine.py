@@ -37,7 +37,9 @@ def get_aggops(col: str):
         return ["avg", "stdSamp"]
 
 
-def get_student_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False):
+def get_student_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database=f"xip_{seed}",
@@ -75,9 +77,69 @@ def get_student_engine(nparts: int, ncores: int = 0, seed: int = 0, verbose: boo
     return fengine
 
 
-def get_studentqno_engine(nparts: int, ncores: int = 0,
-                          seed: int = 0,
-                          verbose: bool = False, **kwargs):
+def get_performance_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False, **kwargs
+):
+    data_loader: XIPDataLoader = XIPDataLoader(
+        backend="clickhouse",
+        database=f"xip_{seed}",
+        table=f"student_{nparts}",
+        seed=0,
+        enable_cache=False,
+    )
+    if verbose:
+        print(f"tsize ={data_loader.statistics['tsize']}")
+        print(f"nparts={data_loader.statistics['nparts']}")
+
+    qps: List[XIPQueryProcessor] = []
+    cols = STUDENT_NUMERICAL + STUDENT_CATEGORICAL
+    nf = kwargs.get("nf", len(cols))
+
+    for i in range(nf):
+        col = cols[i]
+        if col in STUDENT_NUMERICAL:
+            qps.append(
+                StudentQP1(
+                    qname=f"q-{len(qps)}",
+                    qtype=XIPQType.AGG,
+                    data_loader=data_loader,
+                    dcol=col,
+                    dcol_ops=get_aggops(col),
+                    verbose=verbose,
+                )
+            )
+        else:
+            qps.append(
+                StudentQP1(
+                    qname=f"q-{len(qps)}",
+                    qtype=XIPQType.ExactAGG,
+                    data_loader=data_loader,
+                    dcol=col,
+                    dcol_ops=get_aggops(col),
+                    verbose=verbose,
+                )
+            )
+
+    for i in range(nf, len(cols)):
+        col = cols[i]
+        qps.append(
+            StudentQP1(
+                qname=f"q-{len(qps)}",
+                qtype=XIPQType.ExactAGG,
+                data_loader=data_loader,
+                dcol=col,
+                dcol_ops=get_aggops(col),
+                verbose=verbose,
+            )
+        )
+
+    fengine = XIPFEngine(qps, ncores, verbose=verbose)
+    return fengine
+
+
+def get_studentqno_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False, **kwargs
+):
     data_loader: XIPDataLoader = XIPDataLoader(
         backend="clickhouse",
         database=f"xip_{seed}",

@@ -32,7 +32,7 @@ CLS_TASKS = [
     # "tdfraudralf",
     "tdfraudralf2d",
     "machineryralf",
-    "studentqno18",
+    # "studentqno18",
     "studentqnov2subset",
     # "studentqnov2",
 ]
@@ -148,6 +148,7 @@ class EvalArgs(Tap):
             print(f"Using {self.filename}")
         if self.plot_dir is None:
             self.plot_dir = f'figs_{self.score_type}_{self.cls_score}_{self.reg_score}'
+            print(f"Using {self.plot_dir}")
 
 
 def load_df(args: EvalArgs) -> pd.DataFrame:
@@ -1486,8 +1487,8 @@ def main(args: EvalArgs):
         plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        vary_num_agg(df, args)
-        vary_num_agg_tsk(df, "studentqno18", args)
+        # vary_num_agg(df, args)
+        vary_num_agg_tsk(df, "machineryralf", args)
     elif args.only == "lat":
         plot_lat_comparsion_w_breakdown_split(df, args)
         plot_lat_breakdown(df, args)

@@ -16,7 +16,7 @@ from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
 
 class VLDBArgs(Tap):
-    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024040208"
+    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024040219"
     out_dir: str = "./cache"
     filename: str = None
     debug: bool = False

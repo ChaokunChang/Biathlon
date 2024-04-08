@@ -179,6 +179,7 @@ def run(
     for qid, qry in enumerate(ppl.fextractor.queries):
         qry.set_enable_qcache()
         qry.set_enable_dcache()
+        qry.profiles = []
 
     return {
         "xip_pred": xip_pred,

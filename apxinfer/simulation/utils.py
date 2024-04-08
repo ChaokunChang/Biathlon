@@ -54,7 +54,7 @@ task_meta = {
         "agg_ids": list(range(9)),
         "is_aggop": [True] * 9,
         "model": "rf",
-        "max_error": 4.8,
+        "max_error": 4.88,
     },
     "tripsralfv2": {
         "nops": 3,
@@ -63,6 +63,30 @@ task_meta = {
         "is_aggop": [False, True, True],
         "model": "lgbm",
         "max_error": 1.5,
+    },
+    "tdfraudralf2d": {
+        "nops": 4,
+        "naggs": 3,
+        "agg_ids": [1, 2, 3],
+        "is_aggop": [False, True, True, True],
+        "model": "xgb",
+        "max_error": 0.0,
+    },
+    "studentqnov2subset": {
+        "nops": 13,
+        "naggs": 13,
+        "agg_ids": list(range(13)),
+        "is_aggop": [True] * 13,
+        "model": "rf",
+        "max_error": 0.0,
+    },
+    "batteryv2": {
+        "nops": 6,
+        "naggs": 5,
+        "agg_ids": list(range(5)),
+        "is_aggop": [True] * 5 + [False],
+        "model": "lgbm",
+        "max_error": 189.0,
     },
 }
 
@@ -194,11 +218,22 @@ def run(
     syndb_seed: int,
     synv: float,
     keep_latency: bool = False,
+    run_exact: bool = False,
 ) -> dict:
     fnames = [f"f_{fname}" for fname in ppl.fextractor.fnames]
-    x = np.array([request[fname] for fname in fnames])
     y_true = request["label"]
-    y_exact = ppl.model.predict(x.reshape(1, -1))[0]
+
+    if run_exact:
+        xip_pred = ppl.serve(request, exact=True)
+        x = xip_pred['fvec']['fvals']
+        y_exact = xip_pred['pred_value']
+        for qid, qry in enumerate(ppl.fextractor.queries):
+            qry.set_enable_qcache()
+            qry.set_enable_dcache()
+            qry.profiles = []
+    else:
+        x = np.array([request[fname] for fname in fnames])
+        y_exact = ppl.model.predict(x.reshape(1, -1))[0]
 
     dataset = {
         qry.qname: generate_synthetic_data(
@@ -228,6 +263,7 @@ def run(
     for qid, qry in enumerate(ppl.fextractor.queries):
         qry.set_enable_qcache()
         qry.set_enable_dcache()
+        qry.profiles = []
 
     return {
         "xip_pred": xip_pred,
@@ -284,7 +320,9 @@ def pred_check(task_name: str, y_pred, y_oracle) -> bool:
     return np.abs(y_pred - y_oracle) < max_error + 1e-9
 
 
-def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
+def run_default(sim_args: SimulationArgs,
+                verbose: bool = False,
+                run_exact: bool = False) -> dict:
     tag = sim_args.get_tag()
     os.makedirs(os.path.join(sim_args.save_dir, "results"), exist_ok=True)
     res_path = os.path.join(sim_args.save_dir, "results", f"res_{tag}.pkl")
@@ -329,6 +367,7 @@ def run_default(sim_args: SimulationArgs, verbose: bool = False) -> dict:
         syndb_seed=sim_args.syndb_seed,
         synv=sim_args.synv,
         keep_latency=sim_args.keep_latency,
+        run_exact=run_exact
     )
     if verbose:
         print(

@@ -134,7 +134,7 @@ class EvalArgs(Tap):
     only: str = None
     score_type: str = "similarity"
     cls_score: str = "acc"
-    reg_score: str = "meet_rate"
+    reg_score: str = "meet_rate" # r2
     debug: bool = False
 
     def process_args(self):

@@ -352,8 +352,8 @@ if __name__ == "__main__":
     if args.nreqs <= 20:
         plot_error_distribution(args, seeds_list, res, save_dir)
     significance_level = 0.05
-    # plot_normality_test(args, seeds_list, res, save_dir, "shapiro", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "shapiro", significance_level)
+    plot_normality_test(args, seeds_list, res, save_dir, "shapiro", significance_level)
+    plot_nonnormal_cases(args, seeds_list, res, save_dir, "shapiro", significance_level)
 
     # plot_normality_test(args, seeds_list, res, save_dir, "normaltest", significance_level)
     # plot_nonnormal_cases(args, seeds_list, res, save_dir, "normaltest", significance_level)
@@ -370,8 +370,8 @@ if __name__ == "__main__":
     # plot_normality_test(args, seeds_list, res, save_dir, "lilliefors", significance_level)
     # plot_nonnormal_cases(args, seeds_list, res, save_dir, "lilliefors", significance_level)
 
-    plot_normality_test(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
-    plot_nonnormal_cases(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
+    # plot_normality_test(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
+    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
 
-    plot_normality_test(args, seeds_list, res, save_dir, "skewtest", significance_level)
-    plot_nonnormal_cases(args, seeds_list, res, save_dir, "skewtest", significance_level)
+    # plot_normality_test(args, seeds_list, res, save_dir, "skewtest", significance_level)
+    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "skewtest", significance_level)

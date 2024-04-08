@@ -154,7 +154,7 @@ def plot_multireqs_v2(
     axes = axes.flatten()
 
     nrids = len(rid_list)
-    for i, rid in enumerate(nrids):
+    for i, rid in enumerate(rid_list):
         axes[0].plot(x_values, avg_samples_list[i, :], label=f"rid={rid}")
         axes[1].plot(x_values, perror_list[i, :], label=f"rid={rid}")
 

@@ -17,6 +17,7 @@ import seaborn as sns
 from sklearn import metrics
 from scipy import stats
 import warnings
+import gc
 
 from SALib.sample import sobol as sobol_sample
 from SALib.analyze import sobol as sobol_analyze
@@ -43,7 +44,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
     task_home, task_name = args.task.split("/")
     assert task_home == "final"
 
-    res_dir = os.path.join(save_dir, "results")
+    res_dir = os.path.join(save_dir, "results", "2.1.1")
     os.makedirs(res_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
     res_path = os.path.join(res_dir, f"res_{tag}.pkl")
@@ -95,6 +96,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
         oracle_fvec_list.append(oracle_pred["fvec"])
 
         rrdatas = []
+        warnings.simplefilter("ignore", RuntimeWarning)
         for qid, qry in enumerate(ppl.fextractor.queries):
             if qry.qtype == XIPQType.AGG:
                 cached_rrd: np.ndarray = qry._dcache["cached_rrd"]
@@ -144,6 +146,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
             # print(f"{rid}-{sid}: {fvec['fvals']}")
 
         fvecs_list.append(fvecs)
+        gc.collect()
     # return oracle_fvec_list, fvecs_list
     res = {
         "oracle_fvec_list": oracle_fvec_list,
@@ -158,7 +161,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
 def plot_error_distribution(
     args: OnlineArgs, seeds_list: np.ndarray, res: dict, save_dir: str
 ):
-    print(f'plottig error distribution for {args.nreqs} requests')
+    print(f"plottig error distribution for {args.nreqs} requests")
     oracle_fvec_list = res["oracle_fvec_list"]
     fvecs_list = res["fvecs_list"]
 
@@ -192,6 +195,7 @@ def plot_error_distribution(
 
     plt.tight_layout()
     fig_dir = os.path.join(save_dir, "figs")
+    os.makedirs(fig_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
     fig_path = os.path.join(fig_dir, f"error_distribution_{tag}.pdf")
     plt.savefig(fig_path)
@@ -222,14 +226,10 @@ def get_pvalues(
                 shapiro_test = stats.shapiro(errors)
             elif method == "normaltest":
                 shapiro_test = stats.normaltest(errors)
-            elif method == "anderson":
-                shapiro_test = stats.anderson(errors)
             elif method == "kstest":
                 shapiro_test = stats.kstest(errors, "norm")
             elif method == "jarque_bera":
                 shapiro_test = stats.jarque_bera(errors)
-            elif method == "lilliefors":
-                shapiro_test = stats.lilliefors(errors)
             elif method == "kurtosistest":
                 shapiro_test = stats.kurtosistest(errors)
             elif method == "skewtest":
@@ -238,7 +238,7 @@ def get_pvalues(
                 raise ValueError(f"Invalid method: {method}")
             pvalue = shapiro_test.pvalue
             p_values[rid, fid] = pvalue
-    print(f'p_values shape: {p_values.shape}')
+    print(f"p_values shape: {p_values.shape}")
 
     return p_values
 
@@ -251,7 +251,7 @@ def plot_normality_test(
     method: str = "shapiro",
     significance_level: float = 0.05,
 ):
-    print(f'plottig normality test for {args.nreqs} requests')
+    print(f"plottig normality test for {args.nreqs} requests")
     fvecs_list = res["fvecs_list"]
 
     task_home, task_name = args.task.split("/")
@@ -279,6 +279,7 @@ def plot_normality_test(
 
     plt.tight_layout()
     fig_dir = os.path.join(save_dir, "figs")
+    os.makedirs(fig_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
     fig_path = os.path.join(fig_dir, f"normality_test_{method}_{tag}.pdf")
     plt.savefig(fig_path)
@@ -296,7 +297,7 @@ def plot_nonnormal_cases(
     method: str = "shapiro",
     significance_level: float = 0.05,
 ):
-    print(f'plottig non-normal cases for {args.nreqs} requests')
+    print(f"plottig non-normal cases for {args.nreqs} requests")
     oracle_fvec_list = res["oracle_fvec_list"]
     fvecs_list = res["fvecs_list"]
 
@@ -330,16 +331,82 @@ def plot_nonnormal_cases(
         ax.set_title(f"Feature {fid} ({num_cases})")
         ax.set_xlabel("Error Value")
         ax.set_ylabel("Density")
-        print(f'Feature {fid}: {num_cases} non-normal cases')
+        print(f"Feature {fid}: {num_cases} non-normal cases")
         if num_cases <= 10:
             ax.legend()
 
     plt.tight_layout()
     fig_dir = os.path.join(save_dir, "figs")
+    os.makedirs(fig_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
     fig_path = os.path.join(fig_dir, f"non-normal-cases_{method}_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/non-normal-cases.png")
+    print(f"Save figure to {fig_path}")
+
+
+def plot_inference_uncertainty(
+    args: OnlineArgs, seeds_list: np.ndarray, res: dict, save_dir: str
+):
+    print(f"plottig Inference Uncertainty for {args.nreqs} requests")
+    oracle_fvec_list = res["oracle_fvec_list"]
+    fvecs_list = res["fvecs_list"]
+
+    model = LoadingHelper.load_model(args)
+    oracle_preds = [model.predict([fvec["fvals"]])[0] for fvec in oracle_fvec_list]
+    preds_list = [
+        [model.predict([fvec["fvals"]])[0] for fvec in fvecs] for fvecs in fvecs_list
+    ]
+
+    task_home, task_name = args.task.split("/")
+    nreqs = args.nreqs
+    nof = fvecs_list[0][0]["fvals"].shape[0]
+
+    # ncols = 4
+    # nrows = nof // ncols + (nof % ncols > 0)
+    # fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
+    # axes = axes.flatten()
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    axes = axes.flatten()
+
+    errors_list = []
+    conf_list = []
+    for rid in range(nreqs):
+        oracle_pred = oracle_preds[rid]
+        preds = preds_list[rid]
+        errors = preds - oracle_pred
+        errors_list.append(errors)
+        conf = np.sum(np.abs(errors) <= args.max_error) / len(errors)
+        conf_list.append(conf)
+
+    ax = axes[0]
+    for rid in range(nreqs):
+        shapiro_test = stats.shapiro(errors_list[rid])
+        pvalue = shapiro_test.pvalue
+        sns.histplot(
+            errors_list[rid], kde=True, ax=ax, label=f"Req {rid} ({pvalue:.3f})"
+        )
+
+    ax.set_title("Inference Uncertainty")
+    ax.set_xlabel("Error Value")
+    ax.set_ylabel("Density")
+    if nreqs <= 10:
+        ax.legend()
+
+    ax = axes[1]
+    sns.histplot(conf_list, kde=True, ax=ax)
+    meet_frac = np.sum(np.array(conf_list) >= args.min_conf) / nreqs
+    ax.set_title(f"Confidence {meet_frac}")
+    ax.set_xlabel("Confidence")
+    ax.set_ylabel("Density")
+
+    plt.tight_layout()
+    fig_dir = os.path.join(save_dir, "figs")
+    os.makedirs(fig_dir, exist_ok=True)
+    tag = get_tag(args, seeds_list[-1])
+    fig_path = os.path.join(fig_dir, f"inference_uncertainty_{tag}.pdf")
+    plt.savefig(fig_path)
+    plt.savefig("./cache/inference_uncertainty.png")
     print(f"Save figure to {fig_path}")
 
 
@@ -349,29 +416,13 @@ if __name__ == "__main__":
     logfile: str = "debug.log"
     seeds_list = np.arange(1000)
     res = run(args, seeds_list, save_dir, logfile)
+
     if args.nreqs <= 20:
         plot_error_distribution(args, seeds_list, res, save_dir)
+
+    method = "shapiro"
     significance_level = 0.05
-    plot_normality_test(args, seeds_list, res, save_dir, "shapiro", significance_level)
-    plot_nonnormal_cases(args, seeds_list, res, save_dir, "shapiro", significance_level)
+    plot_normality_test(args, seeds_list, res, save_dir, method, significance_level)
+    plot_nonnormal_cases(args, seeds_list, res, save_dir, method, significance_level)
 
-    # plot_normality_test(args, seeds_list, res, save_dir, "normaltest", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "normaltest", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "anderson", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "anderson", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "kstest", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "kstest", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "jarque_bera", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "jarque_bera", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "lilliefors", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "lilliefors", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "kurtosistest", significance_level)
-
-    # plot_normality_test(args, seeds_list, res, save_dir, "skewtest", significance_level)
-    # plot_nonnormal_cases(args, seeds_list, res, save_dir, "skewtest", significance_level)
+    plot_inference_uncertainty(args, seeds_list, res, save_dir)

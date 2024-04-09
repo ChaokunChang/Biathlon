@@ -363,7 +363,7 @@ def ingest(nparts: int = 100, seed: int = 0,
     ingestor = TickVaryHourFStoreIngestor(
         dsrc_type="clickhouse",
         # dsrc=f"xip.tickvary_{nparts}",
-        dsrc="xip.tickvary_aux",
+        dsrc=f"xip_{seed}.tickvary_aux",
         database=f"xip_{seed}",
         table="tickvary_fstore_hour",
         nparts=nparts,

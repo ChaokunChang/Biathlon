@@ -274,7 +274,7 @@ def ingest(nparts: int = 100, seed: int = 0, verbose: bool = False):
 
     ingestor = TickHourFStoreIngestor(
         dsrc_type="clickhouse",
-        dsrc=f"xip.tick_{nparts}",
+        dsrc=f"xip_{seed}.tick_{nparts}",
         database=f"xip_{seed}",
         table="tick_fstore_hour",
         nparts=nparts,

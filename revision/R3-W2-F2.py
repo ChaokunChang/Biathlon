@@ -186,10 +186,10 @@ def plot_multireqs_v2(
 
 
 if __name__ == "__main__":
-    rid_list = np.arange(100)
+    task_meta = simutils.task_meta
     sim_args = R3W2F2Args().parse_args()
-    if sim_args.task_name == 'machineryralf':
-        rid_list = np.arange(338)
+    nreqs = simutils.task_meta[sim_args.task_name]["nreqs"]
+    rid_list = np.arange(nreqs)
 
     imbalance_ratio = np.array(
         [

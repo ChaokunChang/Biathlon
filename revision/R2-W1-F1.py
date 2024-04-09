@@ -102,16 +102,28 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
                 cached_rrd: np.ndarray = qry._dcache["cached_rrd"]
                 rrdatas.append(cached_rrd)
                 # print(f"{rid}-{qid}: {cached_rrd.shape}, {np.mean(cached_rrd)}")
-                moments_list.append(
-                    {
-                        "rid": rid,
-                        "qid": qid,
-                        "mean": np.mean(cached_rrd),
-                        "std": np.std(cached_rrd),
-                        "skew": stats.skew(cached_rrd),
-                        "kurtosis": stats.kurtosis(cached_rrd),
-                    }
-                )
+                if cached_rrd is not None:
+                    moments_list.append(
+                        {
+                            "rid": rid,
+                            "qid": qid,
+                            "mean": np.mean(cached_rrd),
+                            "std": np.std(cached_rrd),
+                            "skew": stats.skew(cached_rrd),
+                            "kurtosis": stats.kurtosis(cached_rrd),
+                        }
+                    )
+                else:
+                    moments_list.append(
+                        {
+                            "rid": rid,
+                            "qid": qid,
+                            "mean": None,
+                            "std": None,
+                            "skew": None,
+                            "kurtosis": None,
+                        }
+                    )
             else:
                 rrdatas.append(None)
 
@@ -346,26 +358,33 @@ def plot_nonnormal_cases(
 
 
 def plot_inference_uncertainty(
-    args: OnlineArgs, seeds_list: np.ndarray, res: dict, save_dir: str
+    args: OnlineArgs, seeds_list: np.ndarray, res: dict, save_dir: str, qmc_pred: bool = False
 ):
-    print(f"plottig Inference Uncertainty for {args.nreqs} requests")
+    print(f"plottig Inference Uncertainty with qmc={qmc_pred} for {args.nreqs} requests")
     oracle_fvec_list = res["oracle_fvec_list"]
     fvecs_list = res["fvecs_list"]
-
-    model = LoadingHelper.load_model(args)
-    oracle_preds = [model.predict([fvec["fvals"]])[0] for fvec in oracle_fvec_list]
-    preds_list = [
-        [model.predict([fvec["fvals"]])[0] for fvec in fvecs] for fvecs in fvecs_list
-    ]
 
     task_home, task_name = args.task.split("/")
     nreqs = args.nreqs
     nof = fvecs_list[0][0]["fvals"].shape[0]
+    nseeds = len(seeds_list)
 
-    # ncols = 4
-    # nrows = nof // ncols + (nof % ncols > 0)
-    # fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
-    # axes = axes.flatten()
+    model = LoadingHelper.load_model(args)
+    oracle_preds = [model.predict([fvec["fvals"]])[0] for fvec in oracle_fvec_list]
+    if qmc_pred:
+        preds_list = []
+        ppl = get_ppl(task_name, args, None, verbose=False)
+        for i in tqdm(range(nreqs), desc="QMC Prediction Requests", leave=False):
+            for j in tqdm(range(nseeds), desc="QMC Prediction Seeds", leave=False):
+                fvec = fvecs_list[i][j]
+                preds = ppl.pred_estimator.estimate(ppl.model, fvec)
+                preds_list.append(preds['pred_value'])
+        preds_list = np.array(preds_list).reshape(nreqs, nseeds)
+    else:
+        preds_list = np.array([
+            [model.predict([fvec["fvals"]])[0] for fvec in fvecs] for fvecs in fvecs_list
+        ])
+
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     axes = axes.flatten()
 
@@ -396,7 +415,7 @@ def plot_inference_uncertainty(
     ax = axes[1]
     sns.histplot(conf_list, kde=True, ax=ax)
     meet_frac = np.sum(np.array(conf_list) >= args.min_conf) / nreqs
-    ax.set_title(f"Confidence {meet_frac}")
+    ax.set_title(f"Confidence ({int(meet_frac*100)}% above default conf level)")
     ax.set_xlabel("Confidence")
     ax.set_ylabel("Density")
 
@@ -404,6 +423,8 @@ def plot_inference_uncertainty(
     fig_dir = os.path.join(save_dir, "figs")
     os.makedirs(fig_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
+    if qmc_pred:
+        tag = f'qmc_{tag}'
     fig_path = os.path.join(fig_dir, f"inference_uncertainty_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/inference_uncertainty.png")
@@ -426,3 +447,4 @@ if __name__ == "__main__":
     plot_nonnormal_cases(args, seeds_list, res, save_dir, method, significance_level)
 
     plot_inference_uncertainty(args, seeds_list, res, save_dir)
+    plot_inference_uncertainty(args, seeds_list, res, save_dir, qmc_pred=True)

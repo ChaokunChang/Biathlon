@@ -175,6 +175,39 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
+    elif name.startswith('machineryralfe2emedian'):
+        median_qids = [int(i) for i in name[len('machineryralfe2emedian'):]]
+        from apxinfer.examples.machinery.engine import get_machineryralfmedian_engine
+
+        fengine = get_machineryralfmedian_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            median_qids=median_qids,
+            verbose=args.verbose,
+        )
+    elif name.startswith('machineryralfdirectmedian'):
+        median_qids = [int(i) for i in name[len('machineryralfdirectmedian'):]]
+        from apxinfer.examples.machinery.engine import get_machineryralfmedian_engine
+
+        fengine = get_machineryralfmedian_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            median_qids=median_qids,
+            verbose=args.verbose,
+        )
+    elif name.startswith('machineryralfsimmedian'):
+        median_qids = [int(i) for i in name[len('machineryralfsimmedian'):]]
+        from apxinfer.examples.machinery.engine import get_machineryralfsimmedian_engine
+
+        fengine = get_machineryralfsimmedian_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            median_qids=median_qids,
+            verbose=args.verbose,
+        )
     elif name == "battery":
         from apxinfer.examples.battery.engine import get_battery_engine
 
@@ -363,9 +396,16 @@ def run_prepare(name: str, args: PrepareArgs):
 
         model_type = "classifier"
     elif name.startswith("machineryralf"):
-        from apxinfer.examples.machinery.prepare import (
-            MachineryRalfPrepareWorker as Worker,
-        )
+        if name.startswith("machineryralfdirectmedian") or name.startswith(
+            "machineryralfsimmedian"
+        ):
+            from apxinfer.examples.machinery.prepare import (
+                MachineryRalfMedianPrepareWorker as Worker,
+            )
+        else:
+            from apxinfer.examples.machinery.prepare import (
+                MachineryRalfPrepareWorker as Worker,
+            )
 
         model_type = "classifier"
     elif name.startswith("machinery"):
@@ -675,49 +715,50 @@ def get_ppl(name: str, args: OnlineArgs,
 
     if name in ["studentqnov2", "studentqnov2subset", "studentqnov2test"]:
         from apxinfer.examples.student.data import db_migration
+        if requests is not None:
+            for qry in fengine.queries:
+                if qry.data_loader is not None:
+                    suffix = name.replace("studentqno", "")
+                    db_migration(
+                        qry.dbtable,
+                        qry.dbtable + f"_{suffix}",
+                        requests["req_session_id"].tolist(),
+                    )
 
-        for qry in fengine.queries:
-            if qry.data_loader is not None:
-                suffix = name.replace("studentqno", "")
-                db_migration(
-                    qry.dbtable,
-                    qry.dbtable + f"_{suffix}",
-                    requests["req_session_id"].tolist(),
-                )
-
-                data_loader = XIPDataLoader(
-                    backend=qry.data_loader.backend,
-                    database=qry.data_loader.database,
-                    table=qry.data_loader.table + f"_{suffix}",
-                    seed=qry.data_loader.seed,
-                    enable_cache=qry.data_loader.enable_cache,
-                )
-                qry.data_loader = data_loader
-                qry.process_data_loader()
+                    data_loader = XIPDataLoader(
+                        backend=qry.data_loader.backend,
+                        database=qry.data_loader.database,
+                        table=qry.data_loader.table + f"_{suffix}",
+                        seed=qry.data_loader.seed,
+                        enable_cache=qry.data_loader.enable_cache,
+                    )
+                    qry.data_loader = data_loader
+                    qry.process_data_loader()
     elif name.startswith("performance"):
         from apxinfer.examples.student.query import get_query_group
         from apxinfer.examples.student.data import db_migration_v2
 
-        level_group = get_query_group(int(name[len("performance"):]))
-        for qry in fengine.queries:
-            if qry.data_loader is not None:
-                suffix = name
-                db_migration_v2(
-                    qry.dbtable,
-                    qry.dbtable + f"_{suffix}",
-                    requests["req_session_id"].tolist(),
-                    level_group
-                )
+        if requests is not None:
+            level_group = get_query_group(int(name[len("performance"):]))
+            for qry in fengine.queries:
+                if qry.data_loader is not None:
+                    suffix = name
+                    db_migration_v2(
+                        qry.dbtable,
+                        qry.dbtable + f"_{suffix}",
+                        requests["req_session_id"].tolist(),
+                        level_group
+                    )
 
-                data_loader = XIPDataLoader(
-                    backend=qry.data_loader.backend,
-                    database=qry.data_loader.database,
-                    table=qry.data_loader.table + f"_{suffix}",
-                    seed=qry.data_loader.seed,
-                    enable_cache=qry.data_loader.enable_cache,
-                )
-                qry.data_loader = data_loader
-                qry.process_data_loader()
+                    data_loader = XIPDataLoader(
+                        backend=qry.data_loader.backend,
+                        database=qry.data_loader.database,
+                        table=qry.data_loader.table + f"_{suffix}",
+                        seed=qry.data_loader.seed,
+                        enable_cache=qry.data_loader.enable_cache,
+                    )
+                    qry.data_loader = data_loader
+                    qry.process_data_loader()
 
     # create a prediction estimator for this task
     constraint_type = args.pest_constraint

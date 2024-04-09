@@ -39,6 +39,7 @@ task_meta = {
         "is_aggop": [True] * 8,
         "model": "mlp",
         "max_error": 0.0,
+        "nreqs": 338,
     },
     "tickralfv2": {
         "nops": 7,
@@ -47,6 +48,7 @@ task_meta = {
         "is_aggop": [False] * 6 + [True],
         "model": "lr",
         "max_error": 0.04,
+        "nreqs": 4740,
     },
     "turbofan": {
         "nops": 9,
@@ -55,6 +57,7 @@ task_meta = {
         "is_aggop": [True] * 9,
         "model": "rf",
         "max_error": 4.88,
+        "nreqs": 769,
     },
     "tripsralfv2": {
         "nops": 3,
@@ -63,6 +66,7 @@ task_meta = {
         "is_aggop": [False, True, True],
         "model": "lgbm",
         "max_error": 1.5,
+        "nreqs": 22016,
     },
     "tdfraudralf2d": {
         "nops": 4,
@@ -71,6 +75,7 @@ task_meta = {
         "is_aggop": [False, True, True, True],
         "model": "xgb",
         "max_error": 0.0,
+        "nreqs": 8603,
     },
     "studentqnov2subset": {
         "nops": 13,
@@ -79,6 +84,7 @@ task_meta = {
         "is_aggop": [True] * 13,
         "model": "rf",
         "max_error": 0.0,
+        "nreqs": 471,
     },
     "batteryv2": {
         "nops": 6,
@@ -87,6 +93,7 @@ task_meta = {
         "is_aggop": [True] * 5 + [False],
         "model": "lgbm",
         "max_error": 189.0,
+        "nreqs": 564,
     },
 }
 
@@ -152,7 +159,7 @@ class SimulationArgs(Tap):
                 f"{self.min_conf}",
                 f"{self.alpha}",
                 f"{self.beta}",
-                f"{self.scaling_factor}"
+                f"{self.scaling_factor}",
             ]
         )
         return tag
@@ -225,8 +232,8 @@ def run(
 
     if run_exact:
         xip_pred = ppl.serve(request, exact=True)
-        x = xip_pred['fvec']['fvals']
-        y_exact = xip_pred['pred_value']
+        x = xip_pred["fvec"]["fvals"]
+        y_exact = xip_pred["pred_value"]
         for qid, qry in enumerate(ppl.fextractor.queries):
             qry.set_enable_qcache()
             qry.set_enable_dcache()
@@ -320,9 +327,9 @@ def pred_check(task_name: str, y_pred, y_oracle) -> bool:
     return np.abs(y_pred - y_oracle) < max_error + 1e-9
 
 
-def run_default(sim_args: SimulationArgs,
-                verbose: bool = False,
-                run_exact: bool = False) -> dict:
+def run_default(
+    sim_args: SimulationArgs, verbose: bool = False, run_exact: bool = False
+) -> dict:
     tag = sim_args.get_tag()
     os.makedirs(os.path.join(sim_args.save_dir, "results"), exist_ok=True)
     res_path = os.path.join(sim_args.save_dir, "results", f"res_{tag}.pkl")
@@ -367,12 +374,14 @@ def run_default(sim_args: SimulationArgs,
         syndb_seed=sim_args.syndb_seed,
         synv=sim_args.synv,
         keep_latency=sim_args.keep_latency,
-        run_exact=run_exact
+        run_exact=run_exact,
     )
     if verbose:
         print(
             len(res["history"]),
-            pred_check(sim_args.task_name, res["xip_pred"]["pred_value"], res["y_exact"]),
+            pred_check(
+                sim_args.task_name, res["xip_pred"]["pred_value"], res["y_exact"]
+            ),
             res["latency"],
             [qcfg["qsample"] for qcfg in res["history"][-1]["qcfgs"]],
         )
@@ -445,7 +454,7 @@ def run_qmc(
         "qmc_preds": qmc_preds,
         "pred_mean": np.mean(qmc_preds),
         "pred_std": np.std(qmc_preds),
-        "nsamples":  sim_args.pest_nsamples,
+        "nsamples": sim_args.pest_nsamples,
         "seed": sim_args.pest_seed,
         "rid": rid,
         "fvals": x,

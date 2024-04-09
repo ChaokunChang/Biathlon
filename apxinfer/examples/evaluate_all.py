@@ -1,6 +1,6 @@
 from tap import Tap
 import os
-from typing import List
+from typing import List, Literal
 
 from apxinfer.core.config import EXP_HOME
 
@@ -31,6 +31,13 @@ class ExpArgs(Tap):
 
     ncfgs: int = 100
     offline_nreqs: int = 50
+
+    bs_nthreads: int = 1  # nthreads for bootstrapping
+    bs_type: Literal["descrete", "fstd"] = "fstd"
+    bs_nresamples: int = 100
+    bs_feature_correction: bool = True
+    bs_bias_correction: bool = True
+    bs_for_var_std: bool = True
 
     pest: str = "biathlon"
     pest_seed: int = 0
@@ -264,8 +271,9 @@ def get_biathlon_cmd(
     pest_qinf_opts = f"--pest {args.pest} --pest_constraint error --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf {args.qinf}"
     scheduler_opts = f"--scheduler {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
     acc_opts = f"--max_error {max_error} --min_conf {min_conf}"
+    bs_opts = f"--bs_type {args.bs_type} --bs_nresamples {args.bs_nresamples} --bs_nthreads {args.bs_nthreads} --bs_feature_correction {args.bs_feature_correction} --bs_bias_correction {args.bs_bias_correction} --bs_for_var_std {args.bs_for_var_std}"
 
-    biathlon_cmd = f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts}"
+    biathlon_cmd = f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts} {bs_opts}"
 
     return biathlon_cmd
 
@@ -293,6 +301,11 @@ def get_biathlon_path(
         f"qinf-{args.qinf}",
         f"scheduler-{args.policy}-{scheduler_init}-{scheduler_batch}",
     )
+    if args.bs_type == "descrete":
+        biathlon_path = os.path.join(
+            biathlon_path,
+            f"bs-descrete-{args.bs_nresamples}-{args.bs_nthreads}-{args.bs_feature_correction}-{args.bs_bias_correction}-{args.bs_for_var_std}",
+        )
     return biathlon_path
 
 
@@ -337,8 +350,8 @@ def run_tempbiathlon(
     biathlon_path = get_biathlon_path(
         args, task_name, model, scheduler_init, scheduler_batch, max_error, min_conf
     )
-    biathlon_cmd = biathlon_cmd.replace('--stage online', '--stage temponline')
-    biathlon_path = biathlon_path.replace('/online/', '/temponline/')
+    biathlon_cmd = biathlon_cmd.replace("--stage online", "--stage temponline")
+    biathlon_path = biathlon_path.replace("/online/", "/temponline/")
     evals_file = f"evals_conf-0.05-{max_error}-{min_conf}-60.0-2048.0-1000.json"
     evals_path = os.path.join(biathlon_path, evals_file)
     if args.nocache or (not os.path.exists(evals_path)):
@@ -611,6 +624,13 @@ def run_machineryralf(args: ExpArgs):
     must models = ["mlp", "svm", "knn"]
     """
     task_name = "machineryralf"
+    agg_qids = "0 1 2 3 4 5 6 7"
+    default_max_errors = [0.0]
+    max_errors = [0.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_machineryralfmedian(args: ExpArgs, task_name: str):
     agg_qids = "0 1 2 3 4 5 6 7"
     default_max_errors = [0.0]
     max_errors = [0.0]
@@ -1031,6 +1051,12 @@ if __name__ == "__main__":
         run_machineryralf(args)
     elif args.exp == "machineryralftest":
         run_machineryralftest(args)
+    elif (
+        args.exp.startswith("machineryralfe2emedian")
+        or args.exp.startswith("machineryralfdirectmedian")
+        or args.exp.startswith("machineryralfsimmedian")
+    ):
+        run_machineryralfmedian(args, task_name=args.exp)
     elif args.exp == "ccfraud":
         run_ccfraud(args)
     elif args.exp == "tripsfeast":

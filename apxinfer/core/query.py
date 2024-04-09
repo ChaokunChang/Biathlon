@@ -181,6 +181,7 @@ class XIPQueryProcessor:
             fvec = self.get_default_fvec(request, qcfg)
         else:
             fvec = self.compute_features(rrdata, qcfg)
+            fvec = self.feature_transformation(request, fvec)
         computing_time = time.time() - st
 
         self.profiles.append(
@@ -205,7 +206,7 @@ class XIPQueryProcessor:
             if request.get("syn_data", None) is not None:
                 if request["syn_data"].get(self.qname, None) is not None:
                     # patch for synthetic data
-                    if request.get('keep_latency', False):
+                    if request.get("keep_latency", False):
                         _ = self.load_rrdata_agg(request, qcfg)
                     self.logger.debug(f"synthetic data for {self.qname}")
                     rrdata: np.ndarray = request["syn_data"][self.qname]
@@ -371,6 +372,11 @@ class XIPQueryProcessor:
         self.logger.debug(f"{self.qname} fvecs: {fvecs}")
         return merge_fvecs(fvecs, new_names=self.fnames)
 
+    def feature_transformation(
+        self, request: XIPRequest, fvec: XIPFeatureVec
+    ) -> XIPFeatureVec:
+        return fvec
+
     def estimate_cardinality(self, rrdata: np.ndarray, qcfg: XIPQueryConfig) -> int:
         qsample = qcfg["qsample"]
         # card = self.festimator.extract(rrdata[:, 0], qsample, self.tsize, "count")
@@ -467,6 +473,7 @@ class XIPQueryProcessor:
             fvec = self.get_default_fvec(request, qcfg)
         else:
             fvec = self.compute_features(rrdata, qcfg)
+            fvec = self.feature_transformation(request, fvec)
         computing_time = time.time() - st
 
         self.profiles.append(

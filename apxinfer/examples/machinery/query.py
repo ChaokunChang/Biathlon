@@ -1,6 +1,6 @@
 from typing import List
 
-from apxinfer.core.utils import XIPQType, XIPQueryConfig
+from apxinfer.core.utils import XIPFeatureVec, XIPQType, XIPQueryConfig, XIPRequest
 from apxinfer.core.data import XIPDataLoader
 from apxinfer.core.query import XIPQueryProcessor, XIPQOperatorDescription
 
@@ -98,3 +98,11 @@ def get_qps_varynf(data_loader: XIPDataLoader, verbose: bool = False, **kwargs):
                                dcol_ops=["avg"],
                                verbose=verbose))
     return qps
+
+
+class MachinerySimQP(MachineryQP):
+    def feature_transformation(self, request: XIPRequest, fvec: XIPFeatureVec) -> XIPFeatureVec:
+        fnames = fvec['fnames']
+        offsets = [request[f'req_offset_{fname}'] for fname in fnames]
+        fvec['fvals'] = fvec['fvals'] + offsets
+        return fvec

@@ -54,3 +54,8 @@ ALL_REG_TASKS += TickVaryNMonths
 
 TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 30)]
 ALL_CLS_TASKS += TripsFeastVaryWindow
+
+MachineryRalfMedian = [
+    'machineryralfe2emedian0', 'machineryralfdirectmedian0', 'machineryralfsimmedian0'
+]
+ALL_CLS_TASKS += MachineryRalfMedian

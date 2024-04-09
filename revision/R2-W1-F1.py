@@ -466,5 +466,5 @@ if __name__ == "__main__":
     plot_normality_test(args, seeds_list, res, save_dir, method, significance_level)
     plot_nonnormal_cases(args, seeds_list, res, save_dir, method, significance_level)
 
-    # plot_inference_uncertainty(args, seeds_list, res, save_dir)
-    # plot_inference_uncertainty(args, seeds_list, res, save_dir, qmc_pred=True)
+    plot_inference_uncertainty(args, seeds_list, res, save_dir)
+    plot_inference_uncertainty(args, seeds_list, res, save_dir, qmc_pred=True)

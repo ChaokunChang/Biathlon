@@ -713,8 +713,10 @@ def run_tripsralfv2(args: ExpArgs):
     """
     task_name = "tripsralfv2"
     agg_qids = "1 2"
-    default_max_errors = [0.75, 1.0, 1.5, 2.0]
-    max_errors = [0.1, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    # default_max_errors = [0.75, 1.0, 1.5, 2.0]
+    # max_errors = [0.1, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    default_max_errors = [1.5]
+    max_errors = [0.1875, 0.375, 0.75, 1.5, 3.0, 6.0, 9.0, 12.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

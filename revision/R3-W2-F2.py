@@ -264,7 +264,7 @@ if __name__ == "__main__":
     task_meta = simutils.task_meta
     sim_args = R3W2F2Args().parse_args()
     nreqs = simutils.task_meta[sim_args.task_name]["nreqs"]
-    if sim_args.task_name == 'tickralfv2':
+    if sim_args.task_name == "tickralfv2":
         nreqs = min(nreqs, 100)
     rid_list = np.arange(nreqs)
 
@@ -291,10 +291,10 @@ if __name__ == "__main__":
     p_list = np.maximum(p_list, 1e-5)
 
     task_name = sim_args.task_name
-    tag = f'{task_name}_rid0-{nreqs-1}_p{p_list[0]:.6f}-{p_list[-1]:.6f}'
+    tag = f"{sim_args.get_tag()}_rid{min()}-{}_p{p_list[0]:.6f}-{p_list[-1]:.6f}"
     res_list_dir = os.path.join(sim_args.save_dir, "results", "3.2.2")
     os.makedirs(res_list_dir, exist_ok=True)
-    res_list_path = os.path.join(res_list_dir, f"res_list_{tag}.json")
+    res_list_path = os.path.join(res_list_dir, f"res_list_{tag}.pkl")
     if os.path.exists(res_list_path):
         print(f"Loading res_list from {res_list_path}")
         res_list = joblib.load(res_list_path)

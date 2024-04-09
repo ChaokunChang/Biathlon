@@ -359,9 +359,15 @@ def plot_nonnormal_cases(
 
 
 def plot_inference_uncertainty(
-    args: OnlineArgs, seeds_list: np.ndarray, res: dict, save_dir: str, qmc_pred: bool = False
+    args: OnlineArgs,
+    seeds_list: np.ndarray,
+    res: dict,
+    save_dir: str,
+    qmc_pred: bool = False,
 ):
-    print(f"plottig Inference Uncertainty with qmc={qmc_pred} for {args.nreqs} requests")
+    print(
+        f"plottig Inference Uncertainty with qmc={qmc_pred} for {args.nreqs} requests"
+    )
     oracle_fvec_list = res["oracle_fvec_list"]
     fvecs_list = res["fvecs_list"]
 
@@ -372,19 +378,32 @@ def plot_inference_uncertainty(
 
     model = LoadingHelper.load_model(args)
     oracle_preds = [model.predict([fvec["fvals"]])[0] for fvec in oracle_fvec_list]
-    if qmc_pred:
-        preds_list = []
-        ppl = get_ppl(task_name, args, None, verbose=False)
-        for i in tqdm(range(nreqs), desc="QMC Prediction Requests", leave=False):
-            for j in tqdm(range(nseeds), desc="QMC Prediction Seeds", leave=False):
-                fvec = fvecs_list[i][j]
-                preds = ppl.pred_estimator.estimate(ppl.model, fvec)
-                preds_list.append(preds['pred_value'])
-        preds_list = np.array(preds_list).reshape(nreqs, nseeds)
+
+    res_dir = os.path.join(save_dir, "results", "2.1.1")
+    os.makedirs(res_dir, exist_ok=True)
+    tag = get_tag(args, seeds_list[-1])
+    qmcpreds_path = os.path.join(res_dir, f"qmcpreds_{tag}.pkl")
+    if os.path.exists(qmcpreds_path):
+        print(f"Load results from {qmcpreds_path}")
+        preds_list = joblib.load(qmcpreds_path)
     else:
-        preds_list = np.array([
-            [model.predict([fvec["fvals"]])[0] for fvec in fvecs] for fvecs in fvecs_list
-        ])
+        if qmc_pred:
+            preds_list = []
+            ppl = get_ppl(task_name, args, None, verbose=False)
+            for i in tqdm(range(nreqs), desc="QMC Prediction Requests", leave=False):
+                for j in tqdm(range(nseeds), desc="QMC Prediction Seeds", leave=False):
+                    fvec = fvecs_list[i][j]
+                    preds = ppl.pred_estimator.estimate(ppl.model, fvec)
+                    preds_list.append(preds["pred_value"])
+            preds_list = np.array(preds_list).reshape(nreqs, nseeds)
+        else:
+            preds_list = np.array(
+                [
+                    [model.predict([fvec["fvals"]])[0] for fvec in fvecs]
+                    for fvecs in fvecs_list
+                ]
+            )
+        joblib.dump(preds_list, qmcpreds_path)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     axes = axes.flatten()
@@ -425,7 +444,7 @@ def plot_inference_uncertainty(
     os.makedirs(fig_dir, exist_ok=True)
     tag = get_tag(args, seeds_list[-1])
     if qmc_pred:
-        tag = f'qmc_{tag}'
+        tag = f"qmc_{tag}"
     fig_path = os.path.join(fig_dir, f"inference_uncertainty_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/inference_uncertainty.png")
@@ -447,5 +466,5 @@ if __name__ == "__main__":
     plot_normality_test(args, seeds_list, res, save_dir, method, significance_level)
     plot_nonnormal_cases(args, seeds_list, res, save_dir, method, significance_level)
 
-    plot_inference_uncertainty(args, seeds_list, res, save_dir)
-    plot_inference_uncertainty(args, seeds_list, res, save_dir, qmc_pred=True)
+    # plot_inference_uncertainty(args, seeds_list, res, save_dir)
+    # plot_inference_uncertainty(args, seeds_list, res, save_dir, qmc_pred=True)

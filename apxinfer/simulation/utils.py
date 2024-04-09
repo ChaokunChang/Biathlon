@@ -95,6 +95,15 @@ task_meta = {
         "max_error": 189.0,
         "nreqs": 564,
     },
+    "machineryralfsimmedian0": {
+        "nops": 8,
+        "naggs": 8,
+        "agg_ids": list(range(8)),
+        "is_aggop": [True] * 8,
+        "model": "mlp",
+        "max_error": 0.0,
+        "nreqs": 338,
+    },
 }
 
 

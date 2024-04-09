@@ -63,7 +63,8 @@ class XIPTrainer:
 
         cols = list(train_set.columns)
         fnames = [col for col in cols if col.startswith("f_")]
-        label_name = cols[-1]
+        # label_name = cols[-1]
+        label_name = "label"
 
         model = self.build_model(train_set[fnames], train_set[label_name])
         joblib.dump(model, osp.join(self.model_dir, f"{self.model_tag}.pkl"))

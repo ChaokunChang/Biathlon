@@ -107,6 +107,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
                         {
                             "rid": rid,
                             "qid": qid,
+                            "size": len(cached_rrd),
                             "mean": np.mean(cached_rrd),
                             "std": np.std(cached_rrd),
                             "skew": stats.skew(cached_rrd),

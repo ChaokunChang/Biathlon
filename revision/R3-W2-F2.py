@@ -117,6 +117,81 @@ def plot_multireqs(
     print(f"Saved imbalance plot to {save_path}")
 
 
+def plot_multireqs_v1(
+    args: R3W2F2Args, rid_list: np.ndarray, p_list: np.ndarray, res_list: List[dict]
+):
+    task_name = args.task_name
+    nops = simutils.task_meta[task_name]["nops"]
+    agg_ids = simutils.task_meta[task_name]["agg_ids"]
+    selected_qid = args.selected_qid
+    imbalance_ratio = (0.5 - p_list) / (0.5 + p_list)
+    print(imbalance_ratio)
+    x_values = np.arange(len(p_list))
+
+    # nround_list = np.array([len(res['history']) for res in res_list])
+    # correct_list = np.array([is_same_float(res['xip_pred']['pred_value'], res['y_exact']) for res in res_list])
+    qsamples_list = np.array(
+        [[qcfg["qsample"] for qcfg in res["history"][-1]["qcfgs"]] for res in res_list]
+    )
+    non_agg_ids = np.setdiff1d(np.arange(nops), agg_ids)
+    qsamples_list[:, non_agg_ids] = 0.0
+    avg_samples_list = np.array(
+        [np.mean(qsamples[agg_ids]) for qsamples in qsamples_list]
+    )
+    perror_list = np.array(
+        [abs(res["xip_pred"]["pred_value"] - res["y_exact"]) for res in res_list]
+    )
+    ferrors_list = np.array(
+        [np.abs(res["xip_pred"]["fvec"]["fvals"] - res["feature"]) for res in res_list]
+    )
+
+    avg_samples_list = np.mean(
+        avg_samples_list.reshape(len(rid_list), len(p_list)), axis=0
+    )
+    qsamples_list = np.mean(
+        qsamples_list.reshape(len(rid_list), len(p_list), nops), axis=0
+    )
+    perror_list = np.mean(perror_list.reshape(len(rid_list), len(p_list)), axis=0)
+    ferrors_list = np.mean(
+        ferrors_list.reshape(len(rid_list), len(p_list), nops), axis=0
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    axes = axes.flatten()
+
+    axes[0].plot(x_values, avg_samples_list)
+    axes[0].set_title("Average Fraction of Samples")
+    axes[0].set_ylabel("Average Fraction of Samples")
+
+    if task_name in ALL_CLS_TASKS:
+        axes[1].plot(x_values, 1.0 - perror_list)
+        axes[1].set_title("Prediction Accuracy")
+        axes[1].set_ylabel("Prediction Accuracy")
+        axes[1].set_ylim(0.0, 1.2)
+    else:
+        axes[1].plot(x_values, perror_list)
+        axes[1].set_title("Prediction Error")
+        axes[1].set_ylabel("Absolute Prediction Error")
+
+    for i, ax in enumerate(axes):
+        ax.set_xlabel("Reverse Imbalance Ratio")
+        # ax.set_xscale('log')
+        ax.set_xticks(x_values)
+        # ax.set_xticklabels([f'{alpha}' for alpha in x_values], rotation=45)
+        ax.set_xticklabels([f"{alpha:.4g}" for alpha in imbalance_ratio], rotation=45)
+        ax.grid()
+
+    plt.tight_layout()
+    # save the plot
+    save_dir = os.path.join(args.save_dir, "imbalance_multi")
+    os.makedirs(save_dir, exist_ok=True)
+    tag = args.get_tag()
+    save_path = os.path.join(save_dir, f"imbalancev1_{tag}.pdf")
+    plt.savefig(save_path)
+    plt.savefig(os.path.join(save_dir, "imbalancev1.png"))
+    print(f"Saved imbalance plot to {save_path}")
+
+
 def plot_multireqs_v2(
     args: R3W2F2Args, rid_list: np.ndarray, p_list: np.ndarray, res_list: List[dict]
 ):
@@ -189,6 +264,8 @@ if __name__ == "__main__":
     task_meta = simutils.task_meta
     sim_args = R3W2F2Args().parse_args()
     nreqs = simutils.task_meta[sim_args.task_name]["nreqs"]
+    if sim_args.task_name == 'tickralfv2':
+        nreqs = min(nreqs, 100)
     rid_list = np.arange(nreqs)
 
     imbalance_ratio = np.array(
@@ -212,15 +289,27 @@ if __name__ == "__main__":
     )
     p_list = 0.5 * (1.0 - imbalance_ratio) / (1.0 + imbalance_ratio)
     p_list = np.maximum(p_list, 1e-5)
-    res_list = []
-    for rid in tqdm(rid_list, desc="rid", leave=False):
-        for p in tqdm(p_list, desc="p", leave=False):
-            sim_args = R3W2F2Args().parse_args()
-            sim_args.rid = rid
-            sim_args.dist_param = p
-            res = simutils.run_default(sim_args)
-            res_list.append(res)
+
+    task_name = sim_args.task_name
+    tag = f'{task_name}_rid0-{nreqs-1}_p{p_list[0]:.6f}-{p_list[-1]:.6f}'
+    res_list_dir = os.path.join(sim_args.save_dir, "results", "3.2.2")
+    os.makedirs(res_list_dir, exist_ok=True)
+    res_list_path = os.path.join(res_list_dir, f"res_list_{tag}.json")
+    if os.path.exists(res_list_path):
+        print(f"Loading res_list from {res_list_path}")
+        res_list = joblib.load(res_list_path)
+    else:
+        res_list = []
+        for rid in tqdm(rid_list, desc="rid", leave=False):
+            for p in tqdm(p_list, desc="p", leave=False):
+                sim_args = R3W2F2Args().parse_args()
+                sim_args.rid = rid
+                sim_args.dist_param = p
+                res = simutils.run_default(sim_args)
+                res_list.append(res)
+        joblib.dump(res_list, res_list_path)
 
     sim_args = R3W2F2Args().parse_args()
-    plot_multireqs(sim_args, rid_list, p_list, res_list)
-    plot_multireqs_v2(sim_args, rid_list, p_list, res_list)
+    # plot_multireqs(sim_args, rid_list, p_list, res_list)
+    plot_multireqs_v1(sim_args, rid_list, p_list, res_list)
+    # plot_multireqs_v2(sim_args, rid_list, p_list, res_list)

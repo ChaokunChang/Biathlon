@@ -123,12 +123,28 @@ class MachineryRalfMedianPrepareWorker(MachineryRalfPrepareWorker):
             os.path.join(machineryralf_dir, "dataset", "dataset.csv")
         )
 
-        os.system(f"sudo cp -r {machineryralf_dir}/model {working_dir}/")
-        os.system(f"sudo cp -r {machineryralf_dir}/qcosts.json {working_dir}/")
+        status = os.system(f"cp -r {machineryralf_dir}/model {working_dir}/")
+        if status != 0:
+            status = os.system(f"sudo cp -r {machineryralf_dir}/model {working_dir}/")
+            if status != 0:
+                raise ValueError("Failed to copy model directory")
 
-        e2emedian_dir = working_dir.replace(
-            "/machineryralfdirectmedian", "/machineryralfe2emedian"
-        )
+        status = os.system(f"cp -r {machineryralf_dir}/qcosts.json {working_dir}/")
+        if status != 0:
+            status = os.system(f"sudo cp -r {machineryralf_dir}/qcosts.json {working_dir}/")
+            if status != 0:
+                raise ValueError("Failed to copy qcosts.json")
+
+        if task_name.startswith('machineryralfdirectmedian'):
+            e2emedian_dir = working_dir.replace(
+                "/machineryralfdirectmedian", "/machineryralfe2emedian"
+            )
+        elif task_name.startswith('machineryralfsimmedian'):
+            e2emedian_dir = working_dir.replace(
+                "/machineryralfsimmedian", "/machineryralfe2emedian"
+            )
+        else:
+            raise ValueError(f"Unknown task name: {task_name}")
         assert os.path.exists(e2emedian_dir)
         e2emedian_dataset = pd.read_csv(
             os.path.join(e2emedian_dir, "dataset", "dataset.csv")
@@ -148,7 +164,7 @@ class MachineryRalfMedianPrepareWorker(MachineryRalfPrepareWorker):
         for i, fname in enumerate(corres_avg_fname):
             new_name = median_fnames[i]
             dataset = dataset.rename(columns={fname: new_name})
-            new_req_col = f"req_offset_{new_name}"
+            new_req_col = f"req_offset_{new_name[2:]}"
             dataset[new_req_col] = dataset[new_name] - e2emedian_dataset[new_name]
 
         self.logger.info(f"Created dataset for {self.dataset_dir}")

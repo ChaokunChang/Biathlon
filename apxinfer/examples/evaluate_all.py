@@ -718,6 +718,19 @@ def run_tripsralfv2(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tripsralfv3(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralfv3"
+    agg_qids = "1 2"
+    # default_max_errors = [0.7, 1.4, 2.8]
+    default_max_errors = [1.4]
+    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_tripsralftest(args: ExpArgs):
     """
     must models = ["lgbm"]
@@ -1029,6 +1042,8 @@ if __name__ == "__main__":
         run_tripsralf2h(args)
     elif args.exp == "tripsralfv2":
         run_tripsralfv2(args)
+    elif args.exp == "tripsralfv3":
+        run_tripsralfv3(args)
     elif args.exp == "trips":
         run_trips(args)
     elif args.exp == "tick-v1":

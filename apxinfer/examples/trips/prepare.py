@@ -223,3 +223,28 @@ class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
         test_set = dataset[dataset["req_ts"] >= split_ts]
         valid_set = test_set[:100]
         return train_set, valid_set, test_set
+
+
+class TripsRalfV3PrepareWorker(TripsRalfPrepareWorker):
+    def get_requests(self) -> pd.DataFrame:
+        # part1 without sampling: 2632114
+        part1 = self._extract_requests(trips_from="2015-08-01 00:00:00",
+                                       trips_to="2015-08-08 00:00:00",
+                                       sampling_rate=0.001)
+        # around 2.6k in part1
+
+        part2 = self._extract_requests(trips_from="2015-08-08 00:00:00",
+                                       trips_to="2015-08-08 00:05:00",
+                                       sampling_rate=1)
+
+        requests = pd.concat([part1, part2])
+        self.logger.info(f"Extracted {len(requests)}x of requests")
+        requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
+        return requests
+
+    def split_dataset(self, dataset: pd.DataFrame) -> Tuple[pd.DataFrame]:
+        split_ts = pd.to_datetime("2015-08-08 00:00:00").value // 10**9
+        train_set = dataset[dataset["req_ts"] < split_ts]
+        test_set = dataset[dataset["req_ts"] >= split_ts]
+        valid_set = test_set[:100]
+        return train_set, valid_set, test_set

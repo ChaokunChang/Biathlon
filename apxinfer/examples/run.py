@@ -373,6 +373,10 @@ def run_prepare(name: str, args: PrepareArgs):
             from apxinfer.examples.trips.prepare import (
                 TripsRalfV2PrepareWorker as Worker,
             )
+        elif name == "tripsralfv3":
+            from apxinfer.examples.trips.prepare import (
+                TripsRalfV3PrepareWorker as Worker,
+            )
         else:
             from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
 

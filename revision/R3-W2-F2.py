@@ -99,7 +99,7 @@ def plot_multireqs(
     axes[3].legend()
 
     for i, ax in enumerate(axes):
-        ax.set_xlabel("Reverse Imbalance Ratio")
+        ax.set_xlabel("Imbalance Ratio")
         # ax.set_xscale('log')
         ax.set_xticks(x_values)
         # ax.set_xticklabels([f'{alpha}' for alpha in x_values], rotation=45)
@@ -162,19 +162,29 @@ def plot_multireqs_v1(
     axes[0].plot(x_values, avg_samples_list)
     axes[0].set_title("Average Fraction of Samples")
     axes[0].set_ylabel("Average Fraction of Samples")
+    axes[0].set_ylim(0.0, 1.1)
+    y_ticks = np.arange(0.0, 1.1, 0.1)
+    axes[0].set_yticks(y_ticks)
+    t_ticklabels = [f"{int(t*100)}%" for t in y_ticks]
+    axes[0].set_yticklabels(t_ticklabels)
 
     if task_name in ALL_CLS_TASKS:
         axes[1].plot(x_values, 1.0 - perror_list)
         axes[1].set_title("Prediction Accuracy")
         axes[1].set_ylabel("Prediction Accuracy")
-        axes[1].set_ylim(0.0, 1.2)
+        axes[1].set_ylim(0.0, 1.1)
+        y_ticks = np.arange(0.0, 1.1, 0.1)
+        axes[1].set_yticks(y_ticks)
+        t_ticklabels = [f"{int(t*100)}%" for t in y_ticks]
+        axes[1].set_yticklabels(t_ticklabels)
     else:
-        axes[1].plot(x_values, perror_list)
+        axes[1].plot(x_values, perror_list, color='r')
         axes[1].set_title("Prediction Error")
         axes[1].set_ylabel("Absolute Prediction Error")
+        # axes[1].set_ylim(0.0, 1e-6)
 
     for i, ax in enumerate(axes):
-        ax.set_xlabel("Reverse Imbalance Ratio")
+        ax.set_xlabel("Imbalance Ratio")
         # ax.set_xscale('log')
         ax.set_xticks(x_values)
         # ax.set_xticklabels([f'{alpha}' for alpha in x_values], rotation=45)
@@ -242,7 +252,7 @@ def plot_multireqs_v2(
     axes[1].set_ylabel("Absolute Prediction Error")
 
     for i, ax in enumerate(axes):
-        ax.set_xlabel("Reverse Imbalance Ratio")
+        ax.set_xlabel("Imbalance Ratio")
         # ax.set_xscale('log')
         ax.set_xticks(x_values)
         # ax.set_xticklabels([f'{alpha}' for alpha in x_values], rotation=45)
@@ -291,7 +301,8 @@ if __name__ == "__main__":
     p_list = np.maximum(p_list, 1e-5)
 
     task_name = sim_args.task_name
-    tag = f"{sim_args.get_tag()}_rid{min()}-{}_p{p_list[0]:.6f}-{p_list[-1]:.6f}"
+    tag = f"{sim_args.get_tag()}_rid0-{nreqs-1}_p{p_list[0]:.6f}-{p_list[-1]:.6f}"
+
     res_list_dir = os.path.join(sim_args.save_dir, "results", "3.2.2")
     os.makedirs(res_list_dir, exist_ok=True)
     res_list_path = os.path.join(res_list_dir, f"res_list_{tag}.pkl")

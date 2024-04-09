@@ -122,6 +122,11 @@ task_default_settings = {
         "max_error": 0.0,
         "ralf_budget": 0.0,
     },
+    "machineryralfsimmedian0": {
+        "model": "mlp",
+        "max_error": 0.0,
+        "ralf_budget": 0.0,
+    },
 }
 
 

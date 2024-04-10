@@ -79,11 +79,11 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
         if name in biathlon_df["task_name"].values
     ]
 
-    width = 0.6 / len(systems)
+    width = 0.85 / len(systems)
 
     x = np.arange(len(xticklabels))
     system_xs = {k: (x + v * width) for k, v in zip(systems, np.arange(len(systems)))}
-    x_ticks = system_xs["biathlon"]
+    x_ticks = system_xs["biathlon"] - width
 
     ax.set_xticks(x_ticks, xticklabels, fontsize=10)  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
@@ -99,27 +99,32 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
     accuracy_bars = {}
     for i, system in enumerate(systems):
         sys_df = system_dfs[system]
-        bar = ax.bar(system_xs[system], sys_df[args.score_type], width, label=system)
+        if system == "ralf":
+            pseudo_height = np.zeros_like(sys_df[args.score_type])
+            pseudo_height[-1] += 0.015
+            bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height, width, label=system)
+        else:
+            bar = ax.bar(system_xs[system], sys_df[args.score_type], width, label=system)
         accuracy_bars[system] = bar
 
-        if system in ["baseline", "biathlon"]:
+        if system in ["baseline", "biathlon", "ralf"]:
             for j, (rect, task_name) in enumerate(zip(bar, sys_df["task_name"])):
                 height = rect.get_height()
                 score = sys_df[sys_df["task_name"] == task_name][
                     args.score_type
                 ].values[0]
                 ax.text(
-                    rect.get_x() + rect.get_width() * 1.3 / 2.0,
+                    rect.get_x() + rect.get_width() * 1.4 / 3.0,
                     # max(height - (len(systems) - i) * 0.05, 0.01),
-                    min(height, 1.0 - 0.05),
+                    min(height, 1.0 + 0.05),
                     f"{round(score*100)}%",
                     ha="center",
                     va="bottom",
                     fontsize=10,
                 )
 
-    ax.set_ylabel("Fraction")
-    ax.set_title("Fraction of requests with bounded error")
+    ax.set_ylabel("Percentage")
+    ax.set_title("Percentage of requests within bounded error")
     ax.legend(loc="center right", fontsize=8)
 
     plt.savefig(os.path.join(args.home_dir, args.plot_dir, "meet_accuracy_target.pdf"))

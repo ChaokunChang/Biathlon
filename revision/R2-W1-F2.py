@@ -35,16 +35,12 @@ from apxinfer.examples.run import get_ppl
 from apxinfer.simulation import utils as simutils
 
 
-if __name__ == "__main__":
-    x = 100
-    operator = "median"
-    # dsize = 2000_000 + 1
-    dsize = 1000_000
-    dbseed = 0
-    ddist = "zipf"
-    dist_arg = 1.05
+def run(dsize: int = 1000_000,
+        sampling_frac: float = 0.01,
+        nseeds: int = 1000,
+        nresamples: int = 100) -> dict:
     population = simutils.generate_synthetic_data(
-        x, operator, dsize=dsize, seed=dbseed, ddist=ddist, arg=dist_arg
+        100, "median", dsize=dsize, seed=0, ddist="zipf", arg=1.05
     )
 
     # dsize = 2000_000 + 1
@@ -61,11 +57,9 @@ if __name__ == "__main__":
     #     datas.append(part_samples)
     # population = np.concatenate(datas)
 
-    sr = 0.01
-    sample_size = int(sr * len(population))
+    sample_size = int(sampling_frac * len(population))
     print(f"Population size: {len(population)}, Sample size: {sample_size}")
 
-    nseeds = 1000
     median_list = []
     for seed in range(nseeds):
         rng = np.random.default_rng(seed)
@@ -87,8 +81,6 @@ if __name__ == "__main__":
     samples = rng.choice(population, sample_size, replace=False)
     sample_median = np.median(samples)
 
-    # nresamples = nseeds
-    nresamples = 100
     resamples = []
     bs_seed = 0
     rng = np.random.default_rng(bs_seed)
@@ -118,6 +110,22 @@ if __name__ == "__main__":
     # scipy_bs_result = stats.bootstrap(tmp_data, np.median, n_resamples=nresamples, random_state=rng)
     # scipy_bs_dist = scipy_bs_result.bootstrap_distribution
     # scipy_bs_errors = scipy_bs_dist - sample_median
+
+    return {
+        "population": population,
+        "error_list": error_list,
+        "resample_errors": resample_errors,
+        "normal_bs_errors": normal_bs_errors,
+        # "scipy_bs_errors": scipy_bs_errors,
+    }
+
+
+def plot_median_error(res: dict):
+    population = res["population"]
+    error_list = res["error_list"]
+    resample_errors = res["resample_errors"]
+    normal_bs_errors = res["normal_bs_errors"]
+    # scipy_bs_errors = res["scipy_bs_errors"]
 
     # plot distribution of error_list
     fig, axes = plt.subplots(2, 2, figsize=(12, 12))
@@ -216,9 +224,101 @@ if __name__ == "__main__":
     # print(f"KS statistic: {ks_statistic}, p-value: {p_value}")
 
     fig_dir = "/home/ckchang/ApproxInfer/revision/cache/figs"
-    save_dir = os.path.join(fig_dir, "2.1.1")
+    save_dir = os.path.join(fig_dir, "2.1.2")
     os.makedirs(save_dir, exist_ok=True)
     fig_path = os.path.join(save_dir, "median_error_dist.pdf")
     plt.savefig(fig_path)
     print(f"Figure saved at {fig_path}")
     plt.savefig("./cache/median_error_dist.png")
+
+
+def plot_median_error_simple(res: dict):
+    population = res["population"]
+    error_list = res["error_list"]
+    resample_errors = res["resample_errors"]
+
+    # plot distribution of error_list
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    axes = axes.flatten()
+
+    ax = axes[0]
+    # plot distribution of population
+    sns.histplot(
+        population,
+        kde=True,
+        label="Data Distribution",
+        color="blue",
+        alpha=0.5,
+        bins=100,
+        stat="density",
+        ax=ax,
+    )
+    ax.axvline(np.median(population), color="black", linestyle="--", label="True (Median) Feature")
+    ax.legend()
+    ax.set_xlabel("Value")
+    ax.set_ylabel("Frequency")
+    ax.set_title(f"Distribution of Data")
+
+    ax = axes[1]
+    nbins = 50
+    # sns.histplot(
+    #     error_list,
+    #     kde=True,
+    #     label="Real Distribution",
+    #     color="blue",
+    #     alpha=0.5,
+    #     bins=nbins,
+    #     stat="density",
+    #     ax=ax,
+    # )
+    # sns.histplot(
+    #     resample_errors,
+    #     kde=True,
+    #     label="Bootstrap Distribution",
+    #     color="red",
+    #     alpha=0.5,
+    #     bins=nbins,
+    #     stat="density",
+    #     ax=ax,
+    # )
+    sns.kdeplot(
+        error_list,
+        label="Real Distribution",
+        color="blue",
+        alpha=0.5,
+        ax=ax,
+    )
+    sns.kdeplot(
+        resample_errors,
+        label="Bootstrap Distribution",
+        color="red",
+        alpha=0.5,
+        ax=ax,
+    )
+    ax.axvline(0, color="black", linestyle="--", label="Zero")
+
+    ax.legend()
+    ax.set_xlabel("Error Value")
+    ax.set_ylabel("Frequency")
+    ax.set_title(f"Distribution of Error")
+
+    print(f"normality pval of real error     : {stats.shapiro(error_list)[1]}")
+    print(f"normality pval of bootstrap error: {stats.shapiro(resample_errors)[1]}")
+
+    # Perform the Kolmogorov-Smirnov test
+    ks_statistic, p_value = stats.ks_2samp(error_list, resample_errors)
+    print(f"KS statistic: {ks_statistic}, p-value: {p_value}")
+
+    fig_dir = "/home/ckchang/ApproxInfer/revision/cache/figs"
+    save_dir = os.path.join(fig_dir, "2.1.2")
+    os.makedirs(save_dir, exist_ok=True)
+    fig_path = os.path.join(save_dir, "median_error_dist.pdf")
+    plt.savefig(fig_path)
+    print(f"Figure saved at {fig_path}")
+    plt.savefig("./cache/median_error_dist.png")
+
+
+if __name__ == "__main__":
+    res = run()
+    # plot_median_error(res)
+    plot_median_error_simple(res)

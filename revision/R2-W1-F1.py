@@ -101,24 +101,46 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
             if qry.qtype == XIPQType.AGG:
                 cached_rrd: np.ndarray = qry._dcache["cached_rrd"]
                 rrdatas.append(cached_rrd)
-                # print(f"{rid}-{qid}: {cached_rrd.shape}, {np.mean(cached_rrd)}")
                 if cached_rrd is not None:
-                    moments_list.append(
-                        {
-                            "rid": rid,
-                            "qid": qid,
-                            "size": len(cached_rrd),
-                            "mean": np.mean(cached_rrd),
-                            "std": np.std(cached_rrd),
-                            "skew": stats.skew(cached_rrd),
-                            "kurtosis": stats.kurtosis(cached_rrd),
-                        }
+                    # print(f"{rid}-{qid}: {cached_rrd.shape}")
+                    # check whether cached_rrd contains object dtype
+                    if cached_rrd.dtype == np.dtype("O"):
+                        # the data are string
+                        # we can not compute moments for object dtype directly
+                        # we take cached_rrd as descrete data, and compute 
+                        # the proportion of each unique value
+                        unique, counts = np.unique(cached_rrd, return_counts=True)
+                        moments_list.append(
+                            {
+                                "rid": rid,
+                                "qid": qid,
+                                "size": len(cached_rrd),
+                                "mean": None,
+                                "std": None,
+                                "skew": None,
+                                "kurtosis": None,
+                                "unique": unique,
+                                "counts": counts,
+                            }
+                        )
+                    else:
+                        moments_list.append(
+                            {
+                                "rid": rid,
+                                "qid": qid,
+                                "size": len(cached_rrd),
+                                "mean": np.mean(cached_rrd),
+                                "std": np.std(cached_rrd),
+                                "skew": stats.skew(cached_rrd),
+                                "kurtosis": stats.kurtosis(cached_rrd),
+                            }
                     )
                 else:
                     moments_list.append(
                         {
                             "rid": rid,
                             "qid": qid,
+                            "size": 0,
                             "mean": None,
                             "std": None,
                             "skew": None,
@@ -144,7 +166,7 @@ def run(args: OnlineArgs, seeds_list: np.ndarray, save_dir: str, logfile: str) -
                     all_rrd: np.ndarray = rrdatas[qid]
                     if all_rrd is not None:
                         total_n = all_rrd.shape[0]
-                        size = int(total_n * qsamples[qid])
+                        size = round(total_n * qsamples[qid])
                         srrd = all_rrd[qrng.choice(total_n, size=size, replace=False)]
                     else:
                         srrd = None

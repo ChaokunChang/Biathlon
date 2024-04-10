@@ -112,7 +112,7 @@ class SimulationArgs(Tap):
     task_name: str = "machineryralf"
 
     bs_type: str = "descrete"
-    bs_nresamples: int = 128
+    bs_nresamples: int = 100
 
     pest: str = "biathlon"
     pest_nsamples: int = 128

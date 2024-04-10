@@ -76,6 +76,8 @@ class DataAggregator:
 
 class XIPDataAggregator:
     def estimate(samples: np.ndarray, p: float, agg: str):
+        if len(samples) == 0:
+            return np.zeros(samples.shape[1])
         features = getattr(XIPDataAggregator, agg)(samples, p)
         return features
 

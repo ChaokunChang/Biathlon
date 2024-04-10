@@ -271,8 +271,13 @@ def get_biathlon_cmd(
     pest_qinf_opts = f"--pest {args.pest} --pest_constraint error --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf {args.qinf}"
     scheduler_opts = f"--scheduler {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
     acc_opts = f"--max_error {max_error} --min_conf {min_conf}"
-    bs_opts = f"--bs_type {args.bs_type} --bs_nresamples {args.bs_nresamples} --bs_nthreads {args.bs_nthreads} --bs_feature_correction {args.bs_feature_correction} --bs_bias_correction {args.bs_bias_correction} --bs_for_var_std {args.bs_for_var_std}"
-
+    bs_opts = f"--bs_type {args.bs_type} --bs_nresamples {args.bs_nresamples} --bs_nthreads {args.bs_nthreads}"
+    if not args.bs_feature_correction:
+        bs_opts = f"{bs_opts} --bs_feature_correction"
+    if not args.bs_bias_correction:
+        bs_opts = f"{bs_opts} --bs_bias_correction"
+    if not args.bs_for_var_std:
+        bs_opts = f"{bs_opts} --bs_for_var_std"
     biathlon_cmd = f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts} {bs_opts}"
 
     return biathlon_cmd
@@ -713,8 +718,10 @@ def run_tripsralfv2(args: ExpArgs):
     """
     task_name = "tripsralfv2"
     agg_qids = "1 2"
-    default_max_errors = [0.75, 1.0, 1.5, 2.0]
-    max_errors = [0.1, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    # default_max_errors = [0.75, 1.0, 1.5, 2.0]
+    # max_errors = [0.1, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]
+    default_max_errors = [1.5]
+    max_errors = [0.1875, 0.375, 0.75, 1.5, 3.0, 6.0, 9.0, 12.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

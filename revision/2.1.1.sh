@@ -6,6 +6,7 @@
 # python R2-W1-F1.py --task final/tdfraudralf2d --model xgb --scheduler_batch 3 --nreqs 8603
 # python R2-W1-F1.py --task final/studentqnov2subset --model rf --scheduler_batch 13 --nreqs 471
 # python R2-W1-F1.py --task final/machineryralfsimmedian0 --model mlp --scheduler_batch 8 --nreqs 338
+# python R2-W1-F1.py --task final/tripsralfv3 --model lgbm --max_error 1.4 --scheduler_batch 2 --nreqs 1964
 
 sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/machineryralf --model mlp --scheduler_batch 8 --nreqs 338
 sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/tickralfv2 --model lr --max_error 0.04 --scheduler_batch 1 --nreqs 4740
@@ -15,3 +16,4 @@ sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/batter
 sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/tdfraudralf2d --model xgb --scheduler_batch 3 --nreqs 8603
 sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/studentqnov2subset --model rf --scheduler_batch 13 --nreqs 471
 sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/machineryralfsimmedian0 --model mlp --scheduler_batch 8 --nreqs 338
+sudo /home/ckchang/anaconda3/envs/apx/bin/python R2-W1-F1.py --task final/tripsralfv3 --model lgbm --max_error 1.4 --scheduler_batch 2 --nreqs 1964

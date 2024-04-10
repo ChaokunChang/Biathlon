@@ -131,21 +131,31 @@ class MachineryRalfMedianPrepareWorker(MachineryRalfPrepareWorker):
 
         status = os.system(f"cp -r {machineryralf_dir}/qcosts.json {working_dir}/")
         if status != 0:
-            status = os.system(f"sudo cp -r {machineryralf_dir}/qcosts.json {working_dir}/")
+            status = os.system(
+                f"sudo cp -r {machineryralf_dir}/qcosts.json {working_dir}/"
+            )
             if status != 0:
                 raise ValueError("Failed to copy qcosts.json")
 
-        if task_name.startswith('machineryralfdirectmedian'):
-            e2emedian_dir = working_dir.replace(
-                "/machineryralfdirectmedian", "/machineryralfe2emedian"
+        status = os.system(f"cp -r {machineryralf_dir}/../offline {working_dir}/../")
+        if status != 0:
+            status = os.system(
+                f"sudo cp -r {machineryralf_dir}/../offline {working_dir}/../"
             )
-        elif task_name.startswith('machineryralfsimmedian'):
-            e2emedian_dir = working_dir.replace(
-                "/machineryralfsimmedian", "/machineryralfe2emedian"
-            )
+            if status != 0:
+                raise ValueError("Failed to copy offline directory")
+
+        e2emedian_dir = working_dir.replace(
+            f"/{task_name}/", "/machineryralfe2emedian01234567/"
+        )
+        assert os.path.exists(e2emedian_dir)
+        if task_name.startswith("machineryralfdirectmedian"):
+            fids = [int(v) for v in task_name[len("machineryralfdirectmedian") :]]
+        elif task_name.startswith("machineryralfsimmedian"):
+            fids = [int(v) for v in task_name[len("machineryralfsimmedian") :]]
         else:
             raise ValueError(f"Unknown task name: {task_name}")
-        assert os.path.exists(e2emedian_dir)
+
         e2emedian_dataset = pd.read_csv(
             os.path.join(e2emedian_dir, "dataset", "dataset.csv")
         )
@@ -158,14 +168,16 @@ class MachineryRalfMedianPrepareWorker(MachineryRalfPrepareWorker):
         corres_avg_fname = [
             fname.replace("_median_", "_avg_") for fname in median_fnames
         ]
+        assert len(corres_avg_fname) == len(median_fnames)
+        assert len(corres_avg_fname) == 8
 
         dataset = machineryralf_dataset
-        # rename corres_avg_fname in dataset to median_fnames
-        for i, fname in enumerate(corres_avg_fname):
-            new_name = median_fnames[i]
-            dataset = dataset.rename(columns={fname: new_name})
-            new_req_col = f"req_offset_{new_name[2:]}"
-            dataset[new_req_col] = dataset[new_name] - e2emedian_dataset[new_name]
+        for i, fid in enumerate(fids):
+            median_fname = median_fnames[i]
+            avg_fname = corres_avg_fname[i]
+            dataset = dataset.rename(columns={avg_fname: median_fname})
+            req_col = f"req_offset_{median_fname[2:]}"
+            dataset[req_col] = dataset[median_fname] - e2emedian_dataset[median_fname]
 
         self.logger.info(f"Created dataset for {self.dataset_dir}")
         return dataset

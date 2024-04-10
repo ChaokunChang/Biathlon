@@ -45,7 +45,7 @@ rename_map = {
     # Added for R2-W4-F1
     "tripsralfv2": "Trip-Fare",
     "tickralfv2": "Tick-Price",
-    "turbofan": "Turbofan RUL",
+    "turbofan": "Turbofan-RUL",
     "tdfraudralf2d": "Fraud-Detection",
     "studentqnov2subset": "QA-Correctness"
 }
@@ -840,6 +840,8 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
 
     plt.close("all")
 
+def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
+    pass
 
 def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     """

@@ -156,29 +156,33 @@ def plot_multireqs_v1(
         ferrors_list.reshape(len(rid_list), len(p_list), nops), axis=0
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 3))
     axes = axes.flatten()
 
-    axes[0].plot(x_values, avg_samples_list)
-    axes[0].set_title("Average Fraction of Samples")
-    axes[0].set_ylabel("Average Fraction of Samples")
+    mask = np.ones_like(x_values)
+    mask[11:14] = 0
+    mask = mask.astype(bool)
+
+    axes[0].plot(x_values[:-3], avg_samples_list[mask])
+    axes[0].set_title("Average Percentage of Samples")
+    axes[0].set_ylabel("Average Percentage of Samples")
     axes[0].set_ylim(0.0, 1.1)
-    y_ticks = np.arange(0.0, 1.1, 0.1)
+    y_ticks = np.arange(0.0, 1.1, 0.2)
     axes[0].set_yticks(y_ticks)
     t_ticklabels = [f"{int(t*100)}%" for t in y_ticks]
     axes[0].set_yticklabels(t_ticklabels)
 
     if task_name in ALL_CLS_TASKS:
-        axes[1].plot(x_values, 1.0 - perror_list)
+        axes[1].plot(x_values[:-3], (1.0 - perror_list)[mask])
         axes[1].set_title("Prediction Accuracy")
         axes[1].set_ylabel("Prediction Accuracy")
         axes[1].set_ylim(0.0, 1.1)
-        y_ticks = np.arange(0.0, 1.1, 0.1)
+        y_ticks = np.arange(0.0, 1.1, 0.2)
         axes[1].set_yticks(y_ticks)
         t_ticklabels = [f"{int(t*100)}%" for t in y_ticks]
         axes[1].set_yticklabels(t_ticklabels)
     else:
-        axes[1].plot(x_values, perror_list, color='r')
+        axes[1].plot(x_values[:-3], perror_list[mask], color='r')
         axes[1].set_title("Prediction Error")
         axes[1].set_ylabel("Absolute Prediction Error")
         # axes[1].set_ylim(0.0, 1e-6)
@@ -186,9 +190,9 @@ def plot_multireqs_v1(
     for i, ax in enumerate(axes):
         ax.set_xlabel("Imbalance Ratio")
         # ax.set_xscale('log')
-        ax.set_xticks(x_values)
+        ax.set_xticks(x_values[:-3])
         # ax.set_xticklabels([f'{alpha}' for alpha in x_values], rotation=45)
-        ax.set_xticklabels([f"{alpha:.4g}" for alpha in imbalance_ratio], rotation=45)
+        ax.set_xticklabels([f"{alpha:.4g}" for alpha in imbalance_ratio[mask]], rotation=45)
         ax.grid()
 
     plt.tight_layout()

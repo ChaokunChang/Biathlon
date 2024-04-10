@@ -96,15 +96,20 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
         labels=y_tick_labels,
     )
 
+    system_rename = {
+        "ralf": "RALF",
+        "baseline": "Baseline",
+        "biathlon": "Biathlon"
+    }
     accuracy_bars = {}
     for i, system in enumerate(systems):
         sys_df = system_dfs[system]
         if system == "ralf":
             pseudo_height = np.zeros_like(sys_df[args.score_type])
             pseudo_height[-1] += 0.015
-            bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height, width, label=system)
+            bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height, width, label=system_rename.get(system, system))
         else:
-            bar = ax.bar(system_xs[system], sys_df[args.score_type], width, label=system)
+            bar = ax.bar(system_xs[system], sys_df[args.score_type], width, label=system_rename.get(system, system))
         accuracy_bars[system] = bar
 
         if system in ["baseline", "biathlon", "ralf"]:

@@ -42,6 +42,12 @@ rename_map = {
     "trubofan": "Turbofan-RUL",
     "machineryralf": "Bearing-Imbalance",
     "studentqno18": "QA-Correctness",
+    # Added for R2-W4-F1
+    "tripsralfv2": "Trip-Fare",
+    "tickralfv2": "Tick-Price",
+    "turbofan": "Turbofan RUL",
+    "tdfraudralf2d": "Fraud-Detection",
+    "studentqnov2subset": "QA-Correctness"
 }
 
 TASKS = REG_TASKS + CLS_TASKS

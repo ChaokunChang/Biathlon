@@ -317,6 +317,11 @@ class TDFraudRalf2DPrepareWorker(TDFraudRalfPrepareWorker):
         return requests
 
 
+class TDFraudRalf2DSimMedianPrepareWorker(TDFraudRalf2DPrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="tdfraudralf2d")
+
+
 class TDFraudRalf2HPrepareWorker(TDFraudRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         requests = self._extract_requests(start_dt="2017-11-09 14:00:00")
@@ -335,33 +340,33 @@ class TDFraudRalfV2PrepareWorker(TDFraudRalfPrepareWorker):
             ORDER BY click_time
         """
         data = self.db_client.query_df(sql)
-        data['click_dt'] = pd.to_datetime(data['click_dt'])
-        data['timestamp'] = data['click_dt'].astype(int) // 10**9
+        data["click_dt"] = pd.to_datetime(data["click_dt"])
+        data["timestamp"] = data["click_dt"].astype(int) // 10**9
         # data['timestamp'] = data['timestamp'] - data['timestamp'].min()
-        data['hour'] = data['click_dt'].dt.hour
-        data['minute'] = data['click_dt'].dt.minute
-        data['second'] = data['click_dt'].dt.second
-        data['time'] = data['hour'] + data['minute']/60 + data['second']/3600
+        data["hour"] = data["click_dt"].dt.hour
+        data["minute"] = data["click_dt"].dt.minute
+        data["second"] = data["click_dt"].dt.second
+        data["time"] = data["hour"] + data["minute"] / 60 + data["second"] / 3600
 
-        data['timestamp_min'] = data['timestamp'] // 60
-        gdata = data.groupby('timestamp_min')
+        data["timestamp_min"] = data["timestamp"] // 60
+        gdata = data.groupby("timestamp_min")
 
         rng = np.random.RandomState(0)
 
         def update_label_ts(row):
-            if row['label_ts'] >= row['ts']:
+            if row["label_ts"] >= row["ts"]:
                 return row
             else:
                 delay = 0
-                ts = row['timestamp']
+                ts = row["timestamp"]
                 ts_min = ts // 60
                 if ts_min in gdata.groups:
                     group = gdata.get_group(ts_min)
                     if len(group) > 0:
                         # get a random row from group
                         idx = rng.choice(group.index)
-                        delay = group.loc[idx, 'delay']
-                row['label_ts'] = row['ts'] + delay
+                        delay = group.loc[idx, "delay"]
+                row["label_ts"] = row["ts"] + delay
                 return row
 
         requests = requests.apply(update_label_ts, axis=1)

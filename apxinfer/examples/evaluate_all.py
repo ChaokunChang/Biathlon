@@ -278,7 +278,9 @@ def get_biathlon_cmd(
         bs_opts = f"{bs_opts} --bs_bias_correction"
     if not args.bs_for_var_std:
         bs_opts = f"{bs_opts} --bs_for_var_std"
-    biathlon_cmd = f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts} {bs_opts}"
+    biathlon_cmd = (
+        f"{online_cmd} {pest_qinf_opts} {scheduler_opts} {acc_opts} {bs_opts}"
+    )
 
     return biathlon_cmd
 
@@ -738,6 +740,58 @@ def run_tripsralfv3(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_tripsralfv2median(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralfv3median"
+    agg_qids = "1 2"
+    # default_max_errors = [0.7, 1.4, 2.8]
+    default_max_errors = [1.4]
+    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralfv2simmedian(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralfv3simmedian"
+    agg_qids = "1 2"
+    # default_max_errors = [0.7, 1.4, 2.8]
+    default_max_errors = [1.4]
+    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralfv3median(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralfv3median"
+    agg_qids = "1 2"
+    # default_max_errors = [0.7, 1.4, 2.8]
+    default_max_errors = [1.4]
+    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tripsralfv3simmedian(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "dt", "rf"]
+    """
+    task_name = "tripsralfv3simmedian"
+    agg_qids = "1 2"
+    # default_max_errors = [0.7, 1.4, 2.8]
+    default_max_errors = [1.4]
+    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_tripsralftest(args: ExpArgs):
     """
     must models = ["lgbm"]
@@ -828,12 +882,94 @@ def run_batteryv2(args: ExpArgs):
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 
+def run_batteryv2median(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "batteryv2median"
+    agg_qids = "0 1 2 3 4"
+    default_max_errors = [60.0, 93.35, 120.0, 186.7]
+    max_errors = [
+        30.0,
+        60.0,
+        93.35,
+        120,
+        186.7,
+        300.0,
+        600.0,
+        900.0,
+        1200.0,
+        1800.0,
+        2400.0,
+        3000.0,
+        3600.0,
+        4800.0,
+        7200.0,
+    ]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_batteryv2simmedian(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "batteryv2simmedian"
+    agg_qids = "0 1 2 3 4"
+    default_max_errors = [60.0, 93.35, 120.0, 186.7]
+    max_errors = [
+        30.0,
+        60.0,
+        93.35,
+        120,
+        186.7,
+        300.0,
+        600.0,
+        900.0,
+        1200.0,
+        1800.0,
+        2400.0,
+        3000.0,
+        3600.0,
+        4800.0,
+        7200.0,
+    ]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
 def run_turbofan(args: ExpArgs):
     """
     must models = ["lgbm"]
     optional models = ["xgb", "rf"]
     """
     task_name = "turbofan"
+    naggs = 9
+    agg_qids = list_to_option_str([i for i in range(naggs)])
+    default_max_errors = [1.0, 2.44, 3.0, 4.88, 6.0]
+    max_errors = [1.0, 2.44, 3.0, 4.88, 6.0, 10.0, 20.0, 50.0, 80.0, 100.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_turbofanmedian(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "turbofanmedian"
+    naggs = 9
+    agg_qids = list_to_option_str([i for i in range(naggs)])
+    default_max_errors = [1.0, 2.44, 3.0, 4.88, 6.0]
+    max_errors = [1.0, 2.44, 3.0, 4.88, 6.0, 10.0, 20.0, 50.0, 80.0, 100.0]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_turbofansimmedian(args: ExpArgs):
+    """
+    must models = ["lgbm"]
+    optional models = ["xgb", "rf"]
+    """
+    task_name = "turbofansimmedian"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
     default_max_errors = [1.0, 2.44, 3.0, 4.88, 6.0]
@@ -919,6 +1055,30 @@ def run_tickralfv2(args: ExpArgs):
     optional models = ["dt", "rf"]
     """
     task_name = "tickralfv2"
+    agg_qids = "6"
+    default_max_errors = [0.01, 0.02, 0.04, 0.05]
+    max_errors = [0.001, 0.01, 0.02, 0.04, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tickralfv2median(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralfv2median"
+    agg_qids = "6"
+    default_max_errors = [0.01, 0.02, 0.04, 0.05]
+    max_errors = [0.001, 0.01, 0.02, 0.04, 0.05, 0.1]
+    run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
+
+
+def run_tickralfv2simmedian(args: ExpArgs):
+    """
+    must models = ["lr"]
+    optional models = ["dt", "rf"]
+    """
+    task_name = "tickralfv2simmedian"
     agg_qids = "6"
     default_max_errors = [0.01, 0.02, 0.04, 0.05]
     max_errors = [0.001, 0.01, 0.02, 0.04, 0.05, 0.1]
@@ -1051,6 +1211,14 @@ if __name__ == "__main__":
         run_tripsralfv2(args)
     elif args.exp == "tripsralfv3":
         run_tripsralfv3(args)
+    elif args.exp == "tripsralfv2median":
+        run_tripsralfv2median(args)
+    elif args.exp == "tripsralfv3median":
+        run_tripsralfv3median(args)
+    elif args.exp == "tripsralfv2simmedian":
+        run_tripsralfv2simmedian(args)
+    elif args.exp == "tripsralfv3simmedian":
+        run_tripsralfv3simmedian(args)
     elif args.exp == "trips":
         run_trips(args)
     elif args.exp == "tick-v1":
@@ -1063,6 +1231,10 @@ if __name__ == "__main__":
         run_tickralftest(args)
     elif args.exp == "tickralfv2":
         run_tickralfv2(args)
+    elif args.exp == "tickralfv2median":
+        run_tickralfv2median(args)
+    elif args.exp == "tickralfv2simmedian":
+        run_tickralfv2simmedian(args)
     elif args.exp == "tickralfv2test":
         run_tickralfv2test(args)
     elif args.exp == "cheaptrips":
@@ -1077,6 +1249,7 @@ if __name__ == "__main__":
         args.exp.startswith("machineryralfe2emedian")
         or args.exp.startswith("machineryralfdirectmedian")
         or args.exp.startswith("machineryralfsimmedian")
+        or args.exp.startswith("machineryralfmedian")
     ):
         run_machineryralfmedian(args, task_name=args.exp)
     elif args.exp == "ccfraud":
@@ -1127,8 +1300,16 @@ if __name__ == "__main__":
         run_battery(args)
     elif args.exp == "batteryv2":
         run_batteryv2(args)
+    elif args.exp == "batteryv2median":
+        run_batteryv2median(args)
+    elif args.exp == "batteryv2simmedian":
+        run_batteryv2simmedian(args)
     elif args.exp == "turbofan":
         run_turbofan(args)
+    elif args.exp == "turbofanmedian":
+        run_turbofanmedian(args)
+    elif args.exp == "turbofansimmedian":
+        run_turbofansimmedian(args)
     elif args.exp == "turbofanall":
         run_turbofanall(args)
     elif args.exp == "student":

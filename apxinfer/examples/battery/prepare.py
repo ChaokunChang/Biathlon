@@ -43,28 +43,28 @@ class BatteryPrepareWorker(XIPPrepareWorker):
         dsrc = get_dsrc()
         meta_data = pd.read_csv(os.path.join(dsrc, "metadata.csv"))
         # selected_type = 'discharge'
-        selected_type = 'charge'
-        selected_data = meta_data[meta_data['type'] == selected_type]
+        selected_type = "charge"
+        selected_data = meta_data[meta_data["type"] == selected_type]
 
         rng = np.random.RandomState(0)
         selected_dfs = []
-        for row in tqdm(selected_data.to_dict(orient='records')):
-            filename = row['filename']
-            bid = row['uid']
-            src = os.path.join(dsrc, 'data', filename)
+        for row in tqdm(selected_data.to_dict(orient="records")):
+            filename = row["filename"]
+            bid = row["uid"]
+            src = os.path.join(dsrc, "data", filename)
 
             df = pd.read_csv(os.path.join(dsrc, "data", src))
             # pick a row randomly starting from the middle
-            row = rng.randint(len(df)//2, len(df))
+            row = rng.randint(len(df) // 2, len(df))
             # get the time of that row
-            time = df.iloc[row]['Time']
+            time = df.iloc[row]["Time"]
             # get rul = last_row_time - time
-            rul = df.iloc[-1]['Time'] - time
-            features = {'bid': bid, "time": time, 'rul': rul}
+            rul = df.iloc[-1]["Time"] - time
+            features = {"bid": bid, "time": time, "rul": rul}
 
-            aggops = ['min', 'max', 'mean', 'std', 'skew', 'kurtosis']
-            aggops = ['mean', 'std', 'skew', 'kurtosis']
-            aggops = ['mean', 'std']
+            aggops = ["min", "max", "mean", "std", "skew", "kurtosis"]
+            aggops = ["mean", "std", "skew", "kurtosis"]
+            aggops = ["mean", "std"]
             aggs = df.iloc[:row].agg(aggops).to_dict()
             for k, v in aggs.items():
                 if k == "Time":
@@ -87,14 +87,14 @@ class BatteryPrepareWorker(XIPPrepareWorker):
 
     def get_requests(self) -> pd.DataFrame:
         df = self.extract_request_and_labels()
-        requests = df[['bid', 'time']]
+        requests = df[["bid", "time"]]
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
 
     def get_labels(self, requests: pd.DataFrame) -> pd.Series:
         df = self.extract_request_and_labels()
-        labels = df[['rul']]
+        labels = df[["rul"]]
         self.logger.info(f"Getting labels for {len(labels)}x requests")
         labels.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels["rul"]
@@ -102,3 +102,8 @@ class BatteryPrepareWorker(XIPPrepareWorker):
 
 class BatteryTestPrepareWorker(BatteryPrepareWorker):
     pass
+
+
+class BatterySimMedianPrepareWorker(BatteryPrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="batteryv2")

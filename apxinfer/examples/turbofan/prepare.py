@@ -71,3 +71,8 @@ class TurbofanPrepareWorker(XIPPrepareWorker):
         self.logger.info(f"Getting labels for {len(labels)}x requests")
         labels.to_csv(os.path.join(self.working_dir, "labels.csv"), index=False)
         return labels["Y"]
+
+
+class TurbofanSimMedianPrepareWorker(TurbofanPrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="turbofan")

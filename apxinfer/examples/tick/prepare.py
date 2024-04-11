@@ -228,3 +228,8 @@ class TickRalfV2TestPrepareWorker(TickRalfV2PrepareWorker):
         self.logger.info(f"Extracted {len(requests)}x of requests")
         requests.to_csv(os.path.join(self.working_dir, "requests.csv"), index=False)
         return requests
+
+
+class TickRalfV2SimMedianPrepareWorker(TickRalfV2PrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="tickralfv2")

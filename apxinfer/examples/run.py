@@ -41,6 +41,18 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_tdfraudkaggle_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
+    elif name == "tdfraudralf2dmedian":
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_median_engine
+
+        fengine = get_tdfraud_median_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "tdfraudralf2dsimmedian":
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_simmedian_engine
+
+        fengine = get_tdfraud_simmedian_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name.startswith("tdfraud"):  # tdfraud, tdfraudrandom, tdfraudralf...
         from apxinfer.examples.tdfraud.engine import get_tdfraud_engine
 
@@ -57,6 +69,18 @@ def get_fengine(name: str, args: BaseXIPArgs):
         from apxinfer.examples.tick.engine import get_tick_engine_v2
 
         fengine = get_tick_engine_v2(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "tickralfv2median":
+        from apxinfer.examples.tick.engine import get_tick_median_engine_v2
+
+        fengine = get_tick_median_engine_v2(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "tickralfv2simmedian":
+        from apxinfer.examples.tick.engine import get_tick_simmedian_engine_v2
+
+        fengine = get_tick_simmedian_engine_v2(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
     elif name.startswith("tickralf"):
@@ -92,6 +116,18 @@ def get_fengine(name: str, args: BaseXIPArgs):
             ncores=args.ncores,
             seed=args.seed,
             verbose=args.verbose,
+        )
+    elif name in ["tripsralfv2median", "tripsralfv3median"]:
+        from apxinfer.examples.tripsfeast.engine import get_tripsralf_median_engine
+
+        fengine = get_tripsralf_median_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name in ["tripsralfv2simmedian", "tripsralfv3simmedian"]:
+        from apxinfer.examples.tripsfeast.engine import get_tripsralf_simmedian_engine
+
+        fengine = get_tripsralf_simmedian_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
     elif name.startswith("tripsralf"):
         from apxinfer.examples.tripsfeast.engine import get_trips_feast_engine
@@ -175,8 +211,8 @@ def get_fengine(name: str, args: BaseXIPArgs):
         dloader = get_dloader(nparts=args.nparts, seed=args.seed, verbose=args.verbose)
         qps = get_qps_varynf(dloader, args.verbose, nf=int(name[-1]))
         fengine = get_qengine(qps, args.ncores, args.verbose)
-    elif name.startswith('machineryralfe2emedian'):
-        median_qids = [int(i) for i in name[len('machineryralfe2emedian'):]]
+    elif name == "machineryralfmedian":
+        median_qids = list(range(8))
         from apxinfer.examples.machinery.engine import get_machineryralfmedian_engine
 
         fengine = get_machineryralfmedian_engine(
@@ -186,8 +222,8 @@ def get_fengine(name: str, args: BaseXIPArgs):
             median_qids=median_qids,
             verbose=args.verbose,
         )
-    elif name.startswith('machineryralfdirectmedian'):
-        median_qids = [int(i) for i in name[len('machineryralfdirectmedian'):]]
+    elif name.startswith("machineryralfe2emedian"):
+        median_qids = [int(i) for i in name[len("machineryralfe2emedian") :]]
         from apxinfer.examples.machinery.engine import get_machineryralfmedian_engine
 
         fengine = get_machineryralfmedian_engine(
@@ -197,8 +233,21 @@ def get_fengine(name: str, args: BaseXIPArgs):
             median_qids=median_qids,
             verbose=args.verbose,
         )
-    elif name.startswith('machineryralfsimmedian'):
-        median_qids = [int(i) for i in name[len('machineryralfsimmedian'):]]
+    elif name.startswith("machineryralfdirectmedian"):
+        median_qids = [int(i) for i in name[len("machineryralfdirectmedian") :]]
+        from apxinfer.examples.machinery.engine import get_machineryralfmedian_engine
+
+        fengine = get_machineryralfmedian_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            median_qids=median_qids,
+            verbose=args.verbose,
+        )
+    elif name.startswith("machineryralfsimmedian"):
+        median_qids = [int(i) for i in name[len("machineryralfsimmedian") :]]
+        if len(median_qids) == 0:
+            median_qids = list(range(8))
         from apxinfer.examples.machinery.engine import get_machineryralfsimmedian_engine
 
         fengine = get_machineryralfsimmedian_engine(
@@ -220,10 +269,34 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_batteryv2_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
+    elif name == "batteryv2median":
+        from apxinfer.examples.battery.engine import get_batteryv2_median_engine
+
+        fengine = get_batteryv2_median_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "batteryv2simmedian":
+        from apxinfer.examples.battery.engine import get_batteryv2_simmedian_engine
+
+        fengine = get_batteryv2_simmedian_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "turbofan":
         from apxinfer.examples.turbofan.engine import get_turbofan_engine
 
         fengine = get_turbofan_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "turbofanmedian":
+        from apxinfer.examples.turbofan.engine import get_turbofan_median_engine
+
+        fengine = get_turbofan_median_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "turbofansimmedian":
+        from apxinfer.examples.turbofan.engine import get_turbofan_simmedian_engine
+
+        fengine = get_turbofan_simmedian_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
     elif name == "turbofanall":
@@ -237,6 +310,24 @@ def get_fengine(name: str, args: BaseXIPArgs):
 
         fengine = get_student_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
+    elif name == "studentqnov2subsetmedian":
+        from apxinfer.examples.student.engine import get_studentqno_median_engine
+
+        fengine = get_studentqno_median_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            verbose=args.verbose,
+        )
+    elif name == "studentqnov2subsetsimmedian":
+        from apxinfer.examples.student.engine import get_studentqno_simmedian_engine
+
+        fengine = get_studentqno_simmedian_engine(
+            nparts=args.nparts,
+            ncores=args.ncores,
+            seed=args.seed,
+            verbose=args.verbose,
         )
     elif name.startswith("studentqno"):
         from apxinfer.examples.student.engine import get_studentqno_engine
@@ -260,6 +351,7 @@ def get_fengine(name: str, args: BaseXIPArgs):
             )
     elif name.startswith("performance"):
         from apxinfer.examples.student.engine import get_performance_engine
+
         fengine = get_performance_engine(
             nparts=args.nparts,
             ncores=args.ncores,
@@ -369,13 +461,21 @@ def run_prepare(name: str, args: PrepareArgs):
             )
         elif name == "tripsralf":
             from apxinfer.examples.trips.prepare import TripsRalfPrepareWorker as Worker
-        elif name == "tripsralfv2":
+        elif name in ["tripsralfv2", "tripsralfv2median"]:
             from apxinfer.examples.trips.prepare import (
                 TripsRalfV2PrepareWorker as Worker,
             )
-        elif name == "tripsralfv3":
+        elif name in ["tripsralfv3", "tripsralfv3median"]:
             from apxinfer.examples.trips.prepare import (
                 TripsRalfV3PrepareWorker as Worker,
+            )
+        elif name == "tripsralfv2simmedian":
+            from apxinfer.examples.trips.prepare import (
+                TripsRalfV2SimMedianPrepareWorker as Worker,
+            )
+        elif name == "tripsralfv3simmedian":
+            from apxinfer.examples.trips.prepare import (
+                TripsRalfV3SimMedianPrepareWorker as Worker,
             )
         else:
             from apxinfer.examples.trips.prepare import TripsPrepareWorker as Worker
@@ -430,9 +530,15 @@ def run_prepare(name: str, args: PrepareArgs):
         from apxinfer.examples.tdfraud.prepare import TDFraudRalfPrepareWorker as Worker
 
         model_type = "classifier"
-    elif name == "tdfraudralf2d":
+    elif name in ["tdfraudralf2d", "tdfraudralf2dmedian"]:
         from apxinfer.examples.tdfraud.prepare import (
             TDFraudRalf2DPrepareWorker as Worker,
+        )
+
+        model_type = "classifier"
+    elif name == "tdfraudralf2dsimmedian":
+        from apxinfer.examples.tdfraud.prepare import (
+            TDFraudRalf2DSimMedianPrepareWorker as Worker,
         )
 
         model_type = "classifier"
@@ -495,12 +601,20 @@ def run_prepare(name: str, args: PrepareArgs):
             from apxinfer.examples.tick.prepare import TickRalfPrepareWorker as Worker
 
             model_type = "regressor"
-        elif name == "tickralfv2":
+        elif name in ["tickralfv2", "tickralfv2median"]:
             from apxinfer.examples.tick.prepare import TickRalfV2PrepareWorker as Worker
 
             model_type = "regressor"
+        elif name in ["tickralfv2simmedian"]:
+            from apxinfer.examples.tick.prepare import (
+                TickRalfV2SimMedianPrepareWorker as Worker,
+            )
+
+            model_type = "regressor"
         elif name == "tickralfv2test":
-            from apxinfer.examples.tick.prepare import TickRalfV2TestPrepareWorker as Worker
+            from apxinfer.examples.tick.prepare import (
+                TickRalfV2TestPrepareWorker as Worker,
+            )
 
             model_type = "regressor"
         else:
@@ -511,8 +625,20 @@ def run_prepare(name: str, args: PrepareArgs):
         from apxinfer.examples.battery.prepare import BatteryTestPrepareWorker as Worker
 
         model_type = "regressor"
+    elif name == "batteryv2simmedian":
+        from apxinfer.examples.battery.prepare import (
+            BatterySimMedianPrepareWorker as Worker,
+        )
+
+        model_type = "regressor"
     elif name.startswith("battery"):
         from apxinfer.examples.battery.prepare import BatteryPrepareWorker as Worker
+
+        model_type = "regressor"
+    elif name == "turbofansimmedian":
+        from apxinfer.examples.turbofan.prepare import (
+            TurbofanSimMedianPrepareWorker as Worker,
+        )
 
         model_type = "regressor"
     elif name.startswith("turbofan"):
@@ -536,9 +662,15 @@ def run_prepare(name: str, args: PrepareArgs):
             )
 
             model_type = "classifier"
-        elif name == "studentqnov2subset":
+        elif name in ["studentqnov2subset", "studentqnov2subsetmedian"]:
             from apxinfer.examples.student.prepare import (
                 StudentQNoPrepareWorker as Worker,
+            )
+
+            model_type = "classifier"
+        elif name == "studentqnov2subsetsimmedian":
+            from apxinfer.examples.student.prepare import (
+                StudentQNoSimMedianPrepareWorker as Worker,
             )
 
             model_type = "classifier"
@@ -564,6 +696,8 @@ def run_prepare(name: str, args: PrepareArgs):
             "studentqnotest",
             "studentqnov2",
             "studentqnov2subset",
+            "studentqnov2subsetmedian",
+            "studentqnov2subsetsimmedian",
             "studentqnov2test",
         ]:
             qno = 18
@@ -708,17 +842,24 @@ def load_xip_qcm(args: OnlineArgs) -> XIPQCostModel:
     return model
 
 
-def get_ppl(name: str, args: OnlineArgs,
-            requests: pd.DataFrame,
-            verbose: bool) -> XIPPipeline:
+def get_ppl(
+    name: str, args: OnlineArgs, requests: pd.DataFrame, verbose: bool
+) -> XIPPipeline:
     # load xip model
     model: XIPModel = LoadingHelper.load_model(args)
 
     # create a feature engine for this task
     fengine = get_fengine(name, args)
 
-    if name in ["studentqnov2", "studentqnov2subset", "studentqnov2test"]:
+    if name in [
+        "studentqnov2",
+        "studentqnov2subset",
+        "studentqnov2test",
+        "studentqnov2subsetmedian",
+        "studentqnov2subsetsimmedian",
+    ]:
         from apxinfer.examples.student.data import db_migration
+
         if requests is not None:
             for qry in fengine.queries:
                 if qry.data_loader is not None:
@@ -743,7 +884,7 @@ def get_ppl(name: str, args: OnlineArgs,
         from apxinfer.examples.student.data import db_migration_v2
 
         if requests is not None:
-            level_group = get_query_group(int(name[len("performance"):]))
+            level_group = get_query_group(int(name[len("performance") :]))
             for qry in fengine.queries:
                 if qry.data_loader is not None:
                     suffix = name
@@ -751,7 +892,7 @@ def get_ppl(name: str, args: OnlineArgs,
                         qry.dbtable,
                         qry.dbtable + f"_{suffix}",
                         requests["req_session_id"].tolist(),
-                        level_group
+                        level_group,
                     )
 
                     data_loader = XIPDataLoader(

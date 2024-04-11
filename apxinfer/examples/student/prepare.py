@@ -227,6 +227,11 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
         return users_test
 
 
+class StudentQNoSimMedianPrepareWorker(StudentQNoPrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="studentqnov2subset")
+
+
 class StudentQNoV2PrepareWorker(StudentQNoPrepareWorker):
     def get_test_users(self, USER_LIST, split):
         return USER_LIST[split:]

@@ -196,6 +196,21 @@ def generate_synthetic_data(
         synv = kwargs.get("synv")
         x_num = int(dsize * (0.5 + p))
         data = np.array([x] * x_num + [synv] * (dsize - x_num))
+    elif ddist == 'bimodal':
+        p = kwargs.get("arg")
+        rng = np.random.default_rng(0)
+        datas = []
+        p1size = int(0.5 * dsize)
+        p2size = dsize - p1size
+        dstd = dsize // 100_000
+        dloc = dstd * 10
+        params_list = [(-dloc, dstd, p1size), (dloc, dstd, p2size)]
+        # print(f"params_list: {params_list}")
+        for params in params_list:
+            loc, scale, part_size = params
+            part_samples = rng.normal(loc=loc, scale=scale, size=part_size)
+            datas.append(part_samples)
+        data = np.concatenate(datas)
     else:
         raise ValueError(f"Invalid distribution: {ddist}")
 

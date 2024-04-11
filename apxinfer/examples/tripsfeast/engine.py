@@ -9,8 +9,9 @@ from apxinfer.examples.tripsfeast.query import TripsQP0, TripsQP1, TripsQP2
 from apxinfer.examples.tripsfeast.query import TripsQP3, TripsQP4
 
 
-def get_trips_feast_engine(nparts: int, ncores: int = 0,
-                           seed: int = 0, verbose: bool = False):
+def get_trips_feast_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
     data_loader: XIPDataLoader = get_dloader(nparts, seed=seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",
@@ -39,9 +40,9 @@ def get_trips_feast_engine(nparts: int, ncores: int = 0,
     return fengine
 
 
-def get_trips_feast_engine_vary(nparts: int, rate: int,
-                                ncores: int = 0, seed: int = 0,
-                                verbose: bool = False):
+def get_trips_feast_engine_vary(
+    nparts: int, rate: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
     data_loader: XIPDataLoader = get_dloader(nparts, seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",
@@ -54,7 +55,7 @@ def get_trips_feast_engine_vary(nparts: int, rate: int,
         qname="q1",
         qtype=XIPQType.AGG,
         data_loader=data_loader,
-        window=1.0*rate,
+        window=1.0 * rate,
         fnames=None,
         verbose=verbose,
     )
@@ -62,7 +63,7 @@ def get_trips_feast_engine_vary(nparts: int, rate: int,
         qname="q2",
         qtype=XIPQType.AGG,
         data_loader=data_loader,
-        window=0.5*rate,
+        window=0.5 * rate,
         fnames=None,
         verbose=verbose,
     )
@@ -83,8 +84,9 @@ class TripsQP1Median(TripsQP1):
         return qops
 
 
-def get_tripsralf_median_engine(nparts: int, ncores: int = 0,
-                                seed: int = 0, verbose: bool = False):
+def get_tripsralf_median_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
     data_loader: XIPDataLoader = get_dloader(nparts, seed=seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",
@@ -114,12 +116,15 @@ def get_tripsralf_median_engine(nparts: int, ncores: int = 0,
 
 
 class TripsQP1SimMedian(TripsQP1Median):
-    def feature_transformation(self, request: XIPRequest, fvec: XIPFeatureVec) -> XIPFeatureVec:
-        return self.feature_transformation_offset(request, fvec, )
+    def feature_transformation(
+        self, request: XIPRequest, fvec: XIPFeatureVec
+    ) -> XIPFeatureVec:
+        return self.feature_transformation_offset(request, fvec)
 
 
-def get_tripsralf_simmedian_engine(nparts: int, ncores: int = 0,
-                                seed: int = 0, verbose: bool = False):
+def get_tripsralf_simmedian_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
     data_loader: XIPDataLoader = get_dloader(nparts, seed=seed, verbose=verbose)
     qp0 = TripsQP0(
         qname="q0",

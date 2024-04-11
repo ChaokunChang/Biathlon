@@ -381,8 +381,10 @@ class XIPQueryProcessor:
         self, request: XIPRequest, fvec: XIPFeatureVec
     ) -> XIPFeatureVec:
         fnames = fvec["fnames"]
-        offsets = [request[f"req_offset_{fname}"] for fname in fnames]
-        fvec["fvals"] = fvec["fvals"] + offsets
+        for i, fname in enumerate(fnames):
+            offset = request.get(f"req_offset_{fname}", None)
+            if offset is not None:
+                fvec["fvals"][i] += offset
         return fvec
 
     def estimate_cardinality(self, rrdata: np.ndarray, qcfg: XIPQueryConfig) -> int:

@@ -227,7 +227,54 @@ class StudentQNoPrepareWorker(StudentPrepareWorker):
         return users_test
 
 
-class StudentQNoSimMedianPrepareWorker(StudentQNoPrepareWorker):
+def feature_engineer_median(data_df: pd.DataFrame) -> pd.DataFrame:
+    dfs = []
+    for c in STUDENT_CATEGORICAL:
+        tmp = data_df.groupby(["session_id", "level_group"])[c].agg("nunique")
+        tmp.name = tmp.name + "_unique"
+        dfs.append(tmp)
+    for c in STUDENT_NUMERICAL:
+        tmp = data_df.groupby(["session_id", "level_group"])[c].agg("median")
+        tmp.name = tmp.name + "_median"
+        dfs.append(tmp)
+    for c in STUDENT_NUMERICAL:
+        tmp = data_df.groupby(["session_id", "level_group"])[c].agg("std")
+        tmp.name = tmp.name + "_stdSamp"
+        dfs.append(tmp)
+    df = pd.concat(dfs, axis=1)
+    df = df.fillna(-1)
+    df = df.reset_index()
+    # df = df.set_index("session_id")
+    return df
+
+
+class StudentQNoMedianPrepareWorker(StudentQNoPrepareWorker):
+    def extract_request_and_labels(self) -> pd.DataFrame:
+        if self._cached_df is not None:
+            return self._cached_df
+        dsrc = get_dsrc()
+        data_df = pd.read_csv(os.path.join(dsrc, "train.csv"))
+        df_features = feature_engineer_median(data_df)
+
+        labels = pd.read_csv(os.path.join(dsrc, "train_labels.csv"))
+        labels["qno"] = labels["session_id"].apply(lambda x: int(x.split("_")[-1][1:]))
+        labels["session_id"] = labels["session_id"].apply(
+            lambda x: int(x.split("_")[0])
+        )
+        df = labels
+        df["level_group"] = df["qno"].apply(get_query_group)
+        df = df.merge(df_features, on=["session_id", "level_group"], how="left")
+        df = df.reset_index()
+
+        df.insert(0, "ts", range(len(df)))
+        df["label_ts"] = df["ts"]
+
+        df.to_csv(os.path.join(self.working_dir, "extracted_df.csv"), index=False)
+        self._cached_df = df
+        return self._cached_df
+
+
+class StudentQNoSimMedianPrepareWorker(StudentQNoMedianPrepareWorker):
     def create_dataset(self) -> pd.DataFrame:
         return self.create_dataset_simmedian_helper(ref_task="studentqnov2subset")
 

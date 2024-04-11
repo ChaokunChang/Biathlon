@@ -662,9 +662,15 @@ def run_prepare(name: str, args: PrepareArgs):
             )
 
             model_type = "classifier"
-        elif name in ["studentqnov2subset", "studentqnov2subsetmedian"]:
+        elif name == "studentqnov2subset":
             from apxinfer.examples.student.prepare import (
                 StudentQNoPrepareWorker as Worker,
+            )
+
+            model_type = "classifier"
+        elif name == "studentqnov2subsetmedian":
+            from apxinfer.examples.student.prepare import (
+                StudentQNoMedianPrepareWorker as Worker,
             )
 
             model_type = "classifier"

@@ -184,14 +184,12 @@ class XIPPrepareWorker:
         self.logger.info(f"Creating dataset for {self.dataset_dir} by copying")
         working_dir = self.working_dir
         elements = working_dir.split("/")
-
-        ref_task = "tickralfv2"
         task_name = None
         for ele in elements:
             if ele.startswith(ref_task):
                 task_name = ele
                 break
-        assert task_name is not None
+        assert task_name is not None, f"Task name not found in {working_dir} with {ref_task}"
         base_ppl_dir = working_dir.replace(task_name, ref_task)
         assert os.path.exists(base_ppl_dir)
         base_ppl_dataset = pd.read_csv(

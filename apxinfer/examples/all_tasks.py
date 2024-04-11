@@ -55,7 +55,6 @@ ALL_REG_TASKS += TickVaryNMonths
 TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 30)]
 ALL_CLS_TASKS += TripsFeastVaryWindow
 
-MachineryRalfMedian = [
-    'machineryralfe2emedian0', 'machineryralfdirectmedian0', 'machineryralfsimmedian0'
-]
-ALL_CLS_TASKS += MachineryRalfMedian
+ALL_CLS_TASKS += ['machineryralfe2emedian' + ''.join([f'{i}' for i in range(n+1)]) for n in range(8)]
+ALL_CLS_TASKS += ['machineryralfdirectmedian' + ''.join([f'{i}' for i in range(n+1)]) for n in range(8)]
+ALL_CLS_TASKS += ['machineryralfsimmedian' + ''.join([f'{i}' for i in range(n+1)]) for n in range(8)]

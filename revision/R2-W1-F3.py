@@ -33,6 +33,7 @@ from apxinfer.simulation import utils as simutils
 
 
 class R2W1F3Args(Tap):
+    # tasks: List[str] = ["machineryralf", "machineryralfe2emedian0"]
     tasks: List[str] = ["machineryralf", "machineryralfsimmedian0"]
     # tasks: List[str] = ["machineryralf",
     #                     "machineryralfsimmedian0",
@@ -139,4 +140,5 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
     df = collect_data(args)
+    print(df)
     plot_data(args, df)

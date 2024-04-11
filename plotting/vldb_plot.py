@@ -22,6 +22,7 @@ YLIM_ACC = [0.0, 1.01]
 REG_TASKS = [
     # "tripsralf2h",
     "tripsralfv2",
+    # "tripsralfv3",
     # "tickralf",
     "tickralfv2",
     "batteryv2",
@@ -70,6 +71,11 @@ task_default_settings = {
     "tripsralfv2": {
         "model": "lgbm",
         "max_error": 1.5,
+        "ralf_budget": 1.0,
+    },
+    "tripsralfv3": {
+        "model": "lgbm",
+        "max_error": 1.4,
         "ralf_budget": 1.0,
     },
     "tickralf": {
@@ -1177,156 +1183,6 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     plt.close("all")
 
 
-def vary_num_agg(df: pd.DataFrame, args: EvalArgs):
-    sns.set_style("whitegrid", {"axes.grid": False})
-
-    required_cols = [
-        "task_name",
-        "naggs",
-        "speedup",
-        "similarity",
-        "sampling_rate",
-        "avg_nrounds",
-        "avg_latency",
-        "accuracy",
-    ]
-    prefix = "machineryralfxf"
-    prefix = "machineryralfnf"
-    selected_tasks = [f"{prefix}{i}" for i in range(1, 8)] + ["machineryralf"]
-    selected_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, "machineryralf", args)
-        df_tmp = df_filter(
-            df_tmp, task_name="machineryralf", alpha=True, beta=True, args=args
-        )
-        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
-        df_tmp = df_tmp[
-            df_tmp["max_error"] == task_default_settings["machineryralf"]["max_error"]
-        ]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        selected_df.append(df_tmp)
-    selected_df = pd.concat(selected_df)
-    selected_df = selected_df.sort_values(by=["naggs"])
-
-    # get baseline df
-    baseline_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, "machineryralf", args)
-        df_tmp = df_filter(
-            df_tmp, task_name="machineryralf", alpha=True, beta=True, args=args
-        )
-        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[
-            df_tmp["max_error"] == task_default_settings["machineryralf"]["max_error"]
-        ]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        baseline_df.append(df_tmp)
-    baseline_df = pd.concat(baseline_df)
-    baseline_df = baseline_df.sort_values(by=["naggs"])
-    baseline_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "vary_num_agg_baseline.csv")
-    )
-
-    # update latency of {prefix}i in baseline and PJNAME, its latency should be sum(avg_qtime_query[:naggs])
-    # update speedup accordingly
-    if prefix == "machineryralfxf":
-        for i in range(1, 8):
-            # baseline_df.loc[baseline_df["task_name"] == f'{prefix}{i}', "avg_latency"] = baseline_df.loc[baseline_df["task_name"] == f'{prefix}{i}', "avg_qtime_query"].apply(lambda x: sum(np.array(json.loads(x))[:i]))
-            selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-            ] = selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_qtime_query"
-            ].apply(
-                lambda x: sum(np.array(json.loads(x))[:i])
-            )
-            selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-            ] += baseline_df.loc[
-                baseline_df["task_name"] == f"{prefix}{i}", "avg_qtime_query"
-            ].apply(
-                lambda x: sum(np.array(json.loads(x))[i:])
-            )
-            selected_df.loc[selected_df["task_name"] == f"{prefix}{i}", "speedup"] = (
-                baseline_df.loc[
-                    baseline_df["task_name"] == f"{prefix}{i}", "avg_latency"
-                ].values[0]
-                / selected_df.loc[
-                    selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-                ].values[0]
-            )
-
-    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_naggs.csv"))
-    selected_df = selected_df[required_cols]
-    baseline_df = baseline_df[required_cols]
-
-    plotting_logger.debug(selected_df)
-
-    # plot as a scatter line chart
-    # x-axis: naggs
-    # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(5, 4))
-    baseline = pd.DataFrame(
-        [
-            {
-                "naggs": 0,
-                "speedup": 1.0,
-                args.score_type: baseline_df.loc[
-                    baseline_df["task_name"] == "machineryralf", args.score_type
-                ].values[0],
-            }
-        ]
-    )
-    selected_df = pd.concat([baseline, selected_df], ignore_index=True)
-    ax.scatter(
-        selected_df["naggs"], selected_df["speedup"], marker="o", color="royalblue"
-    )
-    plot1 = ax.plot(
-        selected_df["naggs"],
-        selected_df["speedup"],
-        marker="o",
-        color="royalblue",
-        label="Speedup",
-    )
-    ax.set_xticks(ticks=[0, 2, 4, 6, 8], labels=[0, 2, 4, 6, 8])
-
-    twnx = ax.twinx()
-    twnx.scatter(
-        selected_df["naggs"], selected_df[args.score_type], marker="+", color="tomato"
-    )
-    plot2 = twnx.plot(
-        selected_df["naggs"],
-        selected_df[args.score_type],
-        marker="+",
-        color="tomato",
-        label="Accuracy",
-    )
-
-    ax.set_xlabel("Number of Approximated Aggregation Features")
-    ax.set_ylabel("Speedup", color="royalblue", fontsize=15)
-    # ax.legend(loc="upper left")
-
-    twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
-    # twnx.legend(loc="upper right")
-
-    plots = plot1 + plot2
-    labels = [l.get_label() for l in plots]
-    ax.legend(plots, labels, loc="center left", fontsize=15)
-    plt.tight_layout()
-    plt.savefig(
-        os.path.join(args.home_dir, args.plot_dir, "vary_naggs.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
-    )
-    # plt.show()
-
-    plt.close("all")
-
-
 def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     sns.set_style("whitegrid", {"axes.grid": False})
 
@@ -1340,11 +1196,14 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
         "avg_latency",
         "accuracy",
     ]
-    prefix = f"{tsk}xf"
-    prefix = f"{tsk}nf"
-    max_num_agg = 8
+
     if tsk == "studentqno18":
         max_num_agg = 13
+    elif tsk == "machineryralf":
+        max_num_agg = 8
+    else:
+        raise ValueError(f"Unknown task: {tsk}")
+    prefix = f"{tsk}nf"
 
     selected_tasks = [f"{prefix}{i}" for i in range(1, max_num_agg)] + [tsk]
     selected_df = []
@@ -1359,64 +1218,12 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
         selected_df.append(df_tmp)
     selected_df = pd.concat(selected_df)
     selected_df = selected_df.sort_values(by=["naggs"])
-
-    # get baseline df
-    baseline_df = []
-    for task_name in selected_tasks:
-        df_tmp = df[df["task_name"] == task_name]
-        df_tmp = shared_filter(df_tmp, tsk, args)
-        df_tmp = df_filter(df_tmp, task_name=tsk, alpha=True, beta=True, args=args)
-        df_tmp = df_tmp[df_tmp["min_conf"] == 1.0]
-        df_tmp = df_tmp[df_tmp["max_error"] == task_default_settings[tsk]["max_error"]]
-        df_tmp = df_tmp.sort_values(by=["sampling_rate"])
-        df_tmp = df_tmp.reset_index(drop=True)
-        baseline_df.append(df_tmp)
-    baseline_df = pd.concat(baseline_df)
-    baseline_df = baseline_df.sort_values(by=["naggs"])
-    baseline_df.to_csv(
-        os.path.join(args.home_dir, args.plot_dir, "vary_num_agg_baseline.csv")
-    )
-
-    # update latency of {prefix}i in baseline and PJNAME, its latency should be sum(avg_qtime_query[:naggs])
-    # update speedup accordingly
-    if prefix == f"{tsk}xf":
-        for i in range(1, max_num_agg):
-            # baseline_df.loc[baseline_df["task_name"] == f'{prefix}{i}', "avg_latency"] = baseline_df.loc[baseline_df["task_name"] == f'{prefix}{i}', "avg_qtime_query"].apply(lambda x: sum(np.array(json.loads(x))[:i]))
-            selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-            ] = selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_qtime_query"
-            ].apply(
-                lambda x: sum(np.array(json.loads(x))[:i])
-            )
-            selected_df.loc[
-                selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-            ] += baseline_df.loc[
-                baseline_df["task_name"] == f"{prefix}{i}", "avg_qtime_query"
-            ].apply(
-                lambda x: sum(np.array(json.loads(x))[i:])
-            )
-            selected_df.loc[selected_df["task_name"] == f"{prefix}{i}", "speedup"] = (
-                baseline_df.loc[
-                    baseline_df["task_name"] == f"{prefix}{i}", "avg_latency"
-                ].values[0]
-                / selected_df.loc[
-                    selected_df["task_name"] == f"{prefix}{i}", "avg_latency"
-                ].values[0]
-            )
-
     selected_df.to_csv(
         os.path.join(args.home_dir, args.plot_dir, f"vary_naggs_{tsk}.csv")
     )
     selected_df = selected_df[required_cols]
-    baseline_df = baseline_df[required_cols]
 
-    plotting_logger.debug(selected_df)
-
-    # plot as a scatter line chart
-    # x-axis: naggs
-    # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(5, 4))
+    baseline_df = get_evals_baseline(df, args)[required_cols]
     baseline = pd.DataFrame(
         [
             {
@@ -1429,6 +1236,12 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
         ]
     )
     selected_df = pd.concat([baseline, selected_df], ignore_index=True)
+    plotting_logger.debug(selected_df)
+
+    # plot as a scatter line chart
+    # x-axis: naggs
+    # y-axis: speedup and similarity
+    fig, ax = plt.subplots(figsize=(10, 8))
     ax.scatter(
         selected_df["naggs"], selected_df["speedup"], marker="o", color="royalblue"
     )
@@ -1455,24 +1268,22 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     )
 
     ax.set_xlabel("Number of Approximated Aggregation Features")
-    ax.set_ylabel("Speedup", color="royalblue", fontsize=15)
+    ax.set_ylabel("Speedup", color="royalblue")
     # ax.legend(loc="upper left")
 
     twnx.set_ylim(YLIM_ACC)
-    twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+    twnx.set_ylabel("Accuracy", color="tomato")
     # twnx.legend(loc="upper right")
 
     plots = plot1 + plot2
     labels = [l.get_label() for l in plots]
-    ax.legend(plots, labels, loc="center left", fontsize=15)
+    ax.legend(plots, labels, loc="center left")
     plt.tight_layout()
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, f"vary_naggs_{tsk}.pdf"),
         bbox_inches="tight",
         pad_inches=0,
     )
-    # plt.show()
-
     plt.close("all")
 
 
@@ -1492,7 +1303,6 @@ def main(args: EvalArgs):
         plot_vary_max_error(df, args)
         plot_vary_alpha(df, args)
         plot_vary_beta(df, args)
-        # vary_num_agg(df, args)
         vary_num_agg_tsk(df, "machineryralf", args)
     elif args.only == "lat":
         plot_lat_comparsion_w_breakdown_split(df, args)
@@ -1506,7 +1316,8 @@ def main(args: EvalArgs):
     elif args.only == "beta":
         plot_vary_beta(df, args)
     elif args.only == "num_agg":
-        vary_num_agg(df, args)
+        vary_num_agg_tsk(df, "machineryralf", args)
+        # vary_num_agg_tsk(df, "studentqnov2subset", args)
     else:
         raise ValueError(f"Unknown only: {args.only}")
 

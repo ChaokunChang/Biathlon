@@ -180,7 +180,8 @@ class XIPPrepareWorker:
         interval = dataset["req_ts"].diff().mean()
         return 1.0 / interval
 
-    def create_dataset_simmedian_helper(self, ref_task) -> pd.DataFrame:
+    def create_dataset_simmedian_helper(self, ref_task: str,
+                                        replaced: str = 'avg') -> pd.DataFrame:
         self.logger.info(f"Creating dataset for {self.dataset_dir} by copying")
         working_dir = self.working_dir
         elements = working_dir.split("/")

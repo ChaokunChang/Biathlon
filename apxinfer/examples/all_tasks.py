@@ -24,7 +24,7 @@ ALL_REG_TASKS = [
     "tickralftest",
     "tickralf",
     "tickralfv2test",
-    "tickralfv2" "tickralfv2median",
+    "tickralfv2", "tickralfv2median",
     "tickralfv2simmedian",
 ]
 ALL_CLS_TASKS = [

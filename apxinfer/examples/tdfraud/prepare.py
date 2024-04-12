@@ -319,7 +319,7 @@ class TDFraudRalf2DPrepareWorker(TDFraudRalfPrepareWorker):
 
 class TDFraudRalf2DSimMedianPrepareWorker(TDFraudRalf2DPrepareWorker):
     def create_dataset(self) -> pd.DataFrame:
-        return self.create_dataset_simmedian_helper(ref_task="tdfraudralf2d")
+        return self.create_dataset_simmedian_helper(ref_task="tdfraudralf2d", replaced="count")
 
 
 class TDFraudRalf2HPrepareWorker(TDFraudRalfPrepareWorker):

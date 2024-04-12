@@ -574,6 +574,10 @@ def evaluate_features(ext_fs: np.ndarray, apx_fs: np.ndarray) -> dict:
     r2s = np.zeros(n_features)
     maxes = np.zeros(n_features)
     for i in range(n_features):
+        # check nan values
+        if np.isnan(ext_fs[:, i]).any() or np.isnan(apx_fs[:, i]).any():
+            continue
+
         mses[i] = metrics.mean_squared_error(ext_fs[:, i], apx_fs[:, i])
         maes[i] = metrics.mean_absolute_error(ext_fs[:, i], apx_fs[:, i])
         mapes[i] = metrics.mean_absolute_percentage_error(ext_fs[:, i], apx_fs[:, i])

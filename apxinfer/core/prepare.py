@@ -189,7 +189,10 @@ class XIPPrepareWorker:
             if ele.startswith(ref_task):
                 task_name = ele
                 break
-        assert task_name is not None, f"Task name not found in {working_dir} with {ref_task}"
+        assert (
+            task_name is not None
+        ), f"Task name not found in {working_dir} with {ref_task}"
+
         base_ppl_dir = working_dir.replace(task_name, ref_task)
         assert os.path.exists(base_ppl_dir)
         base_ppl_dataset = pd.read_csv(
@@ -204,9 +207,7 @@ class XIPPrepareWorker:
 
         status = os.system(f"cp -r {base_ppl_dir}/qcosts.json {working_dir}/")
         if status != 0:
-            status = os.system(
-                f"sudo cp -r {base_ppl_dir}/qcosts.json {working_dir}/"
-            )
+            status = os.system(f"sudo cp -r {base_ppl_dir}/qcosts.json {working_dir}/")
             if status != 0:
                 raise ValueError("Failed to copy qcosts.json")
 
@@ -218,9 +219,7 @@ class XIPPrepareWorker:
             if status != 0:
                 raise ValueError("Failed to copy offline directory")
 
-        e2emedian_dir = working_dir.replace(
-            f"/{task_name}/", f"/{ref_task}median/"
-        )
+        e2emedian_dir = working_dir.replace(f"/{task_name}/", f"/{ref_task}median/")
         e2emedian_dataset = pd.read_csv(
             os.path.join(e2emedian_dir, "dataset", "dataset.csv")
         )
@@ -233,6 +232,10 @@ class XIPPrepareWorker:
         corres_avg_fname = [
             fname.replace("_median_", "_avg_") for fname in median_fnames
         ]
+
+        assert len(base_ppl_dataset) == len(
+            e2emedian_dataset
+        ), f"Length of base_ppl_dataset({len(base_ppl_dataset)}) and e2emedian_dataset({len(e2emedian_dataset)}) is not same"
 
         dataset = base_ppl_dataset
         for i in range(len(median_fnames)):

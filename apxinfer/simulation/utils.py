@@ -95,34 +95,29 @@ task_meta = {
         "max_error": 189.0,
         "nreqs": 564,
     },
-    **{f"machineryralfsimmedian" + ''.join([f'{j}' for j in range(i+1)]): {
-        "nops": 8,
-        "naggs": 8,
-        "agg_ids": list(range(8)),
-        "is_aggop": [True] * 8,
-        "model": "mlp",
-        "max_error": 0.0,
-        "nreqs": 338,
-    } for i in range(8)},
-    **{f"machineryralfe2emedian" + ''.join([f'{j}' for j in range(i+1)]): {
-        "nops": 8,
-        "naggs": 8,
-        "agg_ids": list(range(8)),
-        "is_aggop": [True] * 8,
-        "model": "mlp",
-        "max_error": 0.0,
-        "nreqs": 338,
-    } for i in range(8)},
-    **{f"machineryralfdirectmedian" + ''.join([f'{j}' for j in range(i+1)]): {
-        "nops": 8,
-        "naggs": 8,
-        "agg_ids": list(range(8)),
-        "is_aggop": [True] * 8,
-        "model": "mlp",
-        "max_error": 0.0,
-        "nreqs": 338,
-    } for i in range(8)},
 }
+
+median_tasks = {
+    **{
+        f"machineryralfsimmedian"
+        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        for i in range(9)
+    },
+    **{
+        f"machineryralfe2emedian"
+        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        for i in range(9)
+    },
+    **{
+        f"machineryralfdirectmedian"
+        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        for i in range(9)
+    },
+}
+for name, meta in task_meta.items():
+    median_tasks[f"{name}median"] = meta
+    median_tasks[f"{name}simmedian"] = meta
+task_meta.update(median_tasks)
 
 
 class SimulationArgs(Tap):
@@ -214,7 +209,7 @@ def generate_synthetic_data(
         synv = kwargs.get("synv")
         x_num = int(dsize * (0.5 + p))
         data = np.array([x] * x_num + [synv] * (dsize - x_num))
-    elif ddist == 'bimodal':
+    elif ddist == "bimodal":
         p = kwargs.get("arg")
         rng = np.random.default_rng(0)
         datas = []

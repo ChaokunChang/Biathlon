@@ -58,17 +58,17 @@ def plot_imbalance(args: R3W2F1Args,
     perror_list = np.array([abs(res['xip_pred']['pred_value'] - res['y_exact']) for res in res_list])
     ferrors_list = np.array([np.abs(res['xip_pred']['fvec']['fvals'] - res['feature']) for res in res_list])
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 6))
     axes = axes.flatten()
 
     axes[0].plot(x_values, avg_samples_list)
-    axes[0].set_title('Average Fraction of Samples')
-    axes[0].set_ylabel('Average Fraction of Samples')
+    axes[0].set_title('Average Percentage of Samples')
+    axes[0].set_ylabel('Average Percentage of Samples')
 
     for qid in range(nops):
         axes[1].plot(x_values, qsamples_list[:, qid], label=f'q{qid}')
-    axes[1].set_title('Fraction of Samples of Each Feature')
-    axes[1].set_ylabel('Fraction of Samples of Each Feature')
+    axes[1].set_title('Percentage of Samples of Feature')
+    axes[1].set_ylabel('Percentage of Samples of Feature')
     axes[1].legend()
 
     axes[2].plot(x_values, perror_list)
@@ -101,7 +101,8 @@ def plot_imbalance(args: R3W2F1Args,
 
 
 if __name__ == "__main__":
-    imbalance_ratio = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999, 0.9999, 0.99999])
+    # imbalance_ratio = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999, 0.9999, 0.99999])
+    imbalance_ratio = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99999])
     p_list = 0.5 * (1.0 - imbalance_ratio) / (1.0 + imbalance_ratio)
     p_list = np.maximum(p_list, 1e-5)
     res_list = []

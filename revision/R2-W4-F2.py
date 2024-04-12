@@ -77,9 +77,9 @@ def plot_nrounds_distribution(res_list: List[dict], save_dir: str):
 
     task_home, task_name = args.task.split("/")
     ntasks = len(res_list)
-    ncols = 4
+    ncols = 7
     nrows = ntasks // ncols + (ntasks % ncols > 0)
-    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4), sharey=False)
     axes = axes.flatten()
 
     for tid, task in enumerate(res_list):
@@ -90,12 +90,13 @@ def plot_nrounds_distribution(res_list: List[dict], save_dir: str):
         # ax.set_yscale("log")
         # ax.set_ylabel("Log(Frequency)")
 
-        sns.histplot(nrounds, ax=ax, bins=20, kde=True, color="skyblue")
-        ax.set_xlabel("Number of Rounds")
-        ax.set_ylabel("Frequency")
+        sns.histplot(nrounds, ax=ax, bins=20, kde=False, color="skyblue", stat='probability')
+        ax.set_xlabel("No. of Iterations")
+        ax.set_ylabel("Percentage")
         ax.set_title(f"Task {task['task_name']}")
 
     plt.tight_layout()
+    plt.subplots_adjust(wspace=.0)
     fig_dir = os.path.join(save_dir, "figs")
     tag = get_tag(args, ntasks)
     fig_path = os.path.join(fig_dir, f"nrounds_distribution_{tag}.pdf")
@@ -111,6 +112,10 @@ if __name__ == "__main__":
     task_list = ['tripsralfv2', 'tickralfv2', 'batteryv2', 'turbofan',
                  'tdfraudralf2d', 'machineryralf', 'studentqnov2subset']
     res_list = []
+
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.serif"] = ["Times New Roman"]
+    plt.rcParams["font.size"] = 20
     for task_name in task_list:
         meta = simutils.task_meta[task_name]
         args.task = f"final/{task_name}"

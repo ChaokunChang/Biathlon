@@ -266,7 +266,7 @@ def plot_lat_comparsion_w_breakdown(df: pd.DataFrame, args: EvalArgs):
         lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
         speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
         ax.text(rect0.get_x() + rect0.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom')
-    
+
     # tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
     # bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
     # bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
@@ -365,7 +365,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         lat = default_df[default_df["task_name"] == task_name]["avg_latency"].values[0]
         speedup = default_df[default_df["task_name"] == task_name]["speedup"].values[0]
         ax.text(rect0.get_x() + rect0.get_width() / 2.0, height, f"{speedup:.2f}x", ha='center', va='bottom', fontsize=7)
-    
+
     # tweaked_height = default_df['BD:AMI'] + default_df['BD:AFC'] * np.array([0.05, 0.3, 0.05, 0])
     # bar1 = ax.bar(x, default_df['BD:AFC'], width, label=f"{PJNAME}-AFC")
     # bar2 = ax.bar(x, tweaked_height, width, bottom=default_df['BD:AFC'], label=f"{PJNAME}-AMI")
@@ -421,7 +421,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         # For text objects, we need to draw the figure first, otherwise the extents
         # are undefined.
         ax.figure.canvas.draw()
-        items = ax.get_xticklabels() + ax.get_yticklabels() 
+        items = ax.get_xticklabels() + ax.get_yticklabels()
     #    items += [ax, ax.title, ax.xaxis.label, ax.yaxis.label]
         items += [ax, ax.title]
         bbox = Bbox.union([item.get_window_extent() for item in items])
@@ -891,7 +891,7 @@ def vary_alpha_beta(df: pd.DataFrame, args: EvalArgs):
         # speedup is dashed line, similarity is solid line
         all_betas = df_tmp["beta"].unique()
         all_colors = sns.color_palette("hls", len(all_betas))
-        for beta, color in zip(all_betas, all_colors): 
+        for beta, color in zip(all_betas, all_colors):
             df_tmp_beta = df_tmp[df_tmp["beta"] == beta]
             df_tmp_beta = df_tmp_beta.sort_values(by=["alpha"])
             df_tmp_beta = df_tmp_beta.reset_index(drop=True)

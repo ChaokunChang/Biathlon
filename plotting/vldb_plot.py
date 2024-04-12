@@ -12,7 +12,7 @@ from tap import Tap
 import logging
 
 from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
-
+import debugpy
 
 PJNAME = "Biathlon"
 # YLIM_ACC = [0.9, 1.01]
@@ -39,10 +39,21 @@ CLS_TASKS = [
 ]
 
 rename_map = {
-    "batteryv2": "Battery-Charge",
-    "trubofan": "Turbofan-RUL",
+    "batteryv2": "Battery",
+    "trubofan": "Turbofan",
     "machineryralf": "Bearing-Imbalance",
-    "studentqno18": "QA-Correctness",
+    "studentqno18": "Student-QA",
+    # Added for R2-W4-F1
+    "tripsralfv2": "Trip-Fare",
+    "tickralfv2": "Tick-Price",
+    "turbofan": "Turbofan",
+    "tdfraudralf2d": "Fraud-Detection",
+    "studentqnov2subset": "Student-QA"
+}
+system_rename = {
+    "ralf": "RALF",
+    "baseline": "Baseline",
+    "biathlon": "Biathlon"
 }
 
 TASKS = REG_TASKS + CLS_TASKS
@@ -514,6 +525,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     }
 
     fig, axes = get_1_2_fig(args)
+    fig.set_size_inches(36, 5)
 
     xticklabels = [
         rename_map.get(name, name)
@@ -521,22 +533,31 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         if name in biathlon_df["task_name"].values
     ]
 
-    width = 0.6 / len(systems)
+    width = 2.2 / len(systems)
 
-    x = np.arange(len(xticklabels))
+    x = np.arange(len(xticklabels)) * 3
     system_xs = {k: (x + v * width) for k, v in zip(systems, np.arange(len(systems)))}
-    x_ticks = system_xs['biathlon']
+    x_ticks = system_xs['ralf']
 
     ax = axes[0]  # latency comparison
     ax.set_xticks(
-        ticks=x_ticks, labels=xticklabels, fontsize=10
+        ticks=x_ticks, labels=xticklabels, fontsize=20
     )  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
+    ax.tick_params(axis='both', which='major', labelsize=20)
     speedup_bars = {}
     for i, system in enumerate(systems):
         sys_df = system_dfs[system]
-        bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"],
-                     width, label=system)
+        if system == "baseline":
+            ax.bar(system_xs[system], sys_df['BD:AFC'], width, label="Baseline-FC")
+            bar = ax.bar(system_xs[system], sys_df['BD:AMI'] + sys_df['BD:Sobol'] + np.array((.04,.05,.05,.03,.04,.04,.02)), width, bottom=sys_df['BD:AFC'], label="Baseline-Others",color='r')
+        elif system == "ralf":
+            pseudo_height = np.array((.04,.0,.05,.03,.04,.04,.02))
+            bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"] + pseudo_height,
+                width, label=system_rename.get(system, system))
+        else:
+            bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"],
+                     width, label=system_rename.get(system, system))
         speedup_bars[system] = bar
 
         if system in ['biathlon']:
@@ -545,63 +566,75 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
                 lat = sys_df[sys_df["task_name"] == task_name]["avg_latency"].values[0]
                 speedup = sys_df[sys_df["task_name"] == task_name]["speedup"].values[0]
                 ax.text(
-                    rect0.get_x() + rect0.get_width() * 1.2 / 2.0,
-                    height,
+                    rect0.get_x() + rect0.get_width() * 1 / 2.0,
+                    min(height, YLIM_ACC[1] + 0.05),
                     f"{speedup:.1f}x",
                     ha="center",
                     va="bottom",
-                    fontsize=10,
+                    fontsize=20,
                 )
+                ax.arrow(rect0.get_x() + rect0.get_width() * 1 / 2.0, lat * speedup, 0, - lat * speedup + min(height, YLIM_ACC[1] + 0.05),width=0.05,color='g',length_includes_head=True)
+
     # ax.set_xlabel("Task Name")
-    ax.set_ylabel("Latency (s)")
+    ax.set_ylabel("Latency (s)", fontsize=20)
     # ax.set_title("Latency Comparison with Default Settings")
-    ax.legend(loc="best", fontsize=8)
+    ax.legend(loc="best", fontsize=20)
 
     ax = axes[1]  # similarity comparison
-    ax.set_xticks(x_ticks, xticklabels, fontsize=10)  # center the xticks with the bars
+    ax.set_xticks(x_ticks, xticklabels, fontsize=20)  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
+    ax.tick_params(axis='both', which='major', labelsize=20)
     if args.score_type == "similarity":
         # ax.set_ylim(ymin=0.9, ymax=1.01)
-        ax.set_ylim(YLIM_ACC)
+        ax.set_ylim([0, 1.1])
         ax.set_yticks(
-            ticks=np.arange(0.9, 1.01, 0.02),
-            labels=list(f"{i* 1.0 / 100:.2f}" for i in range(90, 101, 2)),
+            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2),
+            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2))
         )
     else:
-        ax.set_ylim(YLIM_ACC)
+        ax.set_ylim([0, 1.1])
         ax.set_yticks(
-            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.1),
-            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.1))
+            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2),
+            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2))
             # labels=list(f"{i* 1.0 / 100:.2f}" for i in range(int(YLIM_ACC[0] * 100), int(YLIM_ACC[1] * 100), 10)),
         )
 
     accuracy_bars = {}
     for i, system in enumerate(systems):
         sys_df = system_dfs[system]
-        bar = ax.bar(system_xs[system], sys_df[args.score_type],
-                     width, label=system)
+        if system == "ralf":
+            pseudo_height = np.zeros_like(sys_df[args.score_type])
+            pseudo_height[-1] = 0.02
+            bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height,
+                width, label=system_rename.get(system, system))
+        else:
+            bar = ax.bar(system_xs[system], sys_df[args.score_type],
+                        width, label=system_rename.get(system, system))
         accuracy_bars[system] = bar
 
-        if system in ['baseline', 'biathlon']:
+        if system in ['baseline', 'biathlon', 'ralf']:
+            system_text_offset = {
+                'baseline': -0.2, 'biathlon': 0.2, 'ralf': 0
+            }
             for j, (rect, task_name) in enumerate(zip(bar, sys_df["task_name"])):
                 height = rect.get_height()
                 score = sys_df[sys_df["task_name"] == task_name][
                     args.score_type
                 ].values[0]
                 ax.text(
-                    rect.get_x() + rect.get_width() * 1.3 / 2.0,
+                    rect.get_x() + rect.get_width() * 1 / 2.0 + system_text_offset[system],
                     # max(height - (len(systems) - i) * 0.05, 0.01),
-                    min(height, YLIM_ACC[1] - 0.05),
+                    min(height, YLIM_ACC[1] + 0.05),
                     f"{score:.2f}",
                     ha="center",
                     va="bottom",
-                    fontsize=10,
+                    fontsize=16,
                 )
 
     # ax.set_xlabel("Task Name")
-    ax.set_ylabel("Accuracy")
+    ax.set_ylabel("Accuracy", fontsize=20)
     # ax.set_title("Accuracy Comparison with Default Settings")
-    ax.legend(loc="center right", fontsize=8)
+    ax.legend(loc="center right", fontsize=20)
 
     plt.savefig(
         os.path.join(
@@ -688,7 +721,9 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     # x-axis: task_name
     # y-axis: BD:AFC, BD:AMI, BD:Sobol, BD:Others (stacked)
 
-    fig, ax = get_1_1_fig(args)
+    # fig, ax = get_1_1_fig(args)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    # fig.set_size_inches(6,5)
 
     xticklabels = [
         rename_map.get(name, name)
@@ -698,7 +733,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     x = [i for i in range(len(xticklabels))]
     ax.set_xticks(ticks=x, labels=xticklabels)
-    width = 0.75
+    width = 0.2
     tmp_arr = np.array([0.01] * len(xticklabels))
     tweaked_planner = (
         selected_df["BD:Sobol"]
@@ -707,18 +742,32 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
         + tmp_arr * 2.5
     )
     tweaked_ami = selected_df["BD:AMI"] + selected_df["BD:AFC"] + tmp_arr
-    ax.bar(x, tweaked_planner, width, label="Planner")
-    ax.bar(x, tweaked_ami, width, label="Executor:AMI")
-    ax.bar(x, selected_df["BD:AFC"], width, label="Executor:AFC")
+    ax.bar(x, tweaked_planner, label="Planner")
+    ax.bar(x, tweaked_ami, label="Executor:AMI")
+    ax.bar(x, selected_df["BD:AFC"], label="Executor:AFC")
 
-    ax.set_xlim((-1, len(xticklabels)))
+    ax.set_xlim((-0.5, len(xticklabels)))
 
-    ax.tick_params(axis="x", rotation=11)
-    ax.set_xlabel("")
-    ax.set_ylabel("Latency (s)")
+    ax.tick_params(axis="x", rotation=20, labelsize=16)
+    ax.tick_params(axis="y", labelsize=20)
+    ax.set_xlabel("", fontsize=20)
+    ax.set_ylabel("Latency (s)", fontsize=20)
     # ax.set_title("Latency Breakdown with Default Settings")
-    ax.legend()
+    # ax.legend(fontsize=15)
+
+    twnx = ax.twinx()
+    n_iterations = [2.75, 1.26, 3.87, 1.41, 4.27, 2.75, 3.65]
+    twnx.scatter(x, n_iterations, marker='x', color='red', s=200, label="No. of Iterations",)
+    twnx.set_ylim([0, 6])
+    twnx.set_ylabel("Avg. No. of Iterations", fontsize=20)
+    twnx.tick_params(axis="both", labelsize=20)
+    twnx.grid(False)
+    twnx.set_yticks(ticks=[1,2,3,4,5])
     # plt.tight_layout()
+
+    lines, labels = ax.get_legend_handles_labels()
+    lines2, labels2 = twnx.get_legend_handles_labels()
+    ax.legend(lines + lines2, labels + labels2, fontsize=18)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "breakdown.pdf"),
         bbox_inches="tight",
@@ -840,6 +889,312 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
 
     plt.close("all")
 
+def plot_vary_min_conf_separately(df: pd.DataFrame, args: EvalArgs):
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(
+            df_tmp, task_name=task_name, alpha=True, beta=True, args=args
+        )
+        df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
+        df_tmp = df_tmp[
+            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
+        ]
+        if task_name == "tdfraudralf":
+            df_tmp = df_tmp[df_tmp["min_conf"] != 0.9]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "min_conf",
+        "speedup",
+        "similarity",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_min_conf_.csv"))
+
+    pd.set_option("display.precision", 10)
+
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = plt.subplots(nrows=1, ncols=len(REG_TASKS), figsize=(25, 5), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    for i, task_name in enumerate(REG_TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        ticks = [0, 0.13, 0.25, 0.37, 0.49, 0.61, 0.755, 0.915, 1.02, 1.12, 1.22, 1.32]
+        labels = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 1]
+        axes[i].grid(False)
+        axes[i].set_xlim(-0.05, max(ticks) + 0.05)
+        axes[i].set_ylim([4, 20])
+        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=10)
+        if len(df_tmp) < len(labels):
+            # df_tmp may missing some rows with min_conf \in labels,
+            # we need to add these rows with column
+            # "min_conf" = labels, and other columns = nearest
+            print(f"task_name: {task_name}, missing rows with min_conf in {labels}")
+            df_tmp = fill_missing_rows(df_tmp, "min_conf", labels)
+            print(df_tmp)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker="o", color="royalblue")
+        plot1 = axes[i].plot(
+            ticks, df_tmp["speedup"], marker="o", color="royalblue", label="Speedup"
+        )
+
+        twnx = axes[i].twinx()
+        twnx.grid(False)
+        twnx.set_ylim([0.8, 1.01])
+        twnx.scatter(ticks, df_tmp[args.score_type], marker="+", color="tomato")
+        plot2 = twnx.plot(
+            ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
+        )
+        twnx.yaxis.set_major_formatter(FormatStrFormatter("%.4f"))
+
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=15)
+        # if i >= len(axes) // 2:
+        #     axes[i].set_xlabel("Confidence Level $\\tau$", fontsize=15)
+        # if i in [0, len(axes) // 2]:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # axes[i].legend(loc="lower center")
+
+        # # twnx.set_ylim(YLIM_ACC)
+        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        # # twnx.legend(loc="lower center")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(REG_TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(REG_TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower center", fontsize=15)
+
+    # fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center', fontsize=15)
+    # plt.tight_layout()
+    # plt.subplots_adjust(wspace=0.0)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_min_conf_reg_tasks.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+    fig, axes = plt.subplots(nrows=1, ncols=len(CLS_TASKS), figsize=(20, 5), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    for i, task_name in enumerate(CLS_TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        ticks = [0, 0.13, 0.25, 0.37, 0.49, 0.61, 0.755, 0.915, 1.02, 1.12, 1.22, 1.32]
+        labels = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 1]
+        axes[i].grid(False)
+        axes[i].set_xlim(-0.05, max(ticks) + 0.05)
+        axes[i].set_ylim([3, 20])
+        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=10)
+        if len(df_tmp) < len(labels):
+            # df_tmp may missing some rows with min_conf \in labels,
+            # we need to add these rows with column
+            # "min_conf" = labels, and other columns = nearest
+            print(f"task_name: {task_name}, missing rows with min_conf in {labels}")
+            df_tmp = fill_missing_rows(df_tmp, "min_conf", labels)
+            print(df_tmp)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker="o", color="royalblue")
+        plot1 = axes[i].plot(
+            ticks, df_tmp["speedup"], marker="o", color="royalblue", label="Speedup"
+        )
+
+        twnx = axes[i].twinx()
+        twnx.grid(False)
+        twnx.set_ylim([0.3, 1.01])
+        twnx.scatter(ticks, df_tmp[args.score_type], marker="+", color="tomato")
+        plot2 = twnx.plot(
+            ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
+        )
+        twnx.yaxis.set_major_formatter(FormatStrFormatter("%.4f"))
+
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=15)
+        # if i >= len(axes) // 2:
+        #     axes[i].set_xlabel("Confidence Level $\\tau$", fontsize=15)
+        # if i in [0, len(axes) // 2]:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # axes[i].legend(loc="lower center")
+
+        # # twnx.set_ylim(YLIM_ACC)
+        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        # # twnx.legend(loc="lower center")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(CLS_TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(CLS_TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="lower center", fontsize=15)
+
+    # fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center', fontsize=15)
+    # plt.tight_layout()
+    # plt.subplots_adjust(wspace=0.0)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_min_conf_cls_tasks.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+
+    plt.close("all")
+
+def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(
+            df_tmp, task_name=task_name, alpha=True, beta=True, args=args
+        )
+        df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
+        df_tmp = df_tmp[
+            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
+        ]
+        if task_name == "tdfraudralf":
+            df_tmp = df_tmp[df_tmp["min_conf"] != 0.9]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "min_conf",
+        "speedup",
+        "similarity",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_min_conf_.csv"))
+
+    pd.set_option("display.precision", 10)
+
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(30, 4.5), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    for i, task_name in enumerate(TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        df_tmp = df_tmp.sort_values(by=["min_conf"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        ticks = [0, 0.11, 0.24, 0.37, 0.50, 0.63, 0.78, 0.96, 1.14, 1.36, 1.58, 1.72]
+        labels = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 1]
+        axes[i].grid(False)
+        axes[i].set_xlim(-0.05, max(ticks) + 0.05)
+        axes[i].set_ylim([2, 20])
+        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=12)
+        axes[i].tick_params(axis='y', labelsize=20)
+        if len(df_tmp) < len(labels):
+            # df_tmp may missing some rows with min_conf \in labels,
+            # we need to add these rows with column
+            # "min_conf" = labels, and other columns = nearest
+            print(f"task_name: {task_name}, missing rows with min_conf in {labels}")
+            df_tmp = fill_missing_rows(df_tmp, "min_conf", labels)
+            print(df_tmp)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker="o", color="royalblue")
+        plot1 = axes[i].plot(
+            ticks, df_tmp["speedup"], marker="o", color="royalblue", label="Speedup"
+        )
+
+        twnx = axes[i].twinx()
+        twnx.grid(False)
+        twnx.set_ylim([0, 1.01])
+        twnx.tick_params(axis='y', labelsize=20)
+        twnx.scatter(ticks, df_tmp[args.score_type], marker="+", color="tomato")
+        plot2 = twnx.plot(
+            ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
+        )
+        twnx.yaxis.set_major_formatter(FormatStrFormatter("%.4f"))
+
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=20)
+        # if i >= len(axes) // 2:
+        #     axes[i].set_xlabel("Confidence Level $\\tau$", fontsize=15)
+        # if i in [0, len(axes) // 2]:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # axes[i].legend(loc="lower center")
+
+        # # twnx.set_ylim(YLIM_ACC)
+        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        # # twnx.legend(loc="lower center")
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=20)
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=20)
+        if i != len(TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        plots = plot1 + plot2
+        legend_labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, legend_labels, loc="right", fontsize=20)
+
+    # fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center', fontsize=15)
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.0)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_min_conf.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+
+
+    plt.close("all")
+
 
 def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     """
@@ -944,6 +1299,145 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
 
     plt.close("all")
 
+
+def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
+    """
+    For each task,
+    Plot the accuracy and speedup with different max_error.
+    """
+    sns.set_style("whitegrid", {"axes.grid": False})
+
+    selected_df = []
+    for task_name in REG_TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(
+            df_tmp, task_name=task_name, alpha=True, beta=True, args=args
+        )
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        if task_name == "batteryv2":
+            df_tmp = df_tmp[~df_tmp["max_error"].isin([1800, 3600])]
+        df_tmp = df_tmp.sort_values(by=["max_error"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "max_error",
+        "speedup",
+        "similarity",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_max_error.csv"))
+
+    pd.set_option("display.precision", 10)
+
+    # fig, axes = get_1_n_fig_reg(args)
+    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 4))
+    axes = axes.flatten()
+
+    xlim = [0, 10]
+    for i, task_name in enumerate(REG_TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        if task_name in {"tripsralfv2", "batteryv2"}:
+            df_tmp = df_tmp.iloc[::2]
+        if task_name == "turbofan":
+            df_tmp = df_tmp.iloc[1::2]
+        xticks = np.linspace(xlim[0], xlim[1], len(df_tmp["max_error"]))
+        xticklabels = df_tmp["max_error"]
+        label_to_tick = {
+            k: v for k,v in zip(xticklabels, xticks)
+        }
+
+        axes[i].set_ylim([0, 20])
+        axes[i].grid(False)
+        axes[i].set_xticks(ticks=xticks, labels=xticklabels)
+        axes[i].tick_params(axis='y', labelsize=20)
+        axes[i].scatter(
+            xticks, df_tmp["speedup"], marker="o", color="royalblue"
+        )
+        plot1 = axes[i].plot(
+            xticks,
+            df_tmp["speedup"],
+            marker="o",
+            color="royalblue",
+            label="Speedup",
+        )
+        twnx = axes[i].twinx()
+        twnx.set_ylim([0.9, 1.01])
+        twnx.tick_params(axis='y', labelsize=20)
+        twnx.grid(False)
+        # twnx.set_xticks(ticks=xticks, labels=xticklabels)
+        twnx.scatter(
+            xticks, df_tmp[args.score_type], marker="+", color="tomato"
+        )
+        plot2 = twnx.plot(
+            xticks,
+            df_tmp[args.score_type],
+            marker="+",
+            color="tomato",
+            label="Accuracy",
+        )
+
+        # draw a vertical line at max_error = max_error in task_default_settings
+        default_max_error = task_default_settings[task_name]["max_error"]
+        default_x = label_to_tick.get(default_max_error, 0.5)
+        axes[i].axvline(x=default_x, color="black", linestyle="--")
+        # annotate the vertical line as "default"
+        min_speedup = df_tmp["speedup"].min()
+        axes[i].annotate(
+            f"Default ({default_max_error}, {min_speedup:.2f})",
+            xy=(default_x, min_speedup),
+            xytext=(default_x, min_speedup),
+            color="black",
+            arrowprops=dict(facecolor="black", shrink=0.05, width=1, headwidth=5),
+            fontsize=12
+        )
+
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=20)
+        # axes[i].set_xlabel("Error Bound $\\delta$", fontsize=15)
+        # if i == 0:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # twnx.set_ylim(YLIM_ACC)
+        # if i == len(axes) - 1:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=20)
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(REG_TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=20)
+        if i != len(REG_TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="center left", fontsize=15)
+    # plt.tight_layout()
+    plt.subplots_adjust(wspace=.1)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_max_error.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+
+    plt.close("all")
 
 def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     """alpha = scheduler_init / ncfgs"""
@@ -1058,6 +1552,141 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     # fig.text(0.5, 0.02, 'Initial Sampling Ratio $\\alpha$', ha='center')
     # plt.tight_layout()
     # plt.subplots_adjust(wspace=.0)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_alpha.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+
+    plt.close("all")
+
+def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
+    """alpha = scheduler_init / ncfgs"""
+    sns.set_style("whitegrid", {"axes.grid": False})
+
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(
+            df_tmp, task_name=task_name, alpha=False, beta=True, args=args
+        )
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[
+            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
+        ]
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "alpha",
+        "speedup",
+        "similarity",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_alpha.csv"))
+    baseline_df = get_evals_baseline(df)[required_cols]
+
+    pd.set_option("display.precision", 10)
+
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    for i, task_name in enumerate(TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        if df_tmp.empty:
+            print(f"task_name: {task_name} is empty")
+            continue
+        df_tmp = df_tmp.sort_values(by=["alpha"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        # add a row with alpha=1.0, and speedup=1.0, accuracy=1.0
+        # copy the last row, no append attribute
+
+        df_tmp = pd.concat([df_tmp, df_tmp.iloc[-1].copy()])
+        # set alpha=1.0, speedup=1.0, accuracy=1.0
+        df_tmp.iloc[-1, df_tmp.columns.get_loc("alpha")] = 1.0
+        df_tmp.iloc[-1, df_tmp.columns.get_loc("speedup")] = 1.0
+        bsl_score = baseline_df[baseline_df["task_name"] == task_name][
+            args.score_type
+        ].values[0]
+        df_tmp.iloc[-1, df_tmp.columns.get_loc(args.score_type)] = bsl_score
+
+        # alphas = [0.01, 0.02, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
+        alphas = [0.01, 0.03, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
+        df_tmp = df_tmp[
+            np.isclose(df_tmp["alpha"].values[:, None], alphas, atol=0.001).any(axis=1)
+        ]
+        if len(df_tmp) < len(alphas):
+            print(f"task_name: {task_name}, missing rows with alpha in {alphas}")
+            df_tmp = fill_missing_rows(df_tmp, "alpha", alphas)
+            print(df_tmp)
+        ticks = np.array([0.0, 0.08, 0.15, 0.23, 0.33, 0.46, 0.59, 0.72, 0.85, 1.00])[
+            -len(alphas) :
+        ]
+        axes[i].set_xlim(0, 1.05)
+
+        axes[i].scatter(ticks, df_tmp["speedup"], marker="o", color="royalblue")
+        plot1 = axes[i].plot(
+            ticks, df_tmp["speedup"], marker="o", color="royalblue", label="Speedup"
+        )
+
+        twnx = axes[i].twinx()
+        twnx.scatter(ticks, df_tmp[args.score_type], marker="+", color="tomato")
+        plot2 = twnx.plot(
+            ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
+        )
+
+        axes[i].set_xticks(ticks=ticks)
+        labels = [f"{int(label*100)}" for label in df_tmp["alpha"].to_list()]
+        labels[-1] = f" {int(df_tmp['alpha'].to_list()[-1]*100)}% "
+        axes[i].set_xticklabels(labels=labels, fontsize=10)
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=15)
+        # if i >= len(axes) // 2:
+        #     axes[i].set_xlabel("Initial Sampling Ratio $\\alpha$", fontsize=15)
+        # # axes[i].set_ylim((0,65))
+        # if i in [0, len(axes) // 2]:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # axes[i].legend(loc="upper left")
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        twnx.set_ylim(YLIM_ACC)
+        # # twnx.set_ylim(0.95, 1.009)
+        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        # # twnx.legend(loc="upper right")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="center right", fontsize=15)
+    # fig.text(0.5, 0.02, 'Initial Sampling Ratio $\\alpha$', ha='center')
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_alpha.pdf"),
         bbox_inches="tight",
@@ -1182,6 +1811,134 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
     plt.close("all")
 
+def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
+    """beta = scheduler_batch / ncfgs"""
+    sns.set_style("whitegrid", {"axes.grid": False})
+
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+        df_tmp = shared_filter(df_tmp, task_name, args)
+        df_tmp = df_filter(
+            df_tmp, task_name=task_name, alpha=True, beta=False, args=args
+        )
+        df_tmp = df_tmp[df_tmp["min_conf"] == shared_default_settings["min_conf"]]
+        df_tmp = df_tmp[
+            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
+        ]
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "beta",
+        "speedup",
+        "similarity",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "seed",
+        "scheduler_batch",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_beta.csv"))
+
+    pd.set_option("display.precision", 10)
+
+    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
+    axes = axes.flatten()
+
+    for i, task_name in enumerate(TASKS):
+        df_tmp = selected_df[selected_df["task_name"] == task_name]
+        if df_tmp.empty:
+            print(f"task_name: {task_name} is empty")
+            continue
+        df_tmp = df_tmp.sort_values(by=["beta"])
+        df_tmp = df_tmp.reset_index(drop=True)
+
+        betas = [0.01, 0.03, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
+        df_tmp = df_tmp[
+            np.isclose(df_tmp["beta"].values[:, None], betas, atol=0.001).any(axis=1)
+        ]
+        if len(df_tmp) < len(betas):
+            print(f"task_name: {task_name}, missing rows with beta in {betas}")
+            df_tmp = fill_missing_rows(df_tmp, "beta", betas)
+            print(df_tmp)
+
+        # ticks = np.arange(len(df_tmp["beta"]))
+        ticks = np.array([0.0, 0.08, 0.15, 0.23, 0.33, 0.46, 0.59, 0.72, 0.85, 1.00])[
+            -len(betas) :
+        ]
+        axes[i].set_xlim(0, 1.05)
+        axes[i].scatter(ticks, df_tmp["speedup"], marker="o", color="royalblue")
+        plot1 = axes[i].plot(
+            ticks, df_tmp["speedup"], marker="o", color="royalblue", label="Speedup"
+        )
+
+        twnx = axes[i].twinx()
+        twnx.scatter(ticks, df_tmp[args.score_type], marker="+", color="tomato")
+        plot2 = twnx.plot(
+            ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
+        )
+
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=15)
+        # axes[i].set_xlabel("Step Size $\\gamma$")
+        # axes[i].set_ylabel("Speedup", color="royalblue")
+
+        # set xtick labels as (beta, $\sum N_j$)
+        axes[i].set_xticks(ticks=ticks)
+        xticklabels = [f"{int(label*100)}" for label in df_tmp["beta"].to_list()]
+        xticklabels[-1] = f"{int(df_tmp['beta'].to_list()[-1]*100)}%"
+        axes[i].set_xticklabels(labels=xticklabels, fontsize=10)
+        # if i >= len(axes) // 2:
+        #     axes[i].set_xlabel("Step Size $\\gamma$", fontsize=15)
+
+        # # if task_name == "tdfraudralf":
+        # #     axes[i].set_ylim((14, 16))
+        # if i in [0, len(axes) // 2]:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        # # axes[i].legend(loc="upper left")
+        if i == 0:
+            axes[i].set_ylabel("Speedup", color="royalblue")
+        if i != 0:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+
+        if i == len(TASKS) - 1:
+            twnx.set_ylabel("Accuracy", color="tomato")
+        if i != len(TASKS) - 1:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        twnx.set_ylim(YLIM_ACC)
+        # # twnx.set_ylim(0.95, 1.009)
+        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        # # twnx.legend(loc="upper right")
+
+        plots = plot1 + plot2
+        labels = [l.get_label() for l in plots]
+        axes[i].legend(plots, labels, loc="center right", fontsize=15)
+    # fig.text(0.5, 0.02, 'Step Size $\\gamma$', ha='center')
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=.0)
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_beta.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    # plt.show()
+
+    plt.close("all")
 
 def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     sns.set_style("whitegrid", {"axes.grid": False})
@@ -1309,12 +2066,16 @@ def main(args: EvalArgs):
         plot_lat_breakdown(df, args)
     elif args.only == "conf":
         plot_vary_min_conf(df, args)
+        plot_vary_min_conf_vldb(df, args)
     elif args.only == "error":
         plot_vary_max_error(df, args)
+        plot_vary_max_error_vldb(df, args)
     elif args.only == "alpha":
         plot_vary_alpha(df, args)
+        plot_vary_alpha_vldb(df, args)
     elif args.only == "beta":
         plot_vary_beta(df, args)
+        plot_vary_beta_vldb(df, args)
     elif args.only == "num_agg":
         vary_num_agg_tsk(df, "machineryralf", args)
         # vary_num_agg_tsk(df, "studentqnov2subset", args)
@@ -1327,6 +2088,13 @@ if __name__ == "__main__":
     plotting_logger = logging.getLogger("VLDBPlotting")
     if args.debug:
         plotting_logger.setLevel(logging.DEBUG)
+        try:
+            # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+            debugpy.listen(("localhost", 9501))
+            print("Waiting for debugger attach")
+            debugpy.wait_for_client()
+        except Exception as e:
+            pass
     else:
         plotting_logger.setLevel(logging.INFO)
     main(args)

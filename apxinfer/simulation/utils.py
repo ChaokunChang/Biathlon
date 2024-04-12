@@ -104,6 +104,24 @@ task_meta = {
         "max_error": 0.0,
         "nreqs": 338,
     } for i in range(8)},
+    **{f"machineryralfe2emedian" + ''.join([f'{j}' for j in range(i+1)]): {
+        "nops": 8,
+        "naggs": 8,
+        "agg_ids": list(range(8)),
+        "is_aggop": [True] * 8,
+        "model": "mlp",
+        "max_error": 0.0,
+        "nreqs": 338,
+    } for i in range(8)},
+    **{f"machineryralfdirectmedian" + ''.join([f'{j}' for j in range(i+1)]): {
+        "nops": 8,
+        "naggs": 8,
+        "agg_ids": list(range(8)),
+        "is_aggop": [True] * 8,
+        "model": "mlp",
+        "max_error": 0.0,
+        "nreqs": 338,
+    } for i in range(8)},
 }
 
 

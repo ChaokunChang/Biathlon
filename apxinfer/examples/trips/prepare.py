@@ -203,14 +203,18 @@ class TripsRalf2HPrepareWorker(TripsRalfPrepareWorker):
 class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # part1 without sampling: 2632114
-        part1 = self._extract_requests(trips_from="2015-08-01 00:00:00",
-                                       trips_to="2015-08-08 00:00:00",
-                                       sampling_rate=0.001)
+        part1 = self._extract_requests(
+            trips_from="2015-08-01 00:00:00",
+            trips_to="2015-08-08 00:00:00",
+            sampling_rate=0.001,
+        )
         # around 2.6k in part1
 
-        part2 = self._extract_requests(trips_from="2015-08-08 00:00:00",
-                                       trips_to="2015-08-08 01:00:00",
-                                       sampling_rate=1)
+        part2 = self._extract_requests(
+            trips_from="2015-08-08 00:00:00",
+            trips_to="2015-08-08 01:00:00",
+            sampling_rate=1,
+        )
 
         requests = pd.concat([part1, part2])
         self.logger.info(f"Extracted {len(requests)}x of requests")
@@ -228,14 +232,18 @@ class TripsRalfV2PrepareWorker(TripsRalfPrepareWorker):
 class TripsRalfV3PrepareWorker(TripsRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         # part1 without sampling: 2632114
-        part1 = self._extract_requests(trips_from="2015-08-01 00:00:00",
-                                       trips_to="2015-08-08 00:00:00",
-                                       sampling_rate=0.001)
+        part1 = self._extract_requests(
+            trips_from="2015-08-01 00:00:00",
+            trips_to="2015-08-08 00:00:00",
+            sampling_rate=0.001,
+        )
         # around 2.6k in part1
 
-        part2 = self._extract_requests(trips_from="2015-08-08 00:00:00",
-                                       trips_to="2015-08-08 00:05:00",
-                                       sampling_rate=1)
+        part2 = self._extract_requests(
+            trips_from="2015-08-08 00:00:00",
+            trips_to="2015-08-08 00:05:00",
+            sampling_rate=1,
+        )
 
         requests = pd.concat([part1, part2])
         self.logger.info(f"Extracted {len(requests)}x of requests")
@@ -248,3 +256,13 @@ class TripsRalfV3PrepareWorker(TripsRalfPrepareWorker):
         test_set = dataset[dataset["req_ts"] >= split_ts]
         valid_set = test_set[:100]
         return train_set, valid_set, test_set
+
+
+class TripsRalfV2SimMedianPrepareWorker(TripsRalfV2PrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="tripsralfv2")
+
+
+class TripsRalfV3SimMedianPrepareWorker(TripsRalfV3PrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        return self.create_dataset_simmedian_helper(ref_task="tripsralfv3")

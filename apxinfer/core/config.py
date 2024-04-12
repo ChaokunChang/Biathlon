@@ -232,5 +232,5 @@ class LoadingHelper:
         ds_path = os.path.join(dataset_dir, f"{name}_set.csv")
         dataset = pd.read_csv(ds_path)
         if nreqs > 0:
-            dataset = dataset[offset:nreqs]
+            dataset = dataset.iloc[offset : offset + nreqs]
         return dataset

@@ -377,6 +377,16 @@ class XIPQueryProcessor:
     ) -> XIPFeatureVec:
         return fvec
 
+    def feature_transformation_offset(
+        self, request: XIPRequest, fvec: XIPFeatureVec
+    ) -> XIPFeatureVec:
+        fnames = fvec["fnames"]
+        for i, fname in enumerate(fnames):
+            offset = request.get(f"req_offset_{fname}", None)
+            if offset is not None:
+                fvec["fvals"][i] += offset
+        return fvec
+
     def estimate_cardinality(self, rrdata: np.ndarray, qcfg: XIPQueryConfig) -> int:
         qsample = qcfg["qsample"]
         # card = self.festimator.extract(rrdata[:, 0], qsample, self.tsize, "count")

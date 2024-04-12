@@ -155,6 +155,8 @@ class MachineryRalfMedianPrepareWorker(MachineryRalfPrepareWorker):
             fids = [int(v) for v in task_name[len("machineryralfsimmedian") :]]
         else:
             raise ValueError(f"Unknown task name: {task_name}")
+        if len(fids) == 0:
+            fids = list(range(8))
 
         e2emedian_dataset = pd.read_csv(
             os.path.join(e2emedian_dir, "dataset", "dataset.csv")

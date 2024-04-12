@@ -16,7 +16,7 @@ from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
 
 class VLDBArgs(Tap):
-    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024040219"
+    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024041118"
     out_dir: str = "./cache"
     filename: str = None
     debug: bool = False
@@ -240,6 +240,9 @@ if __name__ == "__main__":
         elif settings['task_name'] in ALL_REG_TASKS:
             y_true = df['label']
             y_pred = df['pred_value']
+
+            y_min, y_max = y_true.min(), y_true.max()
+            y_pred = np.clip(y_pred, y_min, y_max)
 
             item['accuracy-mse'] = metrics.mean_squared_error(y_true, y_pred)
             item['accuracy-mae'] = metrics.mean_absolute_error(y_true, y_pred)

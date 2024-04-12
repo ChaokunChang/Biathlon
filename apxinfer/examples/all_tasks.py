@@ -3,21 +3,44 @@ ALL_REG_TASKS = [
     "tripsfeast",
     "tick",
     "tickv2",
-    "battery", "batterytest",
+    "battery",
+    "batterytest",
     "batteryv2",
+    "batteryv2median",
+    "batteryv2simmedian",
     "turbofan",
+    "turbofanmedian",
+    "turbofansimmedian",
     "turbofanall",
-    "tripsralf", "tripsralfv2", "tripsralfv3",
-    "tripsralftest", "tripsralf2h",
-    "tickralftest", "tickralf",
-    "tickralfv2test", "tickralfv2"
+    "tripsralf",
+    "tripsralfv2",
+    "tripsralfv3",
+    "tripsralfv2median",
+    "tripsralfv3median",
+    "tripsralfv2simmedian",
+    "tripsralfv3simmedian",
+    "tripsralftest",
+    "tripsralf2h",
+    "tickralftest",
+    "tickralf",
+    "tickralfv2test",
+    "tickralfv2", "tickralfv2median",
+    "tickralfv2simmedian",
 ]
 ALL_CLS_TASKS = [
-    "tdfraudralftest", "tdfraudralf",
-    "tdfraudralf2h", "tdfraudralf2d",
-    "tdfraudralftestv2", "tdfraudralfv2",
-    "tdfraudralf2hv2", "tdfraudralf2dv2",
-    "machineryralftest", "machineryralf",
+    "tdfraudralftest",
+    "tdfraudralf",
+    "tdfraudralf2h",
+    "tdfraudralf2d",
+    "tdfraudralf2dmedian",
+    "tdfraudralf2dsimmedian",
+    "tdfraudralftestv2",
+    "tdfraudralfv2",
+    "tdfraudralf2hv2",
+    "tdfraudralf2dv2",
+    "machineryralftest",
+    "machineryralf",
+    "machineryralfmedian",
     "cheaptrips",
     "cheaptripsfeast",
     "machinery",
@@ -26,9 +49,16 @@ ALL_CLS_TASKS = [
     "tdfraud",
     "tdfraudrandom",
     "tdfraudkaggle",
-    "student", "studentqnotest",
-    "studentqnov2", "studentqnov2subset", "studentqnov2test",
-    "performance12", "performance16", "performance17",
+    "student",
+    "studentqnotest",
+    "studentqnov2",
+    "studentqnov2subset",
+    "studentqnov2test",
+    "studentqnov2subsetmedian",
+    "studentqnov2subsetsimmedian",
+    "performance12",
+    "performance16",
+    "performance17",
 ]
 
 StudentQNo = [f"studentqno{i}" for i in range(1, 19)]
@@ -55,7 +85,13 @@ ALL_REG_TASKS += TickVaryNMonths
 TripsFeastVaryWindow = [f"tripsfeastw{i}" for i in range(1, 30)]
 ALL_CLS_TASKS += TripsFeastVaryWindow
 
-MachineryRalfMedian = [
-    'machineryralfe2emedian0', 'machineryralfdirectmedian0', 'machineryralfsimmedian0'
+ALL_CLS_TASKS += [
+    "machineryralfe2emedian" + "".join([f"{i}" for i in range(n + 1)]) for n in range(8)
 ]
-ALL_CLS_TASKS += MachineryRalfMedian
+ALL_CLS_TASKS += [
+    "machineryralfdirectmedian" + "".join([f"{i}" for i in range(n + 1)])
+    for n in range(8)
+]
+ALL_CLS_TASKS += [
+    "machineryralfsimmedian" + "".join([f"{i}" for i in range(n + 1)]) for n in range(8)
+]

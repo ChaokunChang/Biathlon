@@ -307,9 +307,9 @@ class BiathlonPredictionEstimator(XIPPredictionEstimator):
             elif fvec["fdists"][i] == "fixed":
                 self.fsamples[:, i] = fvec["fvals"][i]
             if np.any(np.isnan(self.fsamples[:, i])):
-                print(f"Found NaN in {fvec['fnames'][i]}")
+                print(f'Found NaN in {fvec["fnames"][i]}, {fvec["fvals"][i]}, {fvec["fdists"][i]}, {fvec["fests"][i]}, {self.fsamples[:10, i]}')
             if np.any(np.isinf(self.fsamples[:, i])):
-                print(f'Found Inf in {fvec["fnames"][i]}, {fvec["fvals"][i]}, {fvec["fdists"][i]}, {fvec["fests"][i]}')
+                print(f'Found Inf in {fvec["fnames"][i]}, {fvec["fvals"][i]}, {fvec["fdists"][i]}, {fvec["fests"][i]}, {self.fsamples[:10, i]}')
                 print(f"self.fsamples[:, i]: {self.fsamples[:, i]}")
 
         self.preds = model.predict(self.fsamples)

@@ -67,11 +67,33 @@ def collect_data(args: R2W1F3Args) -> pd.DataFrame:
             accuracy = evals["evals_to_ext"][args.metric]
         else:
             accuracy = evals["evals_to_gt"][args.metric]
-        data.append({"task_name": task_name,
-                     "latency": latency,
-                     "accuracy": accuracy,
-                     "avg_nrounds": evals["avg_nrounds"],
-                     "avg_sample": evals["avg_sample"] / 8.0})
+
+        # ol_args.exact = True
+        # online_dir = DIRHelper.get_online_dir(ol_args)
+        # evals_tag = DIRHelper.get_eval_tag(ol_args)
+        # evals_path = os.path.join(online_dir, f"evals_{evals_tag}.json")
+        # with open(evals_path, "r") as f:
+        #     exact_evals = json.load(f)
+        # bsl_latency = exact_evals["avg_ppl_time"]
+        # if args.oracle_type == "exact":
+        #     bsl_accuracy = exact_evals["evals_to_ext"][args.metric]
+        # else:
+        #     bsl_accuracy = exact_evals["evals_to_gt"][args.metric]
+        # bsl_infos = {
+        #     "bsl_latency": bsl_latency,
+        #     "speedup": bsl_latency / latency,
+        #     "bsl_accuracy": bsl_accuracy,
+        # }
+
+        data.append(
+            {
+                "task_name": task_name,
+                "latency": latency,
+                "accuracy": accuracy,
+                "avg_nrounds": evals["avg_nrounds"],
+                "avg_sample": evals["avg_sample"] / 8.0,
+            }
+        )
     df = pd.DataFrame(data)
     return df
 
@@ -80,7 +102,11 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     task_names = [
-        "original" if name == 'machineryralf' else f"{len(name.replace('machineryralfsimmedian', ''))}x median"
+        (
+            "original"
+            if name == "machineryralf"
+            else f"{len(name.replace('machineryralfsimmedian', ''))}x median"
+        )
         for name in df["task_name"]
     ]
 
@@ -130,7 +156,10 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     plt.tight_layout()
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
-    tag = "_".join([task.replace('machineryralf', '') for task in args.tasks] + [args.oracle_type, args.metric])
+    tag = "_".join(
+        [task.replace("machineryralf", "") for task in args.tasks]
+        + [args.oracle_type, args.metric]
+    )
     fig_path = os.path.join(fig_dir, f"avg_vs_median_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/avg_vs_median.png")

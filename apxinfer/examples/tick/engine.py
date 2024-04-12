@@ -224,7 +224,7 @@ class TickQP1SimMedian(TickQP1Median):
     def feature_transformation(
         self, request: XIPRequest, fvec: XIPFeatureVec
     ) -> XIPFeatureVec:
-        return self.feature_transformation_offset(request, fvec, 1)
+        return self.feature_transformation_offset(request, fvec)
 
 
 def get_tick_simmedian_engine_v2(

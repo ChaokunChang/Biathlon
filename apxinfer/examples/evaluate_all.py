@@ -745,7 +745,7 @@ def run_tripsralfv2median(args: ExpArgs):
     must models = ["lgbm"]
     optional models = ["xgb", "dt", "rf"]
     """
-    task_name = "tripsralfv3median"
+    task_name = "tripsralfv2median"
     agg_qids = "1 2"
     # default_max_errors = [0.7, 1.4, 2.8]
     default_max_errors = [1.4]
@@ -758,7 +758,7 @@ def run_tripsralfv2simmedian(args: ExpArgs):
     must models = ["lgbm"]
     optional models = ["xgb", "dt", "rf"]
     """
-    task_name = "tripsralfv3simmedian"
+    task_name = "tripsralfv2simmedian"
     agg_qids = "1 2"
     # default_max_errors = [0.7, 1.4, 2.8]
     default_max_errors = [1.4]

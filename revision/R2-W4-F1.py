@@ -72,6 +72,7 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
     }
 
     fig, ax = get_1_1_fig(args)
+    fig.set_size_inches(15, 5)
 
     xticklabels = [
         rename_map.get(name, name)
@@ -79,13 +80,13 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
         if name in biathlon_df["task_name"].values
     ]
 
-    width = 0.85 / len(systems)
+    width = 2.5 / len(systems)
 
-    x = np.arange(len(xticklabels))
+    x = np.arange(len(xticklabels)) * 4
     system_xs = {k: (x + v * width) for k, v in zip(systems, np.arange(len(systems)))}
     x_ticks = system_xs["biathlon"] - width
 
-    ax.set_xticks(x_ticks, xticklabels, fontsize=10)  # center the xticks with the bars
+    ax.set_xticks(x_ticks, xticklabels, fontsize=12)  # center the xticks with the bars
     ax.tick_params(axis="x", rotation=11)
     ax.set_ylim((0, 1.1))
     y_tick_values = np.arange(0, 1.1, 0.1)
@@ -106,7 +107,7 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
         sys_df = system_dfs[system]
         if system == "ralf":
             pseudo_height = np.zeros_like(sys_df[args.score_type])
-            pseudo_height[-1] += 0.015
+            pseudo_height[-1] += 0.01
             bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height, width, label=system_rename.get(system, system))
         else:
             bar = ax.bar(system_xs[system], sys_df[args.score_type], width, label=system_rename.get(system, system))
@@ -129,7 +130,7 @@ def plot_meet_acc_target(df: pd.DataFrame, args: EvalArgs):
                 )
 
     ax.set_ylabel("Percentage")
-    ax.set_title("Percentage of requests within bounded error")
+    # ax.set_title("Percentage of requests within bounded error")
     ax.legend(loc="center right", fontsize=8)
 
     plt.savefig(os.path.join(args.home_dir, args.plot_dir, "meet_accuracy_target.pdf"))

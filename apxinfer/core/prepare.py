@@ -231,7 +231,7 @@ class XIPPrepareWorker:
             if col.startswith("f_") and "_median_" in col
         ]
         corres_avg_fname = [
-            fname.replace("_median_", "_avg_") for fname in median_fnames
+            fname.replace("_median_", f"_{replaced}_") for fname in median_fnames
         ]
 
         assert len(base_ppl_dataset) == len(

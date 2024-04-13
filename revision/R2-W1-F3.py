@@ -64,7 +64,7 @@ class R2W1F3Args(Tap):
     nseeds: int = 100
 
     debug: bool = False
-    plot_final: bool = False
+    phase: str = "e2e"
 
 
 def collect_data(args: R2W1F3Args) -> pd.DataFrame:
@@ -540,16 +540,19 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
 
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
-    if args.plot_final:
+    if args.phase == "final_errors":
         assert args.nocache == False, "Must use cache to plot final figure"
         selected = {
-            "tripsralfv2median": [(6, 5)],
+            # "tripsralfv2median": [(6, 5)], # not work in ssd5
+            "tripsralfv2median": [(5, 5)],
             "tickralfv2median": [(4, 6)],
             "batteryv2median": [(9, 5)],
             "turbofanmedian": [(0, 1)],
             "tdfraudmedian": [],  # not ok yet
-            "machineryralfmedian": [(0, 1)],
-            "studentqnov2subsetmedian": [(0, 4)],
+            # "machineryralfmedian": [(0, 1)], # not work in ssd5
+            "machineryralfmedian": [(3, 7)],
+            # "studentqnov2subsetmedian": [(0, 4)], # not work in ssd5
+            "studentqnov2subsetmedian": [(18, 2)],
         }
         res_list = []
         for task_name, cfgs in selected.items():
@@ -565,7 +568,7 @@ if __name__ == "__main__":
                         res_list.append(res)
                         break
         plot_final_error_dist(args, res_list)
-    else:
+    elif args.phase == "e2e":
         if args.debug:
             try:
                 # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
@@ -577,6 +580,7 @@ if __name__ == "__main__":
         df = collect_data(args)
         print(df)
         plot_data(args, df)
+    elif args.phase == "collect_errors":
         res_list = collect_error_distribution(args)
         # print(res_list[:2])
         plot_error_distribution(args, res_list)

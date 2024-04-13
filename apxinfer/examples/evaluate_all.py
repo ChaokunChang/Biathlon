@@ -747,9 +747,10 @@ def run_tripsralfv2median(args: ExpArgs):
     """
     task_name = "tripsralfv2median"
     agg_qids = "1 2"
-    # default_max_errors = [0.7, 1.4, 2.8]
-    default_max_errors = [1.4]
-    max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    # default_max_errors = [1.4]
+    # max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+    default_max_errors = [1.5]
+    max_errors = [0.1875, 0.375, 0.75, 1.5, 3.0, 6.0, 9.0, 12.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

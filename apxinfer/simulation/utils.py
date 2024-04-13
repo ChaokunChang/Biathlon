@@ -68,6 +68,15 @@ task_meta = {
         "max_error": 1.5,
         "nreqs": 22016,
     },
+    "tripsralfv3": {
+        "nops": 3,
+        "naggs": 2,
+        "agg_ids": [1, 2],
+        "is_aggop": [False, True, True],
+        "model": "lgbm",
+        "max_error": 1.4,
+        "nreqs": 1960,
+    },
     "tdfraudralf2d": {
         "nops": 4,
         "naggs": 3,
@@ -100,24 +109,29 @@ task_meta = {
 median_tasks = {
     **{
         f"machineryralfsimmedian"
-        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        + "".join([f"{j}" for j in range(i)]): {**task_meta["machineryralf"]}
         for i in range(9)
     },
     **{
         f"machineryralfe2emedian"
-        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        + "".join([f"{j}" for j in range(i)]): {**task_meta["machineryralf"]}
         for i in range(9)
     },
     **{
         f"machineryralfdirectmedian"
-        + "".join([f"{j}" for j in range(i)]): task_meta["machineryralf"]
+        + "".join([f"{j}" for j in range(i)]): {**task_meta["machineryralf"]}
         for i in range(9)
     },
 }
 for name, meta in task_meta.items():
-    median_tasks[f"{name}median"] = meta
-    median_tasks[f"{name}simmedian"] = meta
+    median_tasks[f"{name}median"] = {**meta}
+    median_tasks[f"{name}simmedian"] = {**meta}
 task_meta.update(median_tasks)
+
+task_meta["batteryv2median"]["max_error"] = 186.7
+task_meta["batteryv2simmedian"]["max_error"] = 186.7
+task_meta["tripsralfv2median"]["max_error"] = 1.4
+task_meta["tripsralfv2simmedian"]["max_error"] = 1.4
 
 
 class SimulationArgs(Tap):

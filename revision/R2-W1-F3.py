@@ -35,36 +35,36 @@ from apxinfer.simulation import utils as simutils
 class R2W1F3Args(Tap):
     task_home: str = "final"
 
-    # tasks: List[str] = ["machineryralf", "machineryralfe2emedian0"]
-    tasks: List[str] = ["machineryralf", "machineryralfsimmedian0"]
-    # tasks: List[str] = ["machineryralf",
-    #                     "machineryralfsimmedian0",
-    #                     "machineryralfsimmedian01",
-    #                     "machineryralfsimmedian0123",
-    #                     "machineryralfsimmedian012345",
-    #                     "machineryralfsimmedian01234567",]
+    tasks: List[str] = ["machineryralf", "machineryralfmedian"]
 
+    seed: int = 0
     oracle_type: str = "exact"
     metric: str = "acc"
 
+    save_dir: str = "/home/ckchang/ApproxInfer/revision/cache/2.1.3"
     fig_dir: str = "/home/ckchang/ApproxInfer/revision/cache/figs/2.1.3"
+    nocache: bool = False
 
 
 def collect_data(args: R2W1F3Args) -> pd.DataFrame:
+    os.makedirs(args.save_dir, exist_ok=True)
     data = []
     for task_name in args.tasks:
-        sim_args = simutils.SimulationArgs().parse_args()
-        sim_args.task_home = args.task_home
-        sim_args.task_name = task_name
-        if "median" in task_name:
-            sim_args.bs_type = "descrete"
-        else:
-            sim_args.bs_type = "fstd"
+        sim_args = simutils.SimulationArgs().from_dict(
+            {
+                "task_home": args.task_home,
+                "task_name": task_name,
+                "seed": args.seed,
+                "bs_type": "descrete" if "median" in task_name else "fstd",
+                "save_dir": args.save_dir,
+            }
+        )
         ol_args = simutils.get_online_args(sim_args)
 
         online_dir = DIRHelper.get_online_dir(ol_args)
         evals_tag = DIRHelper.get_eval_tag(ol_args)
         evals_path = os.path.join(online_dir, f"evals_{evals_tag}.json")
+
         with open(evals_path, "r") as f:
             evals = json.load(f)
         latency = evals["avg_ppl_time"]
@@ -112,11 +112,7 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     task_names = [
-        (
-            "original"
-            if name == "machineryralf"
-            else f"{len(name.replace('machineryralfsimmedian', ''))}x median"
-        )
+        name.replace("simmedian", "+").replace("median", "*")
         for name in df["task_name"]
     ]
 
@@ -139,9 +135,7 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     ax.set_title("Latency Comparison")
     ax.set_ylabel("Latency (s)")
     ax.set_xlabel("Task Name")
-    # ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
-    ax.set_xticklabels(task_names)
-    # ax.set_ylim(0, 1.5)
+    ax.set_xticklabels(task_names, rotation=30)
 
     ax = axes[1]  # compare accuracy of each task
     sns.barplot(x="task_name", y="accuracy", data=df, ax=ax)
@@ -160,19 +154,259 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     ax.set_title("Accuracy Comparison")
     ax.set_ylabel("Accuracy")
     ax.set_xlabel("Task Name")
-    # ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
-    ax.set_xticklabels(task_names)
+    ax.set_xticklabels(task_names, rotation=30)
 
     plt.tight_layout()
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
-    tag = "_".join(
-        [task.replace("machineryralf", "") for task in args.tasks]
-        + [args.oracle_type, args.metric]
-    )
+    tag = "_".join([args.oracle_type, args.metric] + args.tasks)
     fig_path = os.path.join(fig_dir, f"avg_vs_median_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/avg_vs_median.png")
+    print(f"Save figure to {fig_path}")
+
+
+def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
+    res_list = []
+    # rng = np.random.default_rng(args.seed)
+    rid_list = np.arange(1)
+    seeds_list = np.arange(100)
+    for task_name in args.tasks:
+        sim_args = simutils.SimulationArgs().from_dict(
+            {
+                "task_home": args.task_home,
+                "task_name": task_name,
+                "seed": args.seed,
+                "bs_type": "descrete" if "median" in task_name else "fstd",
+                "save_dir": args.save_dir,
+            }
+        )
+        ol_args = simutils.get_online_args(sim_args)
+
+        test_set: pd.DataFrame = LoadingHelper.load_dataset(
+            ol_args, "test", ol_args.nreqs, offset=ol_args.nreqs_offset
+        )
+        req_cols = [col for col in test_set.columns if col.startswith("req_")]
+        requests = test_set[req_cols].to_dict(orient="records")
+
+        ppl: XIPPipeline = get_ppl(task_name, ol_args, test_set, verbose=False)
+        fnames = ppl.fextractor.fnames
+
+        median_fids = [fid for fid, name in enumerate(fnames) if "_median" in name]
+        median_qids = []
+        for qid, qry in enumerate(ppl.fextractor.queries):
+            for fid, fname in enumerate(qry.fnames):
+                if "median" in fname:
+                    median_qids.append(qid)
+                    break
+        # median_qid = median_qids[0] if len(median_qids) > 0 else 0
+        print(f"median_qids: {median_qids}, median_fids: {median_fids}")
+        if len(median_fids) == 0:
+            continue
+
+        for rid in rid_list:
+            request = requests[rid]
+            rid_res_list = []
+            rid_res_tag = "-".join([task_name, f"rid={rid}"])
+            rid_res_path = os.path.join(args.save_dir, f"red_res_{rid_res_tag}.pkl")
+            if (not args.nocache) and os.path.exists(rid_res_path):
+                print(f"Load red_res from {rid_res_path}")
+                rid_res_list = joblib.load(rid_res_path)
+                res_list.extend(rid_res_list)
+                continue
+
+            # run exact, make ncores = 0 and loading_mode=1 to be faster
+            ppl.fextractor.ncores = 0
+            for qry in ppl.fextractor.queries:
+                qry.loading_mode = 1
+                qry.set_enable_qcache()
+                qry.set_enable_dcache()
+                qry.profiles = []
+                qry.festimator.err_module.bs_feature_correction = True
+                qry.festimator.err_module.bs_type = "descrete"
+            oracle_pred = ppl.serve(request=request, exact=True)
+
+            rrdatas = []
+            moments_list = []
+            warnings.simplefilter("ignore", RuntimeWarning)
+            for qid, qry in enumerate(ppl.fextractor.queries):
+                if qry.qtype == XIPQType.AGG:
+                    cached_rrd: np.ndarray = qry._dcache["cached_rrd"]
+                    rrdatas.append(cached_rrd)
+                    if cached_rrd is not None:
+                        # print(f"{rid}-{qid}: {cached_rrd.shape}")
+                        # check whether cached_rrd contains object dtype
+                        if cached_rrd.dtype == np.dtype("O"):
+                            # the data are string
+                            # we can not compute moments for object dtype directly
+                            # we take cached_rrd as descrete data, and compute
+                            # the proportion of each unique value
+                            unique, counts = np.unique(cached_rrd, return_counts=True)
+                            moments_list.append(
+                                {
+                                    "rid": rid,
+                                    "qid": qid,
+                                    "size": len(cached_rrd),
+                                    "mean": None,
+                                    "std": None,
+                                    "skew": None,
+                                    "kurtosis": None,
+                                    "unique": unique,
+                                    "counts": counts,
+                                }
+                            )
+                        else:
+                            moments_list.append(
+                                {
+                                    "rid": rid,
+                                    "qid": qid,
+                                    "size": len(cached_rrd),
+                                    "mean": np.mean(cached_rrd),
+                                    "std": np.std(cached_rrd),
+                                    "skew": stats.skew(cached_rrd),
+                                    "kurtosis": stats.kurtosis(cached_rrd),
+                                }
+                            )
+                    else:
+                        moments_list.append(
+                            {
+                                "rid": rid,
+                                "qid": qid,
+                                "size": 0,
+                                "mean": None,
+                                "std": None,
+                                "skew": None,
+                                "kurtosis": None,
+                            }
+                        )
+                else:
+                    rrdatas.append(None)
+
+            ppl.fextractor.ncores = 1
+            for qry in ppl.fextractor.queries:
+                qry.loading_mode = 0
+                qry.set_enable_qcache()
+                qry.set_enable_dcache()
+                qry.profiles = []
+            xip_pred = ppl.run_apx(request=request, keep_qmc=True)
+
+            qcfgs = ppl.scheduler.get_latest_profile()["qcfgs"]
+            qsamples = np.array([qcfg["qsample"] for qcfg in qcfgs])
+            qnparts = np.round(qsamples * 100).astype(int)
+            print(f"qnparts: {qnparts}")
+
+            for qry in ppl.fextractor.queries:
+                qry.festimator.err_module.bs_feature_correction = False
+                qry.festimator.err_module.bs_type = "fstd"
+
+            fvecs = []
+            for sid, seed in tqdm(enumerate(seeds_list), desc=f"{task_name} rid={rid}"):
+                qcfgs = ppl.scheduler.get_final_qcfgs(request)
+                for qid, qry in enumerate(ppl.fextractor.queries):
+                    if qry.qtype == XIPQType.AGG:
+                        qry.set_enable_qcache()
+                        # qry.profiles = qry.profiles[-1:]
+                        qry.profiles = []
+                        qrng = np.random.default_rng(seed)
+                        all_rrd: np.ndarray = rrdatas[qid]
+                        if all_rrd is not None:
+                            total_n = all_rrd.shape[0]
+                            if is_same_float(qsamples[qid], 1.0):
+                                srrd = all_rrd
+                            else:
+                                # get srrd using bernulli sampling to make sure
+                                # we can estimate error of "count"
+                                srrd = all_rrd[
+                                    qrng.binomial(1, qsamples[qid], total_n).astype(
+                                        bool
+                                    )
+                                ]
+                        else:
+                            srrd = None
+                        qry._dcache["cached_req"] = request["req_id"]
+                        qry._dcache["cached_nparts"] = qnparts[qid]
+                        qry._dcache["cached_rrd"] = srrd
+                        qcfgs[qid]["qsample"] = qsamples[qid]
+
+                fvec, qcosts = ppl.fextractor.extract(request, qcfgs)
+                fvecs.append(fvec)
+
+            for qid, qry in enumerate(ppl.fextractor.queries):
+                if qry.qtype == XIPQType.AGG:
+                    for fname in qry.fnames:
+                        fid = fnames.index(fname)
+                        real_feature = oracle_pred["fvec"]["fvals"][fid]
+                        real_pred = oracle_pred["pred_value"]
+                        real_errors = [
+                            fvec["fvals"][fid] - real_feature for fvec in fvecs
+                        ]
+                        apx_feature = xip_pred["fvec"]["fvals"][fid]
+                        apx_pred = xip_pred["pred_value"]
+                        apx_errors = xip_pred["fvec"]["fests"][fid]
+                        if isinstance(apx_errors, np.ndarray):
+                            apx_errors = (apx_errors - real_feature).tolist()
+                        else:
+                            apx_errors = apx_feature - real_feature
+                        rid_res_list.append(
+                            {
+                                "task_name": task_name,
+                                "rid": rid,
+                                "fid": fid,
+                                "fname": fname,
+                                "real_feature": real_feature,
+                                "real_pred": real_pred,
+                                "real_errors": real_errors,
+                                "apx_feature": apx_feature,
+                                "apx_pred": apx_pred,
+                                "apx_errors": apx_errors,
+                            }
+                        )
+            joblib.dump(rid_res_list, rid_res_path)
+            res_list.extend(rid_res_list)
+    return res_list
+
+
+def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
+    nres = len(res_list)
+    ncols = 4
+    nrows = (nres // ncols) + (nres % ncols > 0)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+    axes = axes.flatten()
+
+    for i, res in enumerate(res_list):
+        ax = axes[i]
+        task_name = res["task_name"]
+        rid, fid = res["rid"], res["fid"]
+        if not isinstance(res["apx_errors"], list):
+            continue
+        sns.kdeplot(
+            # [float(v) for v in json.loads(res["real_errors"])],
+            res["real_errors"],
+            label="Real Error",
+            color="blue",
+            alpha=0.5,
+            ax=ax,
+        )
+        sns.kdeplot(
+            # [float(v) for v in json.loads(res["apx_errors"])],
+            res["apx_errors"],
+            label="Bootstrap Error",
+            color="red",
+            alpha=0.5,
+            ax=ax,
+        )
+        ax.legend()
+        ax.set_xlabel("Error Value")
+        ax.set_ylabel("Frequency")
+        ax.set_title(f"{task_name}-rid({rid})-f{fid}")
+
+    plt.tight_layout()
+    fig_dir = args.fig_dir
+    os.makedirs(fig_dir, exist_ok=True)
+    tag = "_".join([args.oracle_type, args.metric] + args.tasks)
+    fig_path = os.path.join(fig_dir, f"median_error_distribution_{tag}.pdf")
+    plt.savefig(fig_path)
+    plt.savefig("./cache/median_error_distribution.png")
     print(f"Save figure to {fig_path}")
 
 
@@ -181,3 +415,6 @@ if __name__ == "__main__":
     df = collect_data(args)
     print(df)
     plot_data(args, df)
+
+    # res_list = collect_error_distribution(args)
+    # plot_error_distribution(args, res_list)

@@ -179,11 +179,11 @@ class DIRHelper:
                 online_dir,
                 f"scheduler-{args.scheduler}-{args.scheduler_init}-{args.scheduler_batch}",
             )
-        if args.bs_type == "descrete":
-            online_dir = os.path.join(
-                online_dir,
-                f"bs-descrete-{args.bs_nresamples}-{args.bs_nthreads}-{args.bs_feature_correction}-{args.bs_bias_correction}-{args.bs_for_var_std}",
-            )
+            if args.bs_type == "descrete":
+                online_dir = os.path.join(
+                    online_dir,
+                    f"bs-descrete-{args.bs_nresamples}-{args.bs_nthreads}-{args.bs_feature_correction}-{args.bs_bias_correction}-{args.bs_for_var_std}",
+                )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir
 

@@ -42,8 +42,9 @@ rename_map = {
     "tickralfv2": "Tick-Price",
     "turbofan": "Turbofan",
     "tdfraudralf2d": "Fraud-Detection",
-    "studentqnov2subset": "Student-QA"
+    "studentqnov2subset": "Student-QA",
 }
+
 
 class R2W1F3Args(Tap):
     task_home: str = "final"
@@ -62,9 +63,11 @@ class R2W1F3Args(Tap):
     srid: int = 0
     erid: int = 1
     nseeds: int = 100
+    error_to: str = "real"
+    collect_nunique: bool = False
 
     debug: bool = False
-    phase: str = "e2e"
+    phase: str = "e2e"  # collect_errors, final_errors
 
 
 def collect_data(args: R2W1F3Args) -> pd.DataFrame:
@@ -133,7 +136,8 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     task_names = [
-        name.replace("simmedian", "+").replace("median", "*")
+        name.replace("simmedian", "+")
+        .replace("median", "*")
         .replace(name, rename_map.get(name, name))
         .replace(name[:-1], rename_map.get(name[:-1], name[:-1]))
         for name in df["task_name"]
@@ -253,6 +257,8 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
             request = requests[rid]
             rid_res_list = []
             rid_res_tag = "-".join([task_name, f"rid={rid}"])
+            if args.error_to == "apx":
+                rid_res_tag = "-".join([rid_res_tag, "apx"])
             rid_res_path = os.path.join(args.save_dir, f"red_res_{rid_res_tag}.pkl")
             if (not args.nocache) and os.path.exists(rid_res_path):
                 print(f"Load red_res from {rid_res_path}")
@@ -408,7 +414,10 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                 if qry.qtype == XIPQType.AGG:
                     for fname in qry.fnames:
                         if "_median" not in fname:
-                            continue
+                            if not args.collect_nunique:
+                                continue
+                            elif "_unique" not in fname:
+                                continue
                         fid = oracle_pred["fvec"]["fnames"].index(fname)
                         real_feature = oracle_pred["fvec"]["fvals"][fid]
                         real_pred = oracle_pred["pred_value"]
@@ -418,15 +427,13 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                         apx_feature = xip_pred["fvec"]["fvals"][fid]
                         apx_pred = xip_pred["pred_value"]
                         apx_fests = xip_pred["fvec"]["fests"][fid]
-                        # print(f"{qid}: {xip_pred}")
-                        # if isinstance(apx_fests, np.ndarray):
-                        #     apx_errors = (apx_fests - real_feature).tolist()
-                        # elif isinstance(apx_fests, list):
-                        #     apx_errors = (np.array(apx_fests) - real_feature).tolist()
-                        # else:
-                        #     apx_errors = apx_feature - real_feature
                         if isinstance(apx_fests, (np.ndarray, list)):
-                            apx_errors = np.array(apx_fests) - real_feature
+                            if args.error_to == "real":
+                                apx_errors = np.array(apx_fests) - real_feature
+                            elif args.error_to == "apx":
+                                apx_errors = np.array(apx_fests) - apx_feature
+                            else:
+                                raise ValueError(f"Unknown error_to: {args.error_to}")
                             rid_res_list.append(
                                 {
                                     "task_name": task_name,
@@ -488,6 +495,8 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
     tag = "_".join([args.oracle_type, args.metric] + args.tasks)
+    if args.error_to == "apx":
+        tag = "_".join([tag, "apx"])
     fig_path = os.path.join(fig_dir, f"median_error_distribution_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/median_error_distribution.png")
@@ -532,7 +541,10 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
     plt.tight_layout()
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
-    fig_path = os.path.join(fig_dir, "median_error_distribution.pdf")
+    if args.error_to == "apx":
+        fig_path = os.path.join(fig_dir, f"median_error_distribution_{args.error_to}.pdf")
+    else:
+        fig_path = os.path.join(fig_dir, f"median_error_distribution.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/median_error_distribution.png")
     print(f"Save figure to {fig_path}")
@@ -558,6 +570,8 @@ if __name__ == "__main__":
         for task_name, cfgs in selected.items():
             for rid, fid in cfgs:
                 rid_res_tag = "-".join([task_name, f"rid={rid}"])
+                if args.error_to == "apx":
+                    rid_res_tag = "-".join([rid_res_tag, "apx"])
                 rid_res_path = os.path.join(args.save_dir, f"red_res_{rid_res_tag}.pkl")
                 if not os.path.exists(rid_res_path):
                     print(f"Skip {task_name} rid={rid} fid={fid}")

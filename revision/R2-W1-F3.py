@@ -41,9 +41,17 @@ class R2W1F3Args(Tap):
     oracle_type: str = "exact"
     metric: str = "acc"
 
-    save_dir: str = "/home/ckchang/ApproxInfer/revision/cache/2.1.3"
+    save_dir: str = "/home/ckchang/ApproxInfer/revision/cache/results/2.1.3"
     fig_dir: str = "/home/ckchang/ApproxInfer/revision/cache/figs/2.1.3"
     nocache: bool = False
+
+    auto_rid: bool = False
+    srid: int = 0
+    erid: int = 1
+    nseeds: int = 100
+
+    debug: bool = False
+    plot_final: bool = False
 
 
 def collect_data(args: R2W1F3Args) -> pd.DataFrame:
@@ -169,8 +177,8 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
 def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
     res_list = []
     # rng = np.random.default_rng(args.seed)
-    rid_list = np.arange(1)
-    seeds_list = np.arange(100)
+    rid_list = np.arange(args.srid, args.erid)
+    seeds_list = np.arange(args.nseeds)
     for task_name in args.tasks:
         sim_args = simutils.SimulationArgs().from_dict(
             {
@@ -200,9 +208,27 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                     median_qids.append(qid)
                     break
         # median_qid = median_qids[0] if len(median_qids) > 0 else 0
-        print(f"median_qids: {median_qids}, median_fids: {median_fids}")
         if len(median_fids) == 0:
             continue
+
+        print(f"median_qids: {median_qids}, median_fids: {median_fids}")
+        print(f"fnames: {fnames}")
+
+        online_dir = DIRHelper.get_online_dir(ol_args)
+        tag = ppl.settings.__str__()
+        df_path = os.path.join(online_dir, f"final_df_{tag}.csv")
+        assert os.path.exists(df_path), f"File not found: {df_path}"
+        print(f"Loading {df_path}")
+        df = pd.read_csv(df_path)
+        # df = df.iloc[args.srid, args.erid]
+        median_qsamples = df[[f"qsamples_{qid}" for qid in median_qids]]
+        print(f"median_qsamples: {np.mean(median_qsamples > 0.05, axis=0)}")
+
+        if args.auto_rid:
+            # get row id with median_qsamples > 0.05
+            rid_list = np.where(np.any(median_qsamples > 0.05, axis=1) > 0.5)[0]
+            rid_list = rid_list[args.srid : args.erid]
+            print(f"auto rid_list: {rid_list}")
 
         for rid in rid_list:
             request = requests[rid]
@@ -282,6 +308,20 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                 else:
                     rrdatas.append(None)
 
+            skip_rid = True
+            for qid in median_qids:
+                if rrdatas[qid] is not None:
+                    if rrdatas[qid].shape[0] > 20:
+                        skip_rid = False
+                        break
+            if skip_rid:
+                print(
+                    f"Skip rid={rid} {[rrdatas[qid].shape[0] if rrdatas[qid] is not None else None for qid in median_qids]}"
+                )
+                continue
+            if args.debug:
+                print(f"rrdatas: {rrdatas}")
+
             ppl.fextractor.ncores = 1
             for qry in ppl.fextractor.queries:
                 qry.loading_mode = 0
@@ -289,6 +329,8 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                 qry.set_enable_dcache()
                 qry.profiles = []
             xip_pred = ppl.run_apx(request=request, keep_qmc=True)
+            if args.debug:
+                print(f"xip_pred: {xip_pred}")
 
             qcfgs = ppl.scheduler.get_latest_profile()["qcfgs"]
             qsamples = np.array([qcfg["qsample"] for qcfg in qcfgs])
@@ -300,7 +342,11 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                 qry.festimator.err_module.bs_type = "fstd"
 
             fvecs = []
-            for sid, seed in tqdm(enumerate(seeds_list), desc=f"{task_name} rid={rid}"):
+            for sid, seed in tqdm(
+                enumerate(seeds_list),
+                total=len(seeds_list),
+                desc=f"{task_name} rid={rid}",
+            ):
                 qcfgs = ppl.scheduler.get_final_qcfgs(request)
                 for qid, qry in enumerate(ppl.fextractor.queries):
                     if qry.qtype == XIPQType.AGG:
@@ -334,7 +380,9 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
             for qid, qry in enumerate(ppl.fextractor.queries):
                 if qry.qtype == XIPQType.AGG:
                     for fname in qry.fnames:
-                        fid = fnames.index(fname)
+                        if "_median" not in fname:
+                            continue
+                        fid = oracle_pred["fvec"]["fnames"].index(fname)
                         real_feature = oracle_pred["fvec"]["fvals"][fid]
                         real_pred = oracle_pred["pred_value"]
                         real_errors = [
@@ -342,25 +390,30 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                         ]
                         apx_feature = xip_pred["fvec"]["fvals"][fid]
                         apx_pred = xip_pred["pred_value"]
-                        apx_errors = xip_pred["fvec"]["fests"][fid]
-                        if isinstance(apx_errors, np.ndarray):
-                            apx_errors = (apx_errors - real_feature).tolist()
-                        else:
-                            apx_errors = apx_feature - real_feature
-                        rid_res_list.append(
-                            {
-                                "task_name": task_name,
-                                "rid": rid,
-                                "fid": fid,
-                                "fname": fname,
-                                "real_feature": real_feature,
-                                "real_pred": real_pred,
-                                "real_errors": real_errors,
-                                "apx_feature": apx_feature,
-                                "apx_pred": apx_pred,
-                                "apx_errors": apx_errors,
-                            }
-                        )
+                        apx_fests = xip_pred["fvec"]["fests"][fid]
+                        # print(f"{qid}: {xip_pred}")
+                        # if isinstance(apx_fests, np.ndarray):
+                        #     apx_errors = (apx_fests - real_feature).tolist()
+                        # elif isinstance(apx_fests, list):
+                        #     apx_errors = (np.array(apx_fests) - real_feature).tolist()
+                        # else:
+                        #     apx_errors = apx_feature - real_feature
+                        if isinstance(apx_fests, (np.ndarray, list)):
+                            apx_errors = np.array(apx_fests) - real_feature
+                            rid_res_list.append(
+                                {
+                                    "task_name": task_name,
+                                    "rid": rid,
+                                    "fid": fid,
+                                    "fname": fname,
+                                    "real_feature": real_feature,
+                                    "real_pred": real_pred,
+                                    "real_errors": real_errors,
+                                    "apx_feature": apx_feature,
+                                    "apx_pred": apx_pred,
+                                    "apx_errors": apx_errors,
+                                }
+                            )
             joblib.dump(rid_res_list, rid_res_path)
             res_list.extend(rid_res_list)
     return res_list
@@ -377,8 +430,12 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
         ax = axes[i]
         task_name = res["task_name"]
         rid, fid = res["rid"], res["fid"]
-        if not isinstance(res["apx_errors"], list):
+        if not isinstance(res["apx_errors"], (np.ndarray, list)):
+            print(f"Skip {task_name}-rid({rid})-f({fid})")
             continue
+        if np.all(res['real_errors'] == res['real_errors'][0]):
+            print(f"Zero Error at {task_name}-rid({rid})-f({fid})")
+
         sns.kdeplot(
             # [float(v) for v in json.loads(res["real_errors"])],
             res["real_errors"],
@@ -398,7 +455,7 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
         ax.legend()
         ax.set_xlabel("Error Value")
         ax.set_ylabel("Frequency")
-        ax.set_title(f"{task_name}-rid({rid})-f{fid}")
+        ax.set_title(f"{task_name}-rid({rid})-f({fid})")
 
     plt.tight_layout()
     fig_dir = args.fig_dir
@@ -410,11 +467,81 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
     print(f"Save figure to {fig_path}")
 
 
+def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
+    nres = len(res_list)
+    ncols = 4
+    nrows = (nres // ncols) + (nres % ncols > 0)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+    axes = axes.flatten()
+    for i, res in enumerate(res_list):
+        ax = axes[i]
+        task_name = res["task_name"]
+        rid, fid = res["rid"], res["fid"]
+        if not isinstance(res["apx_errors"], (np.ndarray, list)):
+            print(f"Skip {task_name}-rid({rid})-f({fid})")
+            continue
+        if np.all(res['real_errors'] == res['real_errors'][0]):
+            print(f"Zero Error at {task_name}-rid({rid})-f({fid})")
+
+        sns.kdeplot(
+            res["real_errors"],
+            label="Real Error",
+            color="blue",
+            alpha=0.5,
+            ax=ax,
+        )
+        sns.kdeplot(
+            res["apx_errors"],
+            label="Bootstrap Error",
+            color="red",
+            alpha=0.5,
+            ax=ax,
+        )
+        ax.legend()
+        ax.set_xlabel("Error Value")
+        ax.set_ylabel("Frequency")
+        ax.set_title(f"{task_name}-rid({rid})-f({fid})")
+
+    plt.tight_layout()
+    fig_dir = args.fig_dir
+    os.makedirs(fig_dir, exist_ok=True)
+    fig_path = os.path.join(fig_dir, "median_error_distribution.pdf")
+    plt.savefig(fig_path)
+    plt.savefig("./cache/median_error_distribution.png")
+    print(f"Save figure to {fig_path}")
+
+
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
-    df = collect_data(args)
-    print(df)
-    plot_data(args, df)
-
-    # res_list = collect_error_distribution(args)
-    # plot_error_distribution(args, res_list)
+    if args.plot_final:
+        assert args.nocache == False, 'Must use cache to plot final figure'
+        selected = {
+            "tripsralfv2median": [(6, 5)],
+            "tickralfv2median": [(4, 6)],
+            "batteryv2median": [(9, 5)],
+            "turbofanmedian": [(0, 1)],
+            "tdfraudmedian": [], # not ok yet
+            "machineryralfmedian": [(0, 1)],
+            "studentqnov2subsetmedian": [(0, 4)],
+        }
+        res_list = []
+        for task_name, cfgs in selected.items():
+            for rid, fid in cfgs:
+                rid_res_tag = "-".join([task_name, f"rid={rid}"])
+                rid_res_path = os.path.join(args.save_dir, f"red_res_{rid_res_tag}.pkl")
+                if not os.path.exists(rid_res_path):
+                    print(f"Skip {task_name} rid={rid} fid={fid}")
+                    continue
+                rid_res_list = joblib.load(rid_res_path)
+                for res in rid_res_list:
+                    if res['fid'] == fid:
+                        res_list.append(res)
+                        break
+        plot_final_error_dist(args, res_list)
+    else:
+        df = collect_data(args)
+        print(df)
+        plot_data(args, df)
+        res_list = collect_error_distribution(args)
+        # print(res_list[:2])
+        plot_error_distribution(args, res_list)

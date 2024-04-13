@@ -552,8 +552,8 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
             ax.bar(system_xs[system], sys_df['BD:AFC'], width, label="Baseline-FC")
             bar = ax.bar(system_xs[system], sys_df['BD:AMI'] + sys_df['BD:Sobol'] + np.array((.04,.05,.05,.03,.04,.04,.02)), width, bottom=sys_df['BD:AFC'], label="Baseline-Others",color='r')
         elif system == "ralf":
-            pseudo_height = np.array((.04,.0,.05,.03,.04,.04,.02))
-            bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"] + pseudo_height,
+            thin_line = np.array((.04,.0,.05,.03,.04,.04,.02))
+            bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"] + thin_line,
                 width, label=system_rename.get(system, system))
         else:
             bar = ax.bar(system_xs[system], system_dfs[system]["avg_latency"],
@@ -567,13 +567,16 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
                 speedup = sys_df[sys_df["task_name"] == task_name]["speedup"].values[0]
                 ax.text(
                     rect0.get_x() + rect0.get_width() * 1 / 2.0,
-                    min(height, YLIM_ACC[1] + 0.05),
+                    # min(height, YLIM_ACC[1] + 0.05),
+                    lat * speedup,
                     f"{speedup:.1f}x",
                     ha="center",
                     va="bottom",
                     fontsize=20,
                 )
-                ax.arrow(rect0.get_x() + rect0.get_width() * 1 / 2.0, lat * speedup, 0, - lat * speedup + min(height, YLIM_ACC[1] + 0.05),width=0.05,color='g',length_includes_head=True)
+                delta = 0.1
+                ax.arrow(rect0.get_x() + rect0.get_width() * 1 / 2.0, lat * speedup - delta, 0, - lat * speedup + min(height, YLIM_ACC[1] + 0.05) + delta,width=0.04,color='g',length_includes_head=True,head_width=0.1,)
+                ax.arrow(rect0.get_x() + rect0.get_width() * 1 / 2.0, min(height, YLIM_ACC[1] + 0.05) + delta, 0, lat * speedup - min(height, YLIM_ACC[1] + 0.05) - delta,width=0.04,color='g',length_includes_head=True,head_width=0.1,)
 
     # ax.set_xlabel("Task Name")
     ax.set_ylabel("Latency (s)", fontsize=20)
@@ -603,9 +606,11 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     for i, system in enumerate(systems):
         sys_df = system_dfs[system]
         if system == "ralf":
-            pseudo_height = np.zeros_like(sys_df[args.score_type])
-            pseudo_height[-1] = 0.02
-            bar = ax.bar(system_xs[system], sys_df[args.score_type] + pseudo_height,
+            thin_line = np.zeros_like(sys_df[args.score_type])
+            thin_line[-1] = 0.02
+            thin_line[3] = 0.02
+            sys_df[args.score_type] = np.maximum(sys_df[args.score_type], 0)
+            bar = ax.bar(system_xs[system], sys_df[args.score_type] + thin_line,
                 width, label=system_rename.get(system, system))
         else:
             bar = ax.bar(system_xs[system], sys_df[args.score_type],
@@ -759,7 +764,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     n_iterations = [2.75, 1.26, 3.87, 1.41, 4.27, 2.75, 3.65]
     twnx.scatter(x, n_iterations, marker='x', color='red', s=200, label="No. of Iterations",)
     twnx.set_ylim([0, 6])
-    twnx.set_ylabel("Avg. No. of Iterations", fontsize=20)
+    twnx.set_ylabel("Avg. No. of Iterations", fontsize=20, color='tomato')
     twnx.tick_params(axis="both", labelsize=20)
     twnx.grid(False)
     twnx.set_yticks(ticks=[1,2,3,4,5])
@@ -1126,12 +1131,12 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        ticks = [0, 0.11, 0.24, 0.37, 0.50, 0.63, 0.78, 0.96, 1.14, 1.36, 1.58, 1.72]
-        labels = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 1]
+        ticks = [0, 0.11, 0.24, 0.37, 0.50, 0.63, 0.78, 0.96, 1.14]
+        labels = ["0", ".5", ".6", ".7", ".8", ".9", ".95", ".98", ".99",]
         axes[i].grid(False)
         axes[i].set_xlim(-0.05, max(ticks) + 0.05)
         axes[i].set_ylim([2, 20])
-        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=12)
+        axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=16)
         axes[i].tick_params(axis='y', labelsize=20)
         if len(df_tmp) < len(labels):
             # df_tmp may missing some rows with min_conf \in labels,
@@ -1181,7 +1186,7 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         legend_labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, legend_labels, loc="right", fontsize=20)
+        axes[i].legend(plots, legend_labels, loc="lower left", fontsize=16)
 
     # fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center', fontsize=15)
     plt.tight_layout()
@@ -1344,7 +1349,7 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
     pd.set_option("display.precision", 10)
 
     # fig, axes = get_1_n_fig_reg(args)
-    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 4))
+    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 5))
     axes = axes.flatten()
 
     xlim = [0, 10]
@@ -1356,13 +1361,15 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
             df_tmp = df_tmp.iloc[1::2]
         xticks = np.linspace(xlim[0], xlim[1], len(df_tmp["max_error"]))
         xticklabels = df_tmp["max_error"]
+        if task_name == "batteryv2":
+            xticklabels = "30 94.5 189 369 900 2400 4800".split()
         label_to_tick = {
             k: v for k,v in zip(xticklabels, xticks)
         }
 
         axes[i].set_ylim([0, 20])
         axes[i].grid(False)
-        axes[i].set_xticks(ticks=xticks, labels=xticklabels)
+        axes[i].set_xticks(ticks=xticks, labels=xticklabels, fontsize=13)
         axes[i].tick_params(axis='y', labelsize=20)
         axes[i].scatter(
             xticks, df_tmp["speedup"], marker="o", color="royalblue"
@@ -1427,9 +1434,9 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="center left", fontsize=15)
+        axes[i].legend(plots, labels, loc="center left", fontsize=14)
     # plt.tight_layout()
-    plt.subplots_adjust(wspace=.1)
+    plt.subplots_adjust(wspace=.05)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_max_error.pdf"),
         bbox_inches="tight",

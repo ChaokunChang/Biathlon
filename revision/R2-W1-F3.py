@@ -1,5 +1,6 @@
 import os
 import sys
+import debugpy
 import numpy as np
 import json
 import math
@@ -31,6 +32,18 @@ from apxinfer.examples.run import get_ppl
 
 from apxinfer.simulation import utils as simutils
 
+rename_map = {
+    "batteryv2": "Battery",
+    "trubofan": "Turbofan",
+    "machineryralf": "Bearing-Imbalance",
+    "studentqno18": "Student-QA",
+    # Added for R2-W4-F1
+    "tripsralfv2": "Trip-Fare",
+    "tickralfv2": "Tick-Price",
+    "turbofan": "Turbofan",
+    "tdfraudralf2d": "Fraud-Detection",
+    "studentqnov2subset": "Student-QA"
+}
 
 class R2W1F3Args(Tap):
     task_home: str = "final"
@@ -44,6 +57,7 @@ class R2W1F3Args(Tap):
     save_dir: str = "/home/ckchang/ApproxInfer/revision/cache/2.1.3"
     fig_dir: str = "/home/ckchang/ApproxInfer/revision/cache/figs/2.1.3"
     nocache: bool = False
+    debug: bool = False
 
 
 def collect_data(args: R2W1F3Args) -> pd.DataFrame:
@@ -113,8 +127,14 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
 
     task_names = [
         name.replace("simmedian", "+").replace("median", "*")
+        .replace(name, rename_map.get(name, name))
+        .replace(name[:-1], rename_map.get(name[:-1], name[:-1]))
         for name in df["task_name"]
     ]
+    # for name in df["task_name"]:
+    #     name = name.replace("simmedian", "+").replace("median", "*")
+    #     name = name.replace(name[:-1], rename_map.get(name[:-1], name[:-1])).replace(name, rename_map.get(name, name))
+    #     print()
 
     ax = axes[0]  # compare latency of each task
     sns.barplot(x="task_name", y="latency", data=df, ax=ax)
@@ -412,6 +432,14 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
 
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
+    if args.debug:
+        try:
+            # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+            debugpy.listen(("localhost", 9501))
+            print("Waiting for debugger attach")
+            debugpy.wait_for_client()
+        except Exception as e:
+            pass
     df = collect_data(args)
     print(df)
     plot_data(args, df)

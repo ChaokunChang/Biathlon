@@ -331,8 +331,16 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
             for qid in median_qids:
                 if rrdatas[qid] is not None:
                     if rrdatas[qid].shape[0] > 20:
-                        skip_rid = False
-                        break
+                        if task_name == "tdfraudralf2dmedian":
+                            # count disticnt value in rrdatas[qid]
+                            unique = np.unique(rrdatas[qid])
+                            if len(unique) > 1:
+                                skip_rid = False
+                                print(f"rid={rid} qid={qid} unique={unique}")
+                                break
+                        else:
+                            skip_rid = False
+                            break
             if skip_rid:
                 print(
                     f"Skip rid={rid} {[rrdatas[qid].shape[0] if rrdatas[qid] is not None else None for qid in median_qids]}"
@@ -452,7 +460,7 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
         if not isinstance(res["apx_errors"], (np.ndarray, list)):
             print(f"Skip {task_name}-rid({rid})-f({fid})")
             continue
-        if np.all(res['real_errors'] == res['real_errors'][0]):
+        if np.all(res["real_errors"] == res["real_errors"][0]):
             print(f"Zero Error at {task_name}-rid({rid})-f({fid})")
 
         sns.kdeplot(
@@ -499,7 +507,7 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
         if not isinstance(res["apx_errors"], (np.ndarray, list)):
             print(f"Skip {task_name}-rid({rid})-f({fid})")
             continue
-        if np.all(res['real_errors'] == res['real_errors'][0]):
+        if np.all(res["real_errors"] == res["real_errors"][0]):
             print(f"Zero Error at {task_name}-rid({rid})-f({fid})")
 
         sns.kdeplot(
@@ -533,13 +541,13 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
     if args.plot_final:
-        assert args.nocache == False, 'Must use cache to plot final figure'
+        assert args.nocache == False, "Must use cache to plot final figure"
         selected = {
             "tripsralfv2median": [(6, 5)],
             "tickralfv2median": [(4, 6)],
             "batteryv2median": [(9, 5)],
             "turbofanmedian": [(0, 1)],
-            "tdfraudmedian": [], # not ok yet
+            "tdfraudmedian": [],  # not ok yet
             "machineryralfmedian": [(0, 1)],
             "studentqnov2subsetmedian": [(0, 4)],
         }
@@ -553,7 +561,7 @@ if __name__ == "__main__":
                     continue
                 rid_res_list = joblib.load(rid_res_path)
                 for res in rid_res_list:
-                    if res['fid'] == fid:
+                    if res["fid"] == fid:
                         res_list.append(res)
                         break
         plot_final_error_dist(args, res_list)

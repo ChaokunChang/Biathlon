@@ -33,6 +33,7 @@ ALL_CLS_TASKS = [
     "tdfraudralf2h",
     "tdfraudralf2d",
     "tdfraudralf2dmedian",
+    "tdfraudralf2dv2median",
     "tdfraudralf2dsimmedian",
     "tdfraudralftestv2",
     "tdfraudralfv2",

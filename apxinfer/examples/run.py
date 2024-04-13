@@ -47,6 +47,12 @@ def get_fengine(name: str, args: BaseXIPArgs):
         fengine = get_tdfraud_median_engine(
             nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
         )
+    elif name == "tdfraudralf2dv2median":
+        from apxinfer.examples.tdfraud.engine import get_tdfraud_medianv2_engine
+
+        fengine = get_tdfraud_medianv2_engine(
+            nparts=args.nparts, ncores=args.ncores, seed=args.seed, verbose=args.verbose
+        )
     elif name == "tdfraudralf2dsimmedian":
         from apxinfer.examples.tdfraud.engine import get_tdfraud_simmedian_engine
 
@@ -530,7 +536,7 @@ def run_prepare(name: str, args: PrepareArgs):
         from apxinfer.examples.tdfraud.prepare import TDFraudRalfPrepareWorker as Worker
 
         model_type = "classifier"
-    elif name in ["tdfraudralf2d", "tdfraudralf2dmedian"]:
+    elif name in ["tdfraudralf2d", "tdfraudralf2dmedian", "tdfraudralf2dv2median"]:
         from apxinfer.examples.tdfraud.prepare import (
             TDFraudRalf2DPrepareWorker as Worker,
         )

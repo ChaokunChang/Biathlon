@@ -132,11 +132,16 @@ def collect_data(args: R2W1F3Args) -> pd.DataFrame:
 def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
-    task_names = [
+    suffixed_task_names = [
         name.replace("simmedian", "+").replace("median", "*")
-        .replace(name, rename_map.get(name, name))
-        .replace(name[:-1], rename_map.get(name[:-1], name[:-1]))
+
         for name in df["task_name"]
+    ]
+
+    task_names = [
+        name.replace(name[:-1], rename_map.get(name[:-1], name[:-1])) if name.endswith("*") or name.endswith("+")
+        else name.replace(name, rename_map.get(name, name))
+        for name in suffixed_task_names
     ]
     # for name in df["task_name"]:
     #     name = name.replace("simmedian", "+").replace("median", "*")
@@ -151,18 +156,20 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     for p in ax.patches:
         ax.annotate(
             f"{p.get_height():.2f}",
-            (p.get_x() + p.get_width() / 2.0, p.get_height()),
+            (p.get_x() + p.get_width() / 2.0, p.get_height() + 0.02),
             ha="center",
             va="center",
-            fontsize=11,
+            fontsize=20,
             color="black",
             xytext=(0, 5),
             textcoords="offset points",
         )
-    ax.set_title("Latency Comparison")
-    ax.set_ylabel("Latency (s)")
-    ax.set_xlabel("Task Name")
-    ax.set_xticklabels(task_names, rotation=30)
+    ax.set_ylim([0, 1.4])
+    ax.tick_params(axis='both', labelsize=20)
+    ax.set_title("Latency Comparison", fontsize=20)
+    ax.set_ylabel("Latency (s)", fontsize=20)
+    ax.set_xlabel("",)
+    ax.set_xticklabels(task_names, rotation=10)
 
     ax = axes[1]  # compare accuracy of each task
     sns.barplot(x="task_name", y="accuracy", data=df, ax=ax)
@@ -170,18 +177,20 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     for p in ax.patches:
         ax.annotate(
             f"{p.get_height():.2f}",
-            (p.get_x() + p.get_width() / 2.0, p.get_height()),
+            (p.get_x() + p.get_width() / 2.0, p.get_height() + 0.02),
             ha="center",
             va="center",
-            fontsize=11,
+            fontsize=20,
             color="black",
             xytext=(0, 5),
             textcoords="offset points",
         )
-    ax.set_title("Accuracy Comparison")
-    ax.set_ylabel("Accuracy")
-    ax.set_xlabel("Task Name")
-    ax.set_xticklabels(task_names, rotation=30)
+    ax.tick_params(axis='both', labelsize=20)
+    ax.set_ylim([0, 1.1])
+    ax.set_title("Accuracy Comparison", fontsize=20)
+    ax.set_ylabel("Accuracy", fontsize=20)
+    ax.set_xlabel("",)
+    ax.set_xticklabels(task_names, rotation=10)
 
     plt.tight_layout()
     fig_dir = args.fig_dir

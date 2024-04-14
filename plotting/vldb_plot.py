@@ -1117,6 +1117,8 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         "BD:Others",
     ]
     selected_df = selected_df[required_cols]
+    baseline_df = get_evals_baseline(df)[required_cols]
+    selected_df = pd.concat([selected_df, baseline_df])
     plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_min_conf_.csv"))
 
@@ -1131,11 +1133,11 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df_tmp.sort_values(by=["min_conf"])
         df_tmp = df_tmp.reset_index(drop=True)
 
-        ticks = [0, 0.11, 0.24, 0.37, 0.50, 0.63, 0.78, 0.96, 1.14]
-        labels = ["0", ".5", ".6", ".7", ".8", ".9", ".95", ".98", ".99",]
+        ticks = [0, 0.11, 0.24, 0.37, 0.50, 0.63, 0.78, 0.96, 1.14, 1.3]
+        labels = ["0", ".5", ".6", ".7", ".8", ".9", ".95", ".98", ".99", "1"]
         axes[i].grid(False)
         axes[i].set_xlim(-0.05, max(ticks) + 0.05)
-        axes[i].set_ylim([2, 20])
+        axes[i].set_ylim([0, 20])
         axes[i].set_xticks(ticks=ticks, labels=labels, fontsize=16)
         axes[i].tick_params(axis='y', labelsize=20)
         if len(df_tmp) < len(labels):
@@ -1434,7 +1436,7 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="center left", fontsize=14)
+        axes[i].legend(plots, labels, loc="center left", fontsize=12)
     # plt.tight_layout()
     plt.subplots_adjust(wspace=.05)
     plt.savefig(
@@ -2005,7 +2007,7 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: naggs
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(12.5, 10))
     ax.scatter(
         selected_df["naggs"], selected_df["speedup"], marker="o", color="royalblue"
     )

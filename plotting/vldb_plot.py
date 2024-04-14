@@ -21,8 +21,8 @@ YLIM_ACC = [0.0, 1.01]
 
 REG_TASKS = [
     # "tripsralf2h",
-    "tripsralfv2",
-    # "tripsralfv3",
+    # "tripsralfv2",
+    "tripsralfv3",
     # "tickralf",
     "tickralfv2",
     "batteryv2",

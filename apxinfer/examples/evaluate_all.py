@@ -249,6 +249,7 @@ def run_ralf(args: ExpArgs, task_name: str, model: str):
                         file.replace("evals_ralf_", "").replace(".json", "").split("_")
                     )
                     if float(ralf_budgets[0]) == args.ralf_budget:
+                        print(f"skip {os.path.join(ralf_path, file)}")
                         return None
     if args.try_execution:
         print(ralf_cmd)

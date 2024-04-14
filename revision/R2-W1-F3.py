@@ -448,6 +448,10 @@ def collect_error_distribution(args: R2W1F3Args) -> List[dict]:
                                     "apx_errors": apx_errors,
                                 }
                             )
+                        else:
+                            print(
+                                f"Skip {task_name} rid={rid} qid={qid} fid={fid} fname={fname} {apx_fests}"
+                            )
             joblib.dump(rid_res_list, rid_res_path)
             res_list.extend(rid_res_list)
     return res_list

@@ -126,6 +126,7 @@ median_tasks = {
 for name, meta in task_meta.items():
     median_tasks[f"{name}median"] = {**meta}
     median_tasks[f"{name}simmedian"] = {**meta}
+    median_tasks[f"{name}v2median"] = {**meta}
 task_meta.update(median_tasks)
 
 task_meta["batteryv2median"]["max_error"] = 186.7

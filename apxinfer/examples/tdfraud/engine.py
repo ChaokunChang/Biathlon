@@ -215,6 +215,62 @@ def get_tdfraud_medianv2_engine(
     return fengine
 
 
+class TDFraudQP1SimMedian(TDFraudQP1Median):
+    def feature_transformation(
+        self, request: XIPRequest, fvec: XIPFeatureVec
+    ) -> XIPFeatureVec:
+        return self.feature_transformation_offset(request, fvec)
+
+
+def get_tdfraud_simmedianv2_engine(
+    nparts: int, ncores: int = 0, seed: int = 0, verbose: bool = False
+):
+    data_loader: XIPDataLoader = XIPDataLoader(
+        backend="clickhouse",
+        database=f"xip_{seed}",
+        table=f"tdfraud_{nparts}",
+        seed=0,
+        enable_cache=False,
+    )
+    if verbose:
+        print(f"tsize ={data_loader.statistics['tsize']}")
+        print(f"nparts={data_loader.statistics['nparts']}")
+
+    qp0 = TDFraudQP0(
+        qname="q0",
+        qtype=XIPQType.NORMAL,
+        data_loader=data_loader,
+        fnames=None,
+        verbose=verbose,
+    )
+    qp1 = TDFraudQP1SimMedian(
+        qname="q1",
+        qtype=XIPQType.AGG,
+        data_loader=data_loader,
+        fnames=None,
+        verbose=verbose,
+    )
+    qp2 = TDFraudQP2(
+        qname="q2",
+        qtype=XIPQType.AGG,
+        data_loader=data_loader,
+        fnames=None,
+        verbose=verbose,
+    )
+    qp3 = TDFraudQP3(
+        qname="q3",
+        qtype=XIPQType.AGG,
+        data_loader=data_loader,
+        fnames=None,
+        verbose=verbose,
+    )
+
+    qps: List[XIPQueryProcessor] = [qp0, qp1, qp2, qp3]
+
+    fengine = XIPFEngine(qps, ncores, verbose=verbose)
+    return fengine
+
+
 class TDFraudQP3SimMedian(TDFraudQP3Median):
     def feature_transformation(
         self, request: XIPRequest, fvec: XIPFeatureVec

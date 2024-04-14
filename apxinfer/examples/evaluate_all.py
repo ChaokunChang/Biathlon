@@ -862,17 +862,21 @@ def run_batteryv2(args: ExpArgs):
     """
     task_name = "batteryv2"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [60.0, 93.35, 120.0, 186.7]
+    default_max_errors = [93.35, 186.7]
     max_errors = [
         30.0,
+        46.675,
         60.0,
         93.35,
         120,
         186.7,
         300.0,
+        373.4,
         600.0,
+        746.8,
         900.0,
         1200.0,
+        1500.0,
         1800.0,
         2400.0,
         3000.0,
@@ -890,17 +894,21 @@ def run_batteryv2median(args: ExpArgs):
     """
     task_name = "batteryv2median"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [60.0, 93.35, 120.0, 186.7]
+    default_max_errors = [93.35, 186.7]
     max_errors = [
         30.0,
+        46.675,
         60.0,
         93.35,
         120,
         186.7,
         300.0,
+        373.4,
         600.0,
+        746.8,
         900.0,
         1200.0,
+        1500.0,
         1800.0,
         2400.0,
         3000.0,
@@ -918,17 +926,21 @@ def run_batteryv2simmedian(args: ExpArgs):
     """
     task_name = "batteryv2simmedian"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [60.0, 93.35, 120.0, 186.7]
+    default_max_errors = [93.35, 186.7]
     max_errors = [
         30.0,
+        46.675,
         60.0,
         93.35,
         120,
         186.7,
         300.0,
+        373.4,
         600.0,
+        746.8,
         900.0,
         1200.0,
+        1500.0,
         1800.0,
         2400.0,
         3000.0,

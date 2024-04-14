@@ -564,7 +564,8 @@ if __name__ == "__main__":
             "tickralfv2median": [(4, 6)],
             "batteryv2median": [(9, 5)],
             "turbofanmedian": [(0, 1)],
-            "tdfraudmedian": [],  # not ok yet
+            # "tdfraudmedian": [],  # not ok yet
+            "tdfraudralf2dv2median": [(4607, 6)],  # not ok yet
             # "machineryralfmedian": [(0, 1)], # not work in ssd5
             "machineryralfmedian": [(3, 7)],
             # "studentqnov2subsetmedian": [(0, 4)], # not work in ssd5

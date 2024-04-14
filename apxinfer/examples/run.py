@@ -556,7 +556,7 @@ def run_prepare(name: str, args: PrepareArgs):
         model_type = "classifier"
     elif name == "tdfraudralf2dv2simmedian":
         from apxinfer.examples.tdfraud.prepare import (
-            TDFraudRalf2DSimMedianPrepareWorker as Worker,
+            TDFraudRalf2DV2SimMedianPrepareWorker as Worker,
         )
 
         model_type = "classifier"

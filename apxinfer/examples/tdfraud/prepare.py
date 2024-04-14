@@ -322,6 +322,78 @@ class TDFraudRalf2DSimMedianPrepareWorker(TDFraudRalf2DPrepareWorker):
         return self.create_dataset_simmedian_helper(ref_task="tdfraudralf2d", replaced="count")
 
 
+class TDFraudRalf2DV2SimMedianPrepareWorker(TDFraudRalf2DPrepareWorker):
+    def create_dataset(self) -> pd.DataFrame:
+        ref_task = "tdfraudralf2d"
+        replaced = "count"
+        self.logger.info(f"Creating dataset for {self.dataset_dir} by copying")
+        working_dir = self.working_dir
+        elements = working_dir.split("/")
+        task_name = None
+        for ele in elements:
+            if ele.startswith(ref_task):
+                task_name = ele
+                break
+        assert (
+            task_name is not None
+        ), f"Task name not found in {working_dir} with {ref_task}"
+
+        base_ppl_dir = working_dir.replace(task_name, ref_task)
+        assert os.path.exists(base_ppl_dir)
+        base_ppl_dataset = pd.read_csv(
+            os.path.join(base_ppl_dir, "dataset", "dataset.csv")
+        )
+
+        status = os.system(f"cp -r {base_ppl_dir}/model {working_dir}/")
+        if status != 0:
+            status = os.system(f"sudo cp -r {base_ppl_dir}/model {working_dir}/")
+            if status != 0:
+                raise ValueError("Failed to copy model directory")
+
+        status = os.system(f"cp -r {base_ppl_dir}/qcosts.json {working_dir}/")
+        if status != 0:
+            status = os.system(f"sudo cp -r {base_ppl_dir}/qcosts.json {working_dir}/")
+            if status != 0:
+                raise ValueError("Failed to copy qcosts.json")
+
+        status = os.system(f"cp -r {base_ppl_dir}/../offline {working_dir}/../")
+        if status != 0:
+            status = os.system(
+                f"sudo cp -r {base_ppl_dir}/../offline {working_dir}/../"
+            )
+            if status != 0:
+                raise ValueError("Failed to copy offline directory")
+
+        e2emedian_dir = working_dir.replace(f"/{task_name}/", f"/{ref_task}v2median/")
+        e2emedian_dataset = pd.read_csv(
+            os.path.join(e2emedian_dir, "dataset", "dataset.csv")
+        )
+
+        median_fnames = [
+            col
+            for col in e2emedian_dataset.columns
+            if col.startswith("f_") and "_median_" in col
+        ]
+        corres_avg_fname = [
+            fname.replace("_median_", f"_{replaced}_") for fname in median_fnames
+        ]
+
+        assert len(base_ppl_dataset) == len(
+            e2emedian_dataset
+        ), f"Length of base_ppl_dataset({len(base_ppl_dataset)}) and e2emedian_dataset({len(e2emedian_dataset)}) is not same"
+
+        dataset = base_ppl_dataset
+        for i in range(len(median_fnames)):
+            median_fname = median_fnames[i]
+            avg_fname = corres_avg_fname[i]
+            dataset = dataset.rename(columns={avg_fname: median_fname})
+            req_col = f"req_offset_{median_fname[2:]}"
+            dataset[req_col] = dataset[median_fname] - e2emedian_dataset[median_fname]
+
+        self.logger.info(f"Created dataset for {self.dataset_dir}")
+        return dataset
+
+
 class TDFraudRalf2HPrepareWorker(TDFraudRalfPrepareWorker):
     def get_requests(self) -> pd.DataFrame:
         requests = self._extract_requests(start_dt="2017-11-09 14:00:00")

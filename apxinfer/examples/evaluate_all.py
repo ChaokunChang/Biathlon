@@ -875,15 +875,18 @@ def run_batteryv2(args: ExpArgs):
         373.4,
         600.0,
         746.8,
-        900.0,
-        1200.0,
+        1493.6,
         1500.0,
         1800.0,
         2400.0,
+        2987.2,
         3000.0,
         3600.0,
         4800.0,
+        5974.4,
         7200.0,
+        11948.8,
+        23897.6,
     ]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 

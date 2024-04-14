@@ -568,16 +568,14 @@ if __name__ == "__main__":
     if args.phase == "final_errors":
         assert args.nocache == False, "Must use cache to plot final figure"
         selected = {
-            # "tripsralfv2median": [(6, 5)], # not work in ssd5
-            "tripsralfv2median": [(5, 5)],
+            # "tripsralfv2median": [(5, 5)],
+            "tripsralfv3median": [(5, 5)],
             "tickralfv2median": [(4, 6)],
-            "batteryv2median": [(9, 5)],
+            "batteryv2median": [(11, 2)],
             "turbofanmedian": [(0, 1)],
-            # "tdfraudmedian": [],  # not ok yet
-            "tdfraudralf2dv2median": [(4607, 6)],  # not ok yet
-            # "machineryralfmedian": [(0, 1)], # not work in ssd5
+            # "tdfraudralf2dmedian": [],  # not availabel
+            "tdfraudralf2dv2median": [(5537, 6)],  # not ok yet
             "machineryralfmedian": [(3, 7)],
-            # "studentqnov2subsetmedian": [(0, 4)], # not work in ssd5
             "studentqnov2subsetmedian": [(18, 2)],
         }
         res_list = []

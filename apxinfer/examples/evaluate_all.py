@@ -875,15 +875,18 @@ def run_batteryv2(args: ExpArgs):
         373.4,
         600.0,
         746.8,
-        900.0,
-        1200.0,
+        1493.6,
         1500.0,
         1800.0,
         2400.0,
+        2987.2,
         3000.0,
         3600.0,
         4800.0,
+        5974.4,
         7200.0,
+        11948.8,
+        23897.6,
     ]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -1071,7 +1074,7 @@ def run_tickralfv2(args: ExpArgs):
     task_name = "tickralfv2"
     agg_qids = "6"
     default_max_errors = [0.02, 0.04, 0.06]
-    max_errors = [0.005, 0.01, 0.02, 0.04, 0.08, 0.12, 0.16, 0.32, 500.0]
+    max_errors = [0.005, 0.01, 0.02, 0.04, 0.08, 0.12, 0.16, 0.32, 500.0, 10000000000.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
 

@@ -239,7 +239,9 @@ class XIPSchedulerGreedy(XIPScheduler):
                     qcfgs[qid]["qcfg_id"] = np.round(next_sample / grans) - 1
                     updated = True
         if updated:
-            self.logger.debug(f'next cfgs by hueristics {[qcfg["qsample"] for qcfg in qcfgs]}')
+            self.logger.debug(
+                f'next cfgs by hueristics {[qcfg["qsample"] for qcfg in qcfgs]}'
+            )
         return qcfgs, updated
 
     def get_delta_qsamples(self, qcfgs: List[XIPQueryConfig]) -> np.ndarray:
@@ -427,7 +429,9 @@ class XIPSchedulerOptimizer(XIPSchedulerWQCost):
         if np.any(priorities < 0.0):
             self.logger.debug(f"negative priority exists: {priorities}")
             priorities = np.maximum(priorities, 0.0)
-        assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
+        assert np.all(
+            priorities >= 0
+        ), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
         priorities = priorities / np.where(
             delta_qsamples > 1e-9, self.get_qweights() * delta_qsamples, 1
         )
@@ -483,17 +487,23 @@ class XIPSchedulerStepGradient(XIPSchedulerWQCost):
         if np.any(priorities < 0.0):
             self.logger.debug(f"negative priority exists: {priorities}")
             priorities = np.maximum(priorities, 0.0)
-        assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
+        assert np.all(
+            priorities >= 0
+        ), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
 
         delta_variance = priorities * pred["pred_var"]
         delta_qcosts = self.get_qweights() * delta_qsamples
         gradient = delta_variance / np.where(delta_qsamples > 1e-9, delta_qcosts, 1)
-        assert np.all(gradient >= 0), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"
+        assert np.all(
+            gradient >= 0
+        ), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"
 
         gradient_norm = np.sum(gradient)
         if gradient_norm < 1e-9:
             self.logger.debug(f"gradient norm is too small: {gradient_norm}")
-            gradient = np.ones(self.fextractor.num_queries) / self.fextractor.num_queries
+            gradient = (
+                np.ones(self.fextractor.num_queries) / self.fextractor.num_queries
+            )
         else:
             gradient = gradient / gradient_norm
 
@@ -557,12 +567,16 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
         if np.any(priorities < 0.0):
             self.logger.debug(f"negative priority exists: {priorities}")
             priorities = np.maximum(priorities, 0.0)
-        assert np.all(priorities >= 0), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
+        assert np.all(
+            priorities >= 0
+        ), f"negative priority exists: {priorities}, pvar={pred['pred_var']}"
 
         delta_variance = priorities * pred["pred_var"]
         delta_qcosts = self.get_qweights() * delta_qsamples
         gradient = delta_variance / np.where(delta_qsamples > 1e-9, delta_qcosts, 1)
-        assert np.all(gradient >= 0), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"
+        assert np.all(
+            gradient >= 0
+        ), f"negative gradient exists: {gradient}, delta_variance={delta_variance}, delta_qcosts={delta_qcosts}"
 
         gradient_norm = np.sum(gradient)
         if gradient_norm < 1e-9:
@@ -594,7 +608,34 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
                     continue
                 else:
                     next_qcfgs[qid]["qcfg_id"] += allocated[qid]
-                    next_qcfgs[qid]["qsample"] += self.sample_grans[qid] * allocated[qid]
+                    next_qcfgs[qid]["qsample"] += (
+                        self.sample_grans[qid] * allocated[qid]
+                    )
 
+        self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
+        return next_qcfgs
+
+
+class XIPSchedulerUniformExp(XIPSchedulerWQCost):
+    def get_next_qcfgs(
+        self,
+        request: XIPRequest,
+        qcfgs: List[XIPQueryConfig],
+        fvec: XIPFeatureVec,
+        pred: XIPPredEstimation,
+        qcosts: List[QueryCostEstimation],
+    ) -> List[XIPQueryConfig]:
+        next_qcfgs = copy.deepcopy(qcfgs)  # qcfgs to return
+
+        # next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
+        # if early_ret:
+        #     return next_qcfgs
+
+        for qid in range(len(next_qcfgs)):
+            if not is_same_float(next_qcfgs[qid]["qsample"], 1.0):
+                next_qcfgs[qid]["qcfg_id"] += 1
+                next_qsamples = 2.0 * next_qcfgs[qid]["qsample"]
+                next_qsamples = min(next_qsamples, self.max_qsamples[qid])
+                next_qcfgs[qid]["qsample"] = next_qsamples
         self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs

@@ -22,6 +22,7 @@ from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
 from apxinfer.core.scheduler import XIPSchedulerUniform, XIPSchedulerBalancedQCost
 from apxinfer.core.scheduler import XIPSchedulerGradient, XIPSchedulerStepGradient
+from apxinfer.core.scheduler import XIPSchedulerUniformExp
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
 
 from apxinfer.core.offline import OfflineExecutor
@@ -1015,6 +1016,8 @@ def get_ppl(
         scheduler = XIPSchedulerGradient(**scheduler_args)
     elif args.scheduler == "stepgradient":
         scheduler = XIPSchedulerStepGradient(**scheduler_args)
+    elif args.scheduler == "uniformexp":
+        scheduler = XIPSchedulerUniformExp(**scheduler_args)
     else:
         raise ValueError("Invalid scheduler")
 

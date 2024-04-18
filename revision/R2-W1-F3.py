@@ -39,9 +39,11 @@ rename_map = {
     "studentqno18": "Student-QA",
     # Added for R2-W4-F1
     "tripsralfv2": "Trip-Fare",
+    "tripsralfv3": "Trip-Fare",
     "tickralfv2": "Tick-Price",
     "turbofan": "Turbofan",
     "tdfraudralf2d": "Fraud-Detection",
+    "tdfraudralf2dv2": "Fraud-Detection",
     "studentqnov2subset": "Student-QA",
 }
 
@@ -133,7 +135,7 @@ def collect_data(args: R2W1F3Args) -> pd.DataFrame:
 
 
 def plot_data(args: R2W1F3Args, df: pd.DataFrame):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig, axes = plt.subplots(1, 1, figsize=(4.5, 4))
 
     suffixed_task_names = [
         name.replace("simmedian", "+").replace("median", "*")
@@ -152,7 +154,7 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
     #     name = name.replace(name[:-1], rename_map.get(name[:-1], name[:-1])).replace(name, rename_map.get(name, name))
     #     print()
 
-    ax = axes[0]  # compare latency of each task
+    ax = axes  # compare latency of each task
     sns.barplot(x="task_name", y="latency", data=df, ax=ax)
     # sns.barplot(x="task_name", y="avg_sample", data=df, ax=ax)
     # sns.barplot(x="task_name", y="avg_nrounds", data=df, ax=ax)
@@ -168,14 +170,24 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
             xytext=(0, 5),
             textcoords="offset points",
         )
-    ax.set_ylim([0, 1.4])
+    ax.set_ylim([0, 2])
     ax.tick_params(axis='both', labelsize=20)
-    ax.set_title("Latency Comparison", fontsize=20)
+    ax.set_title(task_names[0], fontsize=20)
     ax.set_ylabel("Latency (s)", fontsize=20)
     ax.set_xlabel("",)
-    ax.set_xticklabels(task_names, rotation=10)
+    ax.set_xticklabels(["Original", "Rep. by MED"], rotation=10)
 
-    ax = axes[1]  # compare accuracy of each task
+    plt.tight_layout()
+    fig_dir = args.fig_dir
+    os.makedirs(fig_dir, exist_ok=True)
+    tag = "_".join([args.oracle_type, args.metric] + args.tasks)
+    fig_path = os.path.join(fig_dir, f"avg_vs_median_latency_{tag}.pdf")
+    plt.savefig(fig_path)
+    plt.savefig("./cache/avg_vs_median.png")
+    print(f"Save figure to {fig_path}")
+
+    ax.clear()
+    ax = axes  # compare accuracy of each task
     sns.barplot(x="task_name", y="accuracy", data=df, ax=ax)
     # annotate the value of y on top of the bar
     for p in ax.patches:
@@ -191,16 +203,16 @@ def plot_data(args: R2W1F3Args, df: pd.DataFrame):
         )
     ax.tick_params(axis='both', labelsize=20)
     ax.set_ylim([0, 1.1])
-    ax.set_title("Accuracy Comparison", fontsize=20)
+    ax.set_title(task_names[0], fontsize=20)
     ax.set_ylabel("Accuracy", fontsize=20)
     ax.set_xlabel("",)
-    ax.set_xticklabels(task_names, rotation=10)
+    ax.set_xticklabels(["Original", "Rep. by MED"], rotation=10)
 
     plt.tight_layout()
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
     tag = "_".join([args.oracle_type, args.metric] + args.tasks)
-    fig_path = os.path.join(fig_dir, f"avg_vs_median_{tag}.pdf")
+    fig_path = os.path.join(fig_dir, f"avg_vs_median_accuracy_{tag}.pdf")
     plt.savefig(fig_path)
     plt.savefig("./cache/avg_vs_median.png")
     print(f"Save figure to {fig_path}")
@@ -502,7 +514,7 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
         ax.legend()
         ax.set_xlabel("Error Value")
         ax.set_ylabel("Frequency")
-        ax.set_title(f"{task_name}-rid({rid})-f({fid})")
+        ax.set_title(f"{task_name}")
 
     plt.tight_layout()
     fig_dir = args.fig_dir
@@ -517,14 +529,30 @@ def plot_error_distribution(args: R2W1F3Args, res_list: List[dict]):
 
 
 def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
+    suffixed_task_names = [
+        res["task_name"].replace("simmedian", "+").replace("median", "")
+        .replace(res["task_name"], rename_map.get(res["task_name"], res["task_name"]))
+        .replace(res["task_name"][:-1], rename_map.get(res["task_name"][:-1], res["task_name"][:-1]))
+        for res in res_list
+    ]
+
+    task_names = [
+        name.replace(name[:-1], rename_map.get(name[:-1], name[:-1])) if name.endswith("*") or name.endswith("+")
+        else name.replace(name, rename_map.get(name, name))
+        for name in suffixed_task_names
+    ]
+
     nres = len(res_list)
-    ncols = 4
-    nrows = (nres // ncols) + (nres % ncols > 0)
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+    # ncols = 4
+    # nrows = (nres // ncols) + (nres % ncols > 0)
+    ncols, nrows = 7, 1
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3 * ncols, 3 * nrows))
     axes = axes.flatten()
+    # sns.set(font_scale=1.1)
     for i, res in enumerate(res_list):
         ax = axes[i]
-        task_name = res["task_name"]
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        task_name = task_names[i]
         rid, fid = res["rid"], res["fid"]
         if not isinstance(res["apx_errors"], (np.ndarray, list)):
             print(f"Skip {task_name}-rid({rid})-f({fid})")
@@ -547,11 +575,15 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
             ax=ax,
         )
         ax.legend()
-        ax.set_xlabel("Error Value")
-        ax.set_ylabel("Frequency")
-        ax.set_title(f"{task_name}-rid({rid})-f({fid})")
+        ax.set_xlabel("Error Value", fontsize=14)
+        if i == 0:
+            ax.set_ylabel("Density", fontsize=14)
+        else:
+            ax.set_ylabel("")
+        ax.set_title(f"{task_name}", fontsize=14)
 
     plt.tight_layout()
+    plt.subplots_adjust(wspace=.3)
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
     if args.error_to == "apx":
@@ -565,6 +597,14 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
 
 if __name__ == "__main__":
     args = R2W1F3Args().parse_args()
+    if args.debug:
+        try:
+            # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+            debugpy.listen(("localhost", 9501))
+            print("Waiting for debugger attach")
+            debugpy.wait_for_client()
+        except Exception as e:
+            pass
     if args.phase == "final_errors":
         assert args.nocache == False, "Must use cache to plot final figure"
         selected = {
@@ -595,14 +635,6 @@ if __name__ == "__main__":
                         break
         plot_final_error_dist(args, res_list)
     elif args.phase == "e2e":
-        if args.debug:
-            try:
-                # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-                debugpy.listen(("localhost", 9501))
-                print("Waiting for debugger attach")
-                debugpy.wait_for_client()
-            except Exception as e:
-                pass
         df = collect_data(args)
         print(df)
         plot_data(args, df)

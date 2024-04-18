@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 import seaborn as sns
 import os
 import numpy as np
@@ -45,6 +45,7 @@ rename_map = {
     "studentqno18": "Student-QA",
     # Added for R2-W4-F1
     "tripsralfv2": "Trip-Fare",
+    "tripsralfv3": "Trip-Fare",
     "tickralfv2": "Tick-Price",
     "turbofan": "Turbofan",
     "tdfraudralf2d": "Fraud-Detection",
@@ -87,7 +88,7 @@ task_default_settings = {
     "tripsralfv3": {
         "model": "lgbm",
         "max_error": 1.4,
-        "ralf_budget": 1.0,
+        "ralf_budget": 2.0,
     },
     "tickralf": {
         "model": "lr",
@@ -101,7 +102,8 @@ task_default_settings = {
     },
     "batteryv2": {
         "model": "lgbm",
-        "max_error": 189.0,
+        # "max_error": 189.0,
+        "max_error": 186.7,
         "ralf_budget": 0.0,
     },
     "turbofan": {
@@ -391,6 +393,7 @@ def get_evals_willump_default(df: pd.DataFrame, args: EvalArgs = None) -> pd.Dat
     selected_df["BD:Sobol"] = 0
     selected_df["BD:Others"] = 0
     selected_df["system_cost"] = selected_df["avg_latency"]
+    selected_df["avg_pred_conf"] = 0.0
 
     return selected_df
 
@@ -668,6 +671,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
         # "acc_loss_pct",
         "sampling_rate",
         "avg_nrounds",
+        "avg_pred_conf",
         "similarity",
         "BD:AFC",
         "BD:AMI",
@@ -912,7 +916,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     # y-axis: BD:AFC, BD:AMI, BD:Sobol, BD:Others (stacked)
 
     # fig, ax = get_1_1_fig(args)
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(7, 7))
     # fig.set_size_inches(6,5)
 
     xticklabels = [
@@ -938,7 +942,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     ax.set_xlim((-0.5, len(xticklabels)))
 
-    ax.tick_params(axis="x", rotation=20, labelsize=16)
+    ax.tick_params(axis="x", rotation=25, labelsize=15)
     ax.tick_params(axis="y", labelsize=20)
     ax.set_xlabel("", fontsize=20)
     ax.set_ylabel("Latency (s)", fontsize=20)
@@ -946,7 +950,11 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     # ax.legend(fontsize=15)
 
     twnx = ax.twinx()
-    n_iterations = [2.75, 1.26, 3.87, 1.41, 4.27, 2.75, 3.65]
+    # n_iterations = [2.75, 1.26, 3.87, 1.41, 4.27, 2.75, 3.65]
+    tasks = [name for name in TASKS if name in selected_df["task_name"].values]
+    biathlon_df = get_evals_biathlon_default(df)
+    n_iterations = biathlon_df["avg_nrounds"].where(biathlon_df["task_name"] == tasks)
+
     twnx.scatter(x, n_iterations, marker='x', color='red', s=200, label="No. of Iterations",)
     twnx.set_ylim([0, 6])
     twnx.set_ylabel("Avg. No. of Iterations", fontsize=20, color='tomato')
@@ -957,7 +965,7 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
 
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = twnx.get_legend_handles_labels()
-    ax.legend(lines + lines2, labels + labels2, fontsize=18)
+    ax.legend(lines + lines2, labels + labels2, fontsize=20)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "breakdown.pdf"),
         bbox_inches="tight",
@@ -1345,7 +1353,7 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         plot2 = twnx.plot(
             ticks, df_tmp[args.score_type], marker="+", color="tomato", label="Accuracy"
         )
-        twnx.yaxis.set_major_formatter(FormatStrFormatter("%.4f"))
+        twnx.yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=20)
         # if i >= len(axes) // 2:
@@ -1542,22 +1550,86 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
     xlim = [0, 10]
     for i, task_name in enumerate(REG_TASKS):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
-        if task_name in {"tripsralfv2", "batteryv2"}:
-            df_tmp = df_tmp.iloc[::2]
+        if task_name == "tripsralfv3":
+            points = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
+            mask = np.ones_like(points).astype(bool)
+            mask[3] = False
+            mask[-1] = False
+            df_tmp = df_tmp.iloc[mask]
+        if task_name == "tickralfv2":
+            points = [0.001, 0.005, 0.01, 0.02, 0.04, 0.05, 0.06, 0.08, 0.10, 0.12, 0.16, 0.32, 500.0, 10000000000.0]
+            mask = np.ones_like(points).astype(bool)
+            mask[0] = False
+            mask[-1] = False
+            mask[-2] = False
+            mask[-5] = False
+            mask[-6] = False
+            mask[-8] = False
+            mask[-9] = False
+
+            df_tmp = df_tmp.iloc[mask]
+
         if task_name == "turbofan":
-            df_tmp = df_tmp.iloc[1::2]
+            points = np.array([0.61, 1.0, 1.22, 2.44, 3.0, 4.88, 6.0, 9.76, 10.0, 19.52, 20.0, 39.04, 50, 78.08, 80, 100])
+            mask = np.isclose(points % 0.61, 0, atol=1e-4)
+            mask[-3] = False
+            df_tmp = df_tmp.iloc[mask]
+        if task_name == "batteryv2":
+            points = np.array([30.0, #0
+                      46.675,
+                      60.0, #2
+                      93.35,
+                      94.5, #4
+                      120.0,#5
+                      186.7,
+                      189.0,#7
+                      300.0,#8
+                      369.0,#9
+                      373.4,
+                      600.0,#11
+                      746.8,
+                      900.0,#13
+                      1200.0,
+                      1493.6,
+                      1500.0,#16
+                      2400.0,
+                      2987.2,
+                      3000.0,
+                      4800.0,#20
+                      5974.4,
+                      7200.0,
+                      11948.8,#23
+                      23897.6,])
+            mask = np.isclose(points % 46.675, 0, atol=1e-3)
+            # mask[0:5:2] = False
+            # mask[5] = False
+            # mask[7:10] = False
+            # mask[11] = False
+            # mask[13:] = False
+            # mask[15] = True
+            # mask[17] = True
+            # mask[19] = True
+            # mask[1] = False
+            # mask[15] = False
+            df_tmp = df_tmp.iloc[mask]
         xticks = np.linspace(xlim[0], xlim[1], len(df_tmp["max_error"]))
         xticklabels = df_tmp["max_error"]
-        if task_name == "batteryv2":
-            xticklabels = "30 94.5 189 369 900 2400 4800".split()
         label_to_tick = {
             k: v for k,v in zip(xticklabels, xticks)
         }
 
-        axes[i].set_ylim([0, 20])
+        axes[i].set_ylim([0, 30])
         axes[i].grid(False)
-        axes[i].set_xticks(ticks=xticks, labels=xticklabels, fontsize=13)
-        axes[i].tick_params(axis='y', labelsize=20)
+        # if task_name == "batteryv2":
+        default_max_error = task_default_settings[task_name]["max_error"]
+        # xticklabels = [f"{(label / default):g}x" if label // default >= 1 else f"{(label / default):g}x" for label in xticklabels]
+        if task_name == "batteryv2":
+            xticklabels = "x1/4 x1/2 MAE x2 x4 x8 x16 x32 x64 x128".split()
+            axes[i].set_xticks(ticks=xticks, labels=xticklabels, fontsize=22, rotation=60)
+        else:
+            xticklabels = "x1/8 x1/4 x1/2 MAE x2 x4 x8".split()
+            axes[i].set_xticks(ticks=xticks, labels=xticklabels, fontsize=22, rotation=60)
+        axes[i].tick_params(axis='y', labelsize=24)
         axes[i].scatter(
             xticks, df_tmp["speedup"], marker="o", color="royalblue"
         )
@@ -1570,7 +1642,7 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
         )
         twnx = axes[i].twinx()
         twnx.set_ylim([0.9, 1.01])
-        twnx.tick_params(axis='y', labelsize=20)
+        twnx.tick_params(axis='y', labelsize=22)
         twnx.grid(False)
         # twnx.set_xticks(ticks=xticks, labels=xticklabels)
         twnx.scatter(
@@ -1587,19 +1659,19 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
         # draw a vertical line at max_error = max_error in task_default_settings
         default_max_error = task_default_settings[task_name]["max_error"]
         default_x = label_to_tick.get(default_max_error, 0.5)
-        axes[i].axvline(x=default_x, color="black", linestyle="--")
+        # axes[i].axvline(x=default_x, color="black", linestyle="--")
         # annotate the vertical line as "default"
-        min_speedup = df_tmp["speedup"].min()
-        axes[i].annotate(
-            f"Default ({default_max_error}, {min_speedup:.2f})",
-            xy=(default_x, min_speedup),
-            xytext=(default_x, min_speedup),
-            color="black",
-            arrowprops=dict(facecolor="black", shrink=0.05, width=1, headwidth=5),
-            fontsize=12
-        )
+        min_speedup = df_tmp[df_tmp["max_error"]==default_max_error]["speedup"].iloc[0]
+        # axes[i].annotate(
+        #     f"Default ({default_max_error}, {min_speedup:.2f})",
+        #     xy=(default_x, min_speedup),
+        #     xytext=(default_x, min_speedup),
+        #     color="black",
+        #     arrowprops=dict(facecolor="black", shrink=0.05, width=1, headwidth=5),
+        #     fontsize=16
+        # )
 
-        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=20)
+        axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=24)
         # axes[i].set_xlabel("Error Bound $\\delta$", fontsize=15)
         # if i == 0:
         #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
@@ -1608,20 +1680,20 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
         #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
 
         if i == 0:
-            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=20)
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=24)
         if i != 0:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
 
         if i == len(REG_TASKS) - 1:
-            twnx.set_ylabel("Accuracy", color="tomato", fontsize=20)
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=24)
         if i != len(REG_TASKS) - 1:
             twnx.yaxis.set_ticklabels([])
             twnx.set_yticks([])
 
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
-        axes[i].legend(plots, labels, loc="center left", fontsize=12)
+        axes[i].legend(plots, labels, loc="center left", fontsize=16)
     # plt.tight_layout()
     plt.subplots_adjust(wspace=.05)
     plt.savefig(
@@ -2192,7 +2264,7 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     # plot as a scatter line chart
     # x-axis: naggs
     # y-axis: speedup and similarity
-    fig, ax = plt.subplots(figsize=(12.5, 10))
+    fig, ax = plt.subplots(figsize=(12, 9.6))
     ax.scatter(
         selected_df["naggs"], selected_df["speedup"], marker="o", color="royalblue"
     )
@@ -2218,7 +2290,7 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
         label="Accuracy",
     )
 
-    ax.set_xlabel("Number of Approximated Aggregation Features")
+    ax.set_xlabel("Number of Approximated Aggregation Features", fontsize=31)
     ax.set_ylabel("Speedup", color="royalblue")
     # ax.legend(loc="upper left")
 
@@ -2250,10 +2322,14 @@ def main(args: EvalArgs):
     if args.only is None:
         plot_lat_comparsion_w_breakdown_split(df, args)
         plot_lat_breakdown(df, args)
-        plot_vary_min_conf(df, args)
-        plot_vary_max_error(df, args)
-        plot_vary_alpha(df, args)
-        plot_vary_beta(df, args)
+        # plot_vary_min_conf(df, args)
+        plot_vary_min_conf_vldb(df, args)
+        # plot_vary_max_error(df, args)
+        plot_vary_max_error_vldb(df, args)
+        # plot_vary_alpha(df, args)
+        plot_vary_alpha_vldb(df, args)
+        # plot_vary_beta(df, args)
+        plot_vary_beta_vldb(df, args)
         vary_num_agg_tsk(df, "machineryralf", args)
     elif args.only == "lat":
         plot_lat_comparsion_w_breakdown_split(df, args)

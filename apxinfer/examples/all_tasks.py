@@ -43,6 +43,7 @@ ALL_CLS_TASKS = [
     "machineryralftest",
     "machineryralf",
     "machineryralfmedian",
+    "machineryralfsimmedian",
     "cheaptrips",
     "cheaptripsfeast",
     "machinery",

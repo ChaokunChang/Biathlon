@@ -16,7 +16,7 @@ from apxinfer.examples.all_tasks import ALL_REG_TASKS, ALL_CLS_TASKS
 
 
 class VLDBArgs(Tap):
-    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024041118"
+    data_dir: str = "/home/ckchang/.cache/biathlon/vldb2024/servers/2024041420"
     out_dir: str = "./cache"
     filename: str = None
     debug: bool = False
@@ -211,6 +211,7 @@ if __name__ == "__main__":
         agg_ops = [fname.split('_')[-1] for fname in agg_fnames]
         item['naggs'] = len(set(agg_ops))
 
+        item['avg_pred_conf'] = np.mean(df['pred_conf'])
         # accuracy metrics
         if settings['task_name'] in ALL_CLS_TASKS:
             y_true = df['label']

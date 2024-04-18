@@ -87,7 +87,7 @@ def get_min_confs(args: ExpArgs):
 
 
 def get_default_alphas(args: ExpArgs):
-    return [5]
+    return [5, 1]
 
 
 def get_default_betas(args: ExpArgs):

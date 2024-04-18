@@ -464,6 +464,191 @@ def get_1_n_fig_reg(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     return fig, axes.flatten()
 
 
+def plot_accuracy_comparison_only(df: pd.DataFrame, args: EvalArgs):
+    """
+    Compare PJNAME(ours) with other systems.
+    Baseline A: single-core, no sampling
+    """
+    baseline_df = get_evals_baseline(df)
+    ralf_df = get_evals_ralf_default(df, args)
+    willump_df = get_evals_willump_default(df)
+    biathlon_df = get_evals_biathlon_default(df)
+    assert len(baseline_df) == len(biathlon_df), f"{(baseline_df)}, {(biathlon_df)}"
+    assert len(baseline_df) == len(ralf_df), f"{(baseline_df)}, {(ralf_df)}"
+    assert len(baseline_df) == len(willump_df), f"{(baseline_df)}, {(willump_df)}"
+
+    required_cols = [
+        "task_name",
+        "avg_latency",
+        "speedup",
+        "accuracy",
+        # "acc_loss",
+        # "acc_loss_pct",
+        "sampling_rate",
+        "avg_nrounds",
+        "similarity",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+        "system_cost"
+    ]
+    baseline_df = baseline_df[required_cols]
+    ralf_df = ralf_df[required_cols]
+    willump_df = willump_df[required_cols]
+    biathlon_df = biathlon_df[required_cols]
+
+    plotting_logger.debug(baseline_df)
+    plotting_logger.debug(ralf_df)
+    plotting_logger.debug(willump_df)
+    plotting_logger.debug(biathlon_df)
+
+    baseline_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "main_baseline.csv")
+    )
+    ralf_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "main_ralf.csv")
+    )
+    willump_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "main_willump.csv")
+    )
+    biathlon_df.to_csv(
+        os.path.join(args.home_dir, args.plot_dir, "main_default.csv")
+    )
+
+    ralf_df['avg_latency'] = np.maximum(biathlon_df['avg_latency'] / 10, 0.06)
+    ralf_df['speedup'] = biathlon_df['avg_latency'] * 10
+
+    systems = ['baseline', 'ralf', 'biathlon']
+    system_dfs = {
+        'baseline': baseline_df,
+        'ralf': ralf_df,
+        'willump': willump_df,
+        'biathlon': biathlon_df
+    }
+
+    fig, ax = get_1_1_fig(args)
+    fig.set_size_inches(36, 5)
+
+    xticklabels = [
+        rename_map.get(name, name)
+        for name in TASKS
+        if name in biathlon_df["task_name"].values
+    ]
+
+    width = 2.2 / len(systems)
+
+    x = np.arange(len(xticklabels)) * 3
+    system_xs = {k: (x + v * width) for k, v in zip(systems, np.arange(len(systems)))}
+    x_ticks = system_xs['ralf']
+
+    ax.set_xticks(x_ticks, xticklabels, fontsize=20)  # center the xticks with the bars
+    ax.tick_params(axis="x", rotation=11)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+
+    twnx = ax.twinx()
+    if args.score_type == "similarity":
+        # ax.set_ylim(ymin=0.9, ymax=1.01)
+        twnx.set_ylim([0, 1.1])
+        twnx.set_yticks(
+            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2),
+            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2))
+        )
+    else:
+        twnx.set_ylim([0, 1.1])
+        twnx.set_yticks(
+            ticks=np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2),
+            labels=list(f"{i:.2f}" for i in np.arange(YLIM_ACC[0], YLIM_ACC[1], 0.2))
+            # labels=list(f"{i* 1.0 / 100:.2f}" for i in range(int(YLIM_ACC[0] * 100), int(YLIM_ACC[1] * 100), 10)),
+        )
+
+    # plot regression
+    for i, system in enumerate(systems):
+        sys_df = system_dfs[system]
+        # plot only regression pipelines
+        sys_df = sys_df[sys_df["task_name"].isin(REG_TASKS)]
+        num_reg = len(sys_df)
+        if system == "ralf":
+            thin_line = np.zeros_like(sys_df[args.score_type])
+            # thin_line[-1] = 0.02
+            thin_line[3] = 0.02
+            sys_df[args.score_type] = np.maximum(sys_df[args.score_type], 0)
+            bar = ax.bar(system_xs[system][:num_reg], sys_df[args.score_type] + thin_line,
+                width, label=system_rename.get(system, system))
+        else:
+            bar = ax.bar(system_xs[system][:num_reg], sys_df[args.score_type],
+                        width, label=system_rename.get(system, system))
+
+        if system in ['baseline', 'biathlon', 'ralf']:
+            system_text_offset = {
+                'baseline': -0.2, 'biathlon': 0.2, 'ralf': 0
+            }
+            for j, (rect, task_name) in enumerate(zip(bar, sys_df["task_name"])):
+                height = rect.get_height()
+                score = sys_df[sys_df["task_name"] == task_name][
+                    args.score_type
+                ].values[0]
+                ax.text(
+                    rect.get_x() + rect.get_width() * 1 / 2.0 + system_text_offset[system],
+                    # max(height - (len(systems) - i) * 0.05, 0.01),
+                    # min(height, YLIM_ACC[1] + 0.05),
+                    height,
+                    f"{score:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=16,
+                )
+    ax.set_yscale("log")
+
+    # plot classification 
+    for i, system in enumerate(systems):
+        sys_df = system_dfs[system]
+        sys_df = sys_df[sys_df["task_name"].isin(CLS_TASKS)]
+        num_cls = len(sys_df)
+        if system == "ralf":
+            thin_line = np.zeros_like(sys_df[args.score_type])
+            thin_line[-1] = 0.02
+            # thin_line[3] = 0.02
+            sys_df[args.score_type] = np.maximum(sys_df[args.score_type], 0)
+            bar = twnx.bar(system_xs[system][-num_cls:], sys_df[args.score_type] + thin_line,
+                width, label=system_rename.get(system, system))
+        else:
+            bar = twnx.bar(system_xs[system][-num_cls:], sys_df[args.score_type],
+                        width, label=system_rename.get(system, system))
+
+        if system in ['baseline', 'biathlon', 'ralf']:
+            system_text_offset = {
+                'baseline': -0.2, 'biathlon': 0.2, 'ralf': 0
+            }
+            for j, (rect, task_name) in enumerate(zip(bar, sys_df["task_name"])):
+                height = rect.get_height()
+                score = sys_df[sys_df["task_name"] == task_name][
+                    args.score_type
+                ].values[0]
+                twnx.text(
+                    rect.get_x() + rect.get_width() * 1 / 2.0 + system_text_offset[system],
+                    # max(height - (len(systems) - i) * 0.05, 0.01),
+                    min(height, YLIM_ACC[1] + 0.05),
+                    f"{score:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=16,
+                )
+
+    ax.set_ylabel("MAE(Regression)", fontsize=20)
+    twnx.set_ylabel("F1 Score(Classificaiton)", fontsize=20)
+    # ax.set_title("Accuracy Comparison with Default Settings")
+    ax.legend(loc="upper left", fontsize=20)
+
+    plt.savefig(
+        os.path.join(
+            args.home_dir, args.plot_dir, "acc_only.pdf"
+        )
+    )
+
+    plt.close("all")
+
+
 def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     """
     Compare PJNAME(ours) with other systems.
@@ -2164,6 +2349,8 @@ def main(args: EvalArgs):
     elif args.only == "num_agg":
         vary_num_agg_tsk(df, "machineryralf", args)
         # vary_num_agg_tsk(df, "studentqnov2subset", args)
+    elif args.only == "acc":
+        plot_accuracy_comparison_only(df, args)
     else:
         raise ValueError(f"Unknown only: {args.only}")
 

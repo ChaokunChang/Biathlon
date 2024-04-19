@@ -639,3 +639,10 @@ class XIPSchedulerUniformExp(XIPSchedulerWQCost):
                 next_qcfgs[qid]["qsample"] = next_qsamples
         self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs
+
+
+class XIPSchedulerOptimizerExp(XIPSchedulerOptimizer):
+    def get_step_size(self) -> int:
+        scale = 2 ** len(self.history)
+        nsteps = self.batch_size * scale
+        return nsteps

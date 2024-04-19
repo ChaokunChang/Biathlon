@@ -22,7 +22,8 @@ from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
 from apxinfer.core.scheduler import XIPSchedulerUniform, XIPSchedulerBalancedQCost
 from apxinfer.core.scheduler import XIPSchedulerGradient, XIPSchedulerStepGradient
-from apxinfer.core.scheduler import XIPSchedulerUniformExp, XIPSchedulerOptimizerExp
+from apxinfer.core.scheduler import XIPSchedulerUniformExp, XIPSchedulerUniformExpBatch
+from apxinfer.core.scheduler import XIPSchedulerOptimizerExp, XIPSchedulerOptimizerExpInit
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
 
 from apxinfer.core.offline import OfflineExecutor
@@ -1018,8 +1019,12 @@ def get_ppl(
         scheduler = XIPSchedulerStepGradient(**scheduler_args)
     elif args.scheduler == "uniformexp":
         scheduler = XIPSchedulerUniformExp(**scheduler_args)
+    elif args.scheduler == "uniformexpbatch":
+        scheduler = XIPSchedulerUniformExpBatch(**scheduler_args)
     elif args.scheduler == "optimizerexp":
         scheduler = XIPSchedulerOptimizerExp(**scheduler_args)
+    elif args.scheduler == "optimizerexpinit":
+        scheduler = XIPSchedulerOptimizerExpInit(**scheduler_args)
     else:
         raise ValueError("Invalid scheduler")
 

@@ -995,8 +995,6 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
         df_tmp = df[df["task_name"] == task_name]
 
         shared_keys = [
-            # "policy",
-            "qinf",
             "pest_constraint",
             "pest_seed",
             "nparts",
@@ -1005,17 +1003,38 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
             "pest_nsamples",
             "loading_mode",
             "min_conf",
-            "alpha",
             "beta",
         ]
         for key in shared_keys:
-            value = shared_default_settings[key]
-            df_tmp = df_tmp[df_tmp[key] == value]
+            if key == "alpha":
+                value = shared_default_settings[key]
+                df_tmp = df_tmp[df_tmp[key] == value]
+                # df_tmp = df_tmp[df_tmp[key].isin([0.01, 0.05])]
+            else:
+                value = shared_default_settings[key]
+                df_tmp = df_tmp[df_tmp[key] == value]
 
         df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
         df_tmp = df_tmp[
             df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
         ]
+        
+        def policy_filter(row):
+            policy = row['policy']
+            alpha = row['alpha']
+            qinf = row['qinf']
+            x1 = (policy == "optimizer") and (alpha == 0.05) and (qinf == "biathlon")
+            # x2 = (policy == "optimizerexpinit") and (alpha == 0.05) and (qinf == "biathlon")
+            x3 = (policy == "optimizerexpinit") and (alpha == 0.01) and (qinf == "biathlon")
+            # x4 = (policy == "uniformexp") and (alpha == 0.05) and (qinf == "biathlon")
+            x5 = (policy == "uniformexp") and (alpha == 0.01) and (qinf == "biathlon")
+            # x4 = (policy == "uniformexp") and (alpha == 0.05) and (qinf == "MC")
+            # x5 = (policy == "uniformexp") and (alpha == 0.01) and (qinf == "MC")
+            # return x1 or x2 or x3 or x4 or x5
+            return x1 or x3 or x5
+
+        df_tmp = df_tmp[df_tmp.apply(policy_filter, axis=1)]
+        
         df_tmp = df_tmp.sort_values(by=["policy"])
         df_tmp = df_tmp.reset_index(drop=True)
         selected_df.append(df_tmp)
@@ -1023,22 +1042,56 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
     required_cols = [
         "task_name",
         "policy",
-        # "qinf",
+        "alpha",
+        "qinf",
         "speedup",
         "similarity",
         "accuracy",
         "sampling_rate",
-        "avg_nrounds",
+        # "avg_nrounds",
         "avg_latency",
         "BD:AFC",
         "BD:AMI",
         "BD:Sobol",
-        "BD:Others",
+        # "BD:Others",
     ]
     selected_df = selected_df[required_cols]
     plotting_logger.debug(selected_df)
     selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_policy.csv"))
     print(selected_df)
+
+    def policy_rename(row):
+        policy = row['policy']
+        alpha = row['alpha']
+        qinf = row['qinf']
+        if policy == "optimizer" and alpha == 0.05 and qinf == "biathlon":
+            return "Biathlon-Default"
+        elif policy == "optimizerexpinit" and alpha == 0.01 and qinf == "biathlon":
+            return "Biathlon-ExponetialStep"
+        elif policy == "uniformexp" and alpha == 0.01 and qinf == "biathlon":
+            return "Simple-ExponetialStep"
+        else:
+            return f"{policy}-{alpha}-{qinf}"
+    selected_df['policy'] = selected_df.apply(policy_rename, axis=1)
+    selected_df['task_name'] = selected_df.apply(lambda x : rename_map.get(x['task_name'], x['task_name']), axis=1)
+
+    fig, axes = get_1_2_fig(args)
+    sns.barplot(selected_df, x='task_name', y='avg_latency', hue='policy', ax=axes[0])
+    sns.barplot(selected_df, x='task_name', y='accuracy', hue='policy', ax=axes[1])
+
+    axes[0].tick_params(axis='x', rotation=45)
+    axes[1].tick_params(axis='x', rotation=45)
+
+    axes[1].legend(loc="lower right")
+
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_policy.pdf"),
+        bbox_inches="tight",
+        pad_inches=0,
+    )
+    print(f'vary policy saved to {os.path.join(args.home_dir, args.plot_dir, "vary_policy.pdf")}')
+
+    plt.close("all")
 
 
 def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):

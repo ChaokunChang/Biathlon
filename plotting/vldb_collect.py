@@ -90,6 +90,24 @@ def path_parser(args: VLDBArgs, path: str) -> dict:
         settings["scheduler_init"] = scheduler_init
         settings["scheduler_batch"] = scheduler_batch
 
+        if len(components) > 13:
+            assert components[13].startswith("bs-")
+            bs_type, bs_nresamples, bs_nthreads, bs_feature_correction, bs_bias_correction, bs_for_var_std = components[13].split('-')[1:]
+            settings["bs_type"] = bs_type
+            settings["bs_nresamples"] = bs_nresamples
+            settings["bs_nthreads"] = bs_nthreads
+            settings["bs_feature_correction"] = bs_feature_correction
+            settings["bs_bias_correction"] = bs_bias_correction
+            settings["bs_for_var_std"] = bs_for_var_std
+        else:
+            settings["bs_type"] = "fstd"
+            settings["bs_nresamples"] = 100
+            settings["bs_nthreads"] = 1
+            settings["bs_feature_correction"] = True
+            settings["bs_bias_correction"] = True
+            settings["bs_for_var_std"] = True
+
+
         condition_type, max_relerror, max_error, min_conf, max_time, max_memory, max_rounds = file.split('-')
         settings["condition_type"] = condition_type
         settings["max_relerror"] = max_relerror
@@ -120,7 +138,10 @@ def aggregate_data(args: VLDBArgs, data: pd.DataFrame) -> pd.DataFrame:
             'policy', 'scheduler_init', 'scheduler_batch',
             'condition_type', 'max_relerror',
             'max_error', 'min_conf',
-            'max_time', 'max_memory', 'max_rounds']
+            'max_time', 'max_memory', 'max_rounds', 
+            "bs_type", "bs_nthreads", "bs_nresamples",
+            "bs_feature_correction", "bs_bias_correction",
+            "bs_for_var_std"]
     # deduplicate by the keys + ['seed'], keep the first
     print(f'total number of rows: {len(df)}')
     df = df.groupby(keys + ['seed'], dropna=False).first().reset_index()
@@ -288,3 +309,4 @@ if __name__ == "__main__":
 
     df = aggregate_data(args, df)
     df.to_csv(f"{args.out_dir}/avg_{args.filename}", index=False)
+    print(f"stats saved to avg_{args.filename}")

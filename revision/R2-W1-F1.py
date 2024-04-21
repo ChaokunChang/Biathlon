@@ -420,6 +420,7 @@ def plot_inference_uncertainty(
     save_dir: str,
     qmc_pred: bool = False,
     nocache: bool = False,
+    plot_dist: bool = False,
 ):
     print(
         f"plottig Inference Uncertainty with qmc={qmc_pred} for {args.nreqs} requests"
@@ -474,21 +475,27 @@ def plot_inference_uncertainty(
         conf = np.sum(np.abs(errors) <= args.max_error) / len(errors)
         conf_list.append(conf)
 
-    ax = axes[0]
-    if nreqs > 20:
-        print("too much to plot, only plot the first 100 request for reference")
-    for rid in range(min(nreqs, 20)):
-        shapiro_test = stats.shapiro(errors_list[rid])
-        pvalue = shapiro_test.pvalue
-        sns.histplot(
-            errors_list[rid], kde=True, ax=ax, label=f"Req {rid} ({pvalue:.3f})"
-        )
+    meet_frac = np.sum(np.array(conf_list) >= args.min_conf) / nreqs
+    meet_frac_v2 = np.sum(np.array(conf_list) >= (args.min_conf - 0.02)) / nreqs
+    print(f"meet_frac v1: {meet_frac}")
+    print(f"meet_frac v2: {meet_frac_v2}")
 
-    ax.set_title("Inference Uncertainty")
-    ax.set_xlabel("Error Value")
-    ax.set_ylabel("Density")
-    if nreqs <= 10:
-        ax.legend()
+    if plot_dist:
+        ax = axes[0]
+        if nreqs > 20:
+            print("too much to plot, only plot the first 100 request for reference")
+        for rid in range(min(nreqs, 20)):
+            shapiro_test = stats.shapiro(errors_list[rid])
+            pvalue = shapiro_test.pvalue
+            sns.histplot(
+                errors_list[rid], kde=True, ax=ax, label=f"Req {rid} ({pvalue:.3f})"
+            )
+
+        ax.set_title("Inference Uncertainty")
+        ax.set_xlabel("Error Value")
+        ax.set_ylabel("Density")
+        if nreqs <= 10:
+            ax.legend()
 
     ax = axes[1]
     sns.histplot(conf_list, kde=True, ax=ax)
@@ -576,6 +583,7 @@ def plot_topk_nonnormal_cases(
 
 class R2W1F1Args(Tap):
     nocache: bool = False
+    qmc_pred: bool = False
 
 
 if __name__ == "__main__":
@@ -594,3 +602,6 @@ if __name__ == "__main__":
     plot_topk_nonnormal_cases(
         args, seeds_list, res, save_dir, method, significance_level, 10
     )
+
+    plot_inference_uncertainty(args, seeds_list, res, save_dir=save_dir,
+                               qmc_pred=exp_args.qmc_pred, nocache=False)

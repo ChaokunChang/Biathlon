@@ -156,9 +156,9 @@ class EvalArgs(Tap):
     # loading_mode: int = 0
     # ncores: int = 1
     only: str = None
-    score_type: str = "similarity"
-    cls_score: str = "acc"
-    reg_score: str = "meet_rate" # r2
+    score_type: str = "accuracy"
+    cls_score: str = "f1"
+    reg_score: str = "r2"
     debug: bool = False
 
     def process_args(self):
@@ -987,6 +987,58 @@ def fill_missing_rows(
     df = df.sort_values(by=[align_col])
     df = df.reset_index(drop=True)
     return df
+
+
+def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
+    selected_df = []
+    for task_name in TASKS:
+        df_tmp = df[df["task_name"] == task_name]
+
+        shared_keys = [
+            # "policy",
+            "qinf",
+            "pest_constraint",
+            "pest_seed",
+            "nparts",
+            "ncfgs",
+            "ncores",
+            "pest_nsamples",
+            "loading_mode",
+            "min_conf",
+            "alpha",
+            "beta",
+        ]
+        for key in shared_keys:
+            value = shared_default_settings[key]
+            df_tmp = df_tmp[df_tmp[key] == value]
+
+        df_tmp = df_tmp[df_tmp["model"] == task_default_settings[task_name]["model"]]
+        df_tmp = df_tmp[
+            df_tmp["max_error"] == task_default_settings[task_name]["max_error"]
+        ]
+        df_tmp = df_tmp.sort_values(by=["policy"])
+        df_tmp = df_tmp.reset_index(drop=True)
+        selected_df.append(df_tmp)
+    selected_df = pd.concat(selected_df)
+    required_cols = [
+        "task_name",
+        "policy",
+        # "qinf",
+        "speedup",
+        "similarity",
+        "accuracy",
+        "sampling_rate",
+        "avg_nrounds",
+        "avg_latency",
+        "BD:AFC",
+        "BD:AMI",
+        "BD:Sobol",
+        "BD:Others",
+    ]
+    selected_df = selected_df[required_cols]
+    plotting_logger.debug(selected_df)
+    selected_df.to_csv(os.path.join(args.home_dir, args.plot_dir, "vary_policy.csv"))
+    print(selected_df)
 
 
 def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
@@ -2351,6 +2403,8 @@ def main(args: EvalArgs):
         # vary_num_agg_tsk(df, "studentqnov2subset", args)
     elif args.only == "acc":
         plot_accuracy_comparison_only(df, args)
+    elif args.only == "policy":
+        plot_vary_policy(df, args)
     else:
         raise ValueError(f"Unknown only: {args.only}")
 

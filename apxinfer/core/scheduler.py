@@ -639,3 +639,49 @@ class XIPSchedulerUniformExp(XIPSchedulerWQCost):
                 next_qcfgs[qid]["qsample"] = next_qsamples
         self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs
+
+
+class XIPSchedulerUniformExpBatch(XIPSchedulerWQCost):
+    def get_next_qcfgs(
+        self,
+        request: XIPRequest,
+        qcfgs: List[XIPQueryConfig],
+        fvec: XIPFeatureVec,
+        pred: XIPPredEstimation,
+        qcosts: List[QueryCostEstimation],
+    ) -> List[XIPQueryConfig]:
+        next_qcfgs = copy.deepcopy(qcfgs)  # qcfgs to return
+
+        # next_qcfgs, early_ret = self.apply_heuristics(next_qcfgs, qcosts)
+        # if early_ret:
+        #     return next_qcfgs
+
+        scale = 2 ** len(self.history)
+        nsteps = self.batch_size * scale
+
+        for qid in range(len(next_qcfgs)):
+            if not is_same_float(next_qcfgs[qid]["qsample"], 1.0):
+                next_qcfgs[qid]["qcfg_id"] += 1
+                next_qsamples = next_qcfgs[qid]["qsample"] + nsteps * self.sample_grans[qid]
+                next_qsamples = min(next_qsamples, self.max_qsamples[qid])
+                next_qcfgs[qid]["qsample"] = next_qsamples
+        self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
+        return next_qcfgs
+
+
+class XIPSchedulerOptimizerExp(XIPSchedulerOptimizer):
+    def get_step_size(self) -> int:
+        scale = 2 ** len(self.history)
+        nsteps = self.batch_size * scale
+        return nsteps
+
+
+class XIPSchedulerOptimizerExpInit(XIPSchedulerOptimizer):
+    def get_step_size(self) -> int:
+        scale = 2 ** (len(self.history) - 1)
+        init_steps = 0
+        for qid in range(len(self.min_qsamples)):
+            if not is_same_float(self.min_qsamples[qid], 1.0):
+                init_steps += round(self.min_qsamples[qid] / self.sample_grans[qid])
+        nsteps = init_steps * scale
+        return nsteps

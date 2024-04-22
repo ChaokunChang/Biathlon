@@ -171,7 +171,7 @@ class EvalArgs(Tap):
             self.filename = files[0]
             print(f"Using {self.filename}")
         if self.plot_dir is None:
-            self.plot_dir = f'figs_{self.score_type}_{self.cls_score}_{self.reg_score}'
+            self.plot_dir = f'thesis-figs_{self.score_type}_{self.cls_score}_{self.reg_score}'
             print(f"Using {self.plot_dir}")
 
 
@@ -433,6 +433,17 @@ def get_1_2_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     height = 5
     fig, axes = plt.subplots(
         figsize=(width * 1.5, height), nrows=1, ncols=2, sharex=False, sharey=False
+    )
+    return fig, axes.flatten()
+
+
+def get_2_1_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
+    sns.set_theme(style="whitegrid")
+    ntasks = len(TASKS)
+    width = ntasks
+    height = 5
+    fig, axes = plt.subplots(
+        figsize=(width, height * 2), nrows=2, ncols=1, sharex=False, sharey=False
     )
     return fig, axes.flatten()
 
@@ -714,7 +725,7 @@ def plot_lat_comparsion_w_breakdown_split(df: pd.DataFrame, args: EvalArgs):
     }
 
     fig, axes = get_1_2_fig(args)
-    fig.set_size_inches(36, 5)
+    # fig.set_size_inches(36, 5)
 
     xticklabels = [
         rename_map.get(name, name)
@@ -968,8 +979,8 @@ def plot_lat_breakdown(df: pd.DataFrame, args: EvalArgs):
     ax.legend(lines + lines2, labels + labels2, fontsize=20)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "breakdown.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -1023,14 +1034,13 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
             policy = row['policy']
             alpha = row['alpha']
             qinf = row['qinf']
-            x1 = (policy == "optimizer") and (alpha == 0.05) and (qinf == "biathlon")
-            # x2 = (policy == "optimizerexpinit") and (alpha == 0.05) and (qinf == "biathlon")
-            x3 = (policy == "optimizerexpinit") and (alpha == 0.01) and (qinf == "biathlon")
-            # x4 = (policy == "uniformexp") and (alpha == 0.05) and (qinf == "biathlon")
-            x5 = (policy == "uniformexp") and (alpha == 0.01) and (qinf == "biathlon")
-            # x4 = (policy == "uniformexp") and (alpha == 0.05) and (qinf == "MC")
-            # x5 = (policy == "uniformexp") and (alpha == 0.01) and (qinf == "MC")
-            # return x1 or x2 or x3 or x4 or x5
+            target_qinf = "biathlon"
+            target_alpha = 0.05
+            x1 = (policy == "optimizer") and (alpha == target_alpha) and (qinf == target_qinf)
+            x3 = (policy == "optimizerexpinit") and (alpha == target_alpha) and (qinf == target_qinf)
+            x5 = (policy == "uniformexp") and (alpha == target_alpha) and (qinf == target_qinf)
+            # x3 = (policy == "optimizerexp") and (alpha == target_alpha) and (qinf == target_qinf)
+            # x5 = (policy == "uniformexpbatch") and (alpha == target_alpha) and (qinf == target_qinf)
             return x1 or x3 or x5
 
         df_tmp = df_tmp[df_tmp.apply(policy_filter, axis=1)]
@@ -1048,12 +1058,12 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
         "similarity",
         "accuracy",
         "sampling_rate",
-        # "avg_nrounds",
+        "avg_nrounds",
         "avg_latency",
         "BD:AFC",
         "BD:AMI",
         "BD:Sobol",
-        # "BD:Others",
+        "BD:Others",
     ]
     selected_df = selected_df[required_cols]
     plotting_logger.debug(selected_df)
@@ -1064,32 +1074,66 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
         policy = row['policy']
         alpha = row['alpha']
         qinf = row['qinf']
-        if policy == "optimizer" and alpha == 0.05 and qinf == "biathlon":
+        # if policy == "optimizer" and alpha == 0.05 and qinf == "biathlon":
+        if policy == "optimizer":
             return "Biathlon-Default"
-        elif policy == "optimizerexpinit" and alpha == 0.01 and qinf == "biathlon":
-            return "Biathlon-ExponetialStep"
-        elif policy == "uniformexp" and alpha == 0.01 and qinf == "biathlon":
-            return "Simple-ExponetialStep"
+        # elif policy == "optimizerexpinit" and alpha == 0.01 and qinf == "biathlon":
+        elif policy == "optimizerexpinit":
+            return "Biathlon-ExponentialGrowth"
+        # elif policy == "uniformexp" and alpha == 0.01 and qinf == "biathlon":
+        elif policy == "uniformexp":
+            return "Simple-ExponentialGrowth"
         else:
             return f"{policy}-{alpha}-{qinf}"
     selected_df['policy'] = selected_df.apply(policy_rename, axis=1)
     selected_df['task_name'] = selected_df.apply(lambda x : rename_map.get(x['task_name'], x['task_name']), axis=1)
 
-    fig, axes = get_1_2_fig(args)
+    # fig, axes = get_1_2_fig(args)
+    fig, axes = get_2_1_fig(args)
     sns.barplot(selected_df, x='task_name', y='avg_latency', hue='policy', ax=axes[0])
     sns.barplot(selected_df, x='task_name', y='accuracy', hue='policy', ax=axes[1])
 
-    axes[0].tick_params(axis='x', rotation=45)
-    axes[1].tick_params(axis='x', rotation=45)
+    axes[0].tick_params(axis='x', rotation=30)
+    axes[1].tick_params(axis='x', rotation=30)
 
+    axes[0].set_xlabel("")
+    axes[1].set_xlabel("")
+    axes[0].set_ylabel("Latency (s)")
+    axes[1].set_ylabel("Accuracy")
+
+    axes[0].legend()
     axes[1].legend(loc="lower right")
+
+    # plt.subplots_adjust(wspace=.05)
+    plt.tight_layout()
 
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_policy.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
     )
     print(f'vary policy saved to {os.path.join(args.home_dir, args.plot_dir, "vary_policy.pdf")}')
+
+    # fig, axes = get_1_2_fig(args)
+    fig, axes = get_2_1_fig(args)
+    sns.barplot(selected_df, x='task_name', y='sampling_rate', hue='policy', ax=axes[0])
+    sns.barplot(selected_df, x='task_name', y='avg_nrounds', hue='policy', ax=axes[1])
+
+    axes[0].tick_params(axis='x', rotation=30)
+    axes[1].tick_params(axis='x', rotation=30)
+    axes[0].set_xlabel("")
+    axes[1].set_xlabel("")
+    axes[0].set_ylabel("Fraction of Samples")
+    axes[1].set_ylabel("Avg. No. of Iterations")
+
+    axes[0].legend()
+    axes[1].legend(loc="lower right")
+
+    # plt.subplots_adjust(wspace=.05)
+    plt.tight_layout()
+
+    plt.savefig(
+        os.path.join(args.home_dir, args.plot_dir, "vary_policy_breakdown.pdf"),
+    )
+    print(f'vary policy saved to {os.path.join(args.home_dir, args.plot_dir, "vary_policy_breakdown.pdf")}')
 
     plt.close("all")
 
@@ -1185,8 +1229,8 @@ def plot_vary_min_conf(df: pd.DataFrame, args: EvalArgs):
     # plt.subplots_adjust(wspace=0.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_min_conf.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -1423,8 +1467,9 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
     pd.set_option("display.precision", 10)
 
     # fig, axes = get_2_n_fig(args)
-    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(30, 4.5), sharex=False, sharey=False)
-    axes = axes.flatten()
+    # fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(30, 4.5), sharex=False, sharey=False)
+    # axes = axes.flatten()
+    fig, axes = get_2_n_fig(args)
 
     for i, task_name in enumerate(TASKS):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -1461,40 +1506,51 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         twnx.yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
 
         axes[i].set_title("Task: {}".format(PIPELINE_NAME[i]), fontsize=20)
+        
         # if i >= len(axes) // 2:
         #     axes[i].set_xlabel("Confidence Level $\\tau$", fontsize=15)
-        # if i in [0, len(axes) // 2]:
-        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
-        # # axes[i].legend(loc="lower center")
-
-        # # twnx.set_ylim(YLIM_ACC)
-        # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
-        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
-        # # twnx.legend(loc="lower center")
-
-        if i == 0:
-            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=20)
-        if i != 0:
+        if i in [0, len(axes) // 2]:
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        else:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
+        # axes[i].legend(loc="lower center")
 
-        if i == len(TASKS) - 1:
-            twnx.set_ylabel("Accuracy", color="tomato", fontsize=20)
-        if i != len(TASKS) - 1:
+        # twnx.set_ylim(YLIM_ACC)
+        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        else:
             twnx.yaxis.set_ticklabels([])
             twnx.set_yticks([])
+        # twnx.legend(loc="lower center")
+
+        # if i == 0:
+        #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=20)
+        # if i != 0:
+        #     axes[i].yaxis.set_ticklabels([])
+        #     axes[i].set_yticks([])
+
+        # if i == len(TASKS) - 1:
+        #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=20)
+        # if i != len(TASKS) - 1:
+        #     twnx.yaxis.set_ticklabels([])
+        #     twnx.set_yticks([])
 
         plots = plot1 + plot2
         legend_labels = [l.get_label() for l in plots]
         axes[i].legend(plots, legend_labels, loc="lower left", fontsize=16)
 
+    if len(axes) > len(TASKS):
+        print(f'{len(axes)} > {len(TASKS)}')
+        plt.delaxes(axes[-1])
+
     # fig.text(0.5, 0.02, 'Confidence Level $\\tau$', ha='center', fontsize=15)
     plt.tight_layout()
-    plt.subplots_adjust(wspace=0.0)
+    # plt.subplots_adjust(wspace=0.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_min_conf.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
 
 
@@ -1597,8 +1653,8 @@ def plot_vary_max_error(df: pd.DataFrame, args: EvalArgs):
     # plt.tight_layout()
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_max_error.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -1648,9 +1704,9 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    # fig, axes = get_1_n_fig_reg(args)
-    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 5))
-    axes = axes.flatten()
+    fig, axes = get_1_n_fig_reg(args)
+    # fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 5))
+    # axes = axes.flatten()
 
     xlim = [0, 10]
     for i, task_name in enumerate(REG_TASKS):
@@ -1799,12 +1855,17 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="center left", fontsize=16)
-    # plt.tight_layout()
-    plt.subplots_adjust(wspace=.05)
+    
+    if len(axes) > len(REG_TASKS):
+        print(f'{len(axes)} > {len(REG_TASKS)}')
+        plt.delaxes(axes[-1])
+
+    plt.tight_layout()
+    # plt.subplots_adjust(wspace=.05)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_max_error.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -1925,8 +1986,8 @@ def plot_vary_alpha(df: pd.DataFrame, args: EvalArgs):
     # plt.subplots_adjust(wspace=.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_alpha.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -1974,9 +2035,9 @@ def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    # fig, axes = get_2_n_fig(args)
-    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
-    axes = axes.flatten()
+    fig, axes = get_2_n_fig(args)
+    # fig, axes = plt.subplots(nrows=2, ncols=len(TASKS) // 2 + (len(TASKS) % 2 == 1), figsize=(21, 3.5), sharex=False, sharey=False)
+    # axes = axes.flatten()
 
     for i, task_name in enumerate(TASKS):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -2034,19 +2095,34 @@ def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
         # if i in [0, len(axes) // 2]:
         #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
         # # axes[i].legend(loc="upper left")
-        if i == 0:
-            axes[i].set_ylabel("Speedup", color="royalblue")
-        if i != 0:
+        # if i == 0:
+        #     axes[i].set_ylabel("Speedup", color="royalblue")
+        # if i != 0:
+        #     axes[i].yaxis.set_ticklabels([])
+        #     axes[i].set_yticks([])
+
+        # if i == len(TASKS) - 1:
+        #     twnx.set_ylabel("Accuracy", color="tomato")
+        # if i != len(TASKS) - 1:
+        #     twnx.yaxis.set_ticklabels([])
+        #     twnx.set_yticks([])
+
+        twnx.set_ylim(YLIM_ACC)
+
+        if i in [0, len(axes) // 2]:
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        else:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
-
-        if i == len(TASKS) - 1:
-            twnx.set_ylabel("Accuracy", color="tomato")
-        if i != len(TASKS) - 1:
+        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        else:
             twnx.yaxis.set_ticklabels([])
             twnx.set_yticks([])
 
-        twnx.set_ylim(YLIM_ACC)
+        axes[i].grid(False)
+        twnx.grid(False)
+
         # # twnx.set_ylim(0.95, 1.009)
         # if i in [-1 + len(axes) // 2, -1 + len(axes)]:
         #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
@@ -2055,15 +2131,19 @@ def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="center right", fontsize=15)
+
+    if len(axes) > len(TASKS):
+        print(f'{len(axes)} > {len(TASKS)}')
+        plt.delaxes(axes[-1])
+    
     # fig.text(0.5, 0.02, 'Initial Sampling Ratio $\\alpha$', ha='center')
     plt.tight_layout()
-    plt.subplots_adjust(wspace=.0)
+    # plt.subplots_adjust(wspace=.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_alpha.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
-    # plt.show()
 
     plt.close("all")
 
@@ -2175,8 +2255,8 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
     # plt.subplots_adjust(wspace=.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_beta.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -2184,7 +2264,7 @@ def plot_vary_beta(df: pd.DataFrame, args: EvalArgs):
 
 def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
     """beta = scheduler_batch / ncfgs"""
-    sns.set_style("whitegrid", {"axes.grid": False})
+    # sns.set_style("whitegrid", {"axes.grid": False})
 
     selected_df = []
     for task_name in TASKS:
@@ -2225,8 +2305,9 @@ def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
-    axes = axes.flatten()
+    fig, axes = get_2_n_fig(args)
+    # fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
+    # axes = axes.flatten()
 
     for i, task_name in enumerate(TASKS):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -2278,17 +2359,17 @@ def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
         # if i in [0, len(axes) // 2]:
         #     axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
         # # axes[i].legend(loc="upper left")
-        if i == 0:
-            axes[i].set_ylabel("Speedup", color="royalblue")
-        if i != 0:
-            axes[i].yaxis.set_ticklabels([])
-            axes[i].set_yticks([])
+        # if i == 0:
+        #     axes[i].set_ylabel("Speedup", color="royalblue")
+        # if i != 0:
+        #     axes[i].yaxis.set_ticklabels([])
+        #     axes[i].set_yticks([])
 
-        if i == len(TASKS) - 1:
-            twnx.set_ylabel("Accuracy", color="tomato")
-        if i != len(TASKS) - 1:
-            twnx.yaxis.set_ticklabels([])
-            twnx.set_yticks([])
+        # if i == len(TASKS) - 1:
+        #     twnx.set_ylabel("Accuracy", color="tomato")
+        # if i != len(TASKS) - 1:
+        #     twnx.yaxis.set_ticklabels([])
+        #     twnx.set_yticks([])
 
         twnx.set_ylim(YLIM_ACC)
         # # twnx.set_ylim(0.95, 1.009)
@@ -2296,16 +2377,35 @@ def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
         #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
         # # twnx.legend(loc="upper right")
 
+        if i in [0, len(axes) // 2]:
+            axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
+        else:
+            axes[i].yaxis.set_ticklabels([])
+            axes[i].set_yticks([])
+        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+            twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
+        else:
+            twnx.yaxis.set_ticklabels([])
+            twnx.set_yticks([])
+
+        axes[i].grid(False)
+        twnx.grid(False)
+
         plots = plot1 + plot2
         labels = [l.get_label() for l in plots]
         axes[i].legend(plots, labels, loc="center right", fontsize=15)
+    
+    if len(axes) > len(TASKS):
+        print(f'{len(axes)} > {len(TASKS)}')
+        plt.delaxes(axes[-1])
+    
     # fig.text(0.5, 0.02, 'Step Size $\\gamma$', ha='center')
     plt.tight_layout()
-    plt.subplots_adjust(wspace=.0)
+    # plt.subplots_adjust(wspace=.0)
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, "vary_beta.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     # plt.show()
 
@@ -2409,8 +2509,8 @@ def vary_num_agg_tsk(df: pd.DataFrame, tsk: str, args: EvalArgs):
     plt.tight_layout()
     plt.savefig(
         os.path.join(args.home_dir, args.plot_dir, f"vary_naggs_{tsk}.pdf"),
-        bbox_inches="tight",
-        pad_inches=0,
+        # bbox_inches="tight",
+        # pad_inches=0,
     )
     plt.close("all")
 
@@ -2446,10 +2546,10 @@ def main(args: EvalArgs):
         plot_vary_max_error(df, args)
         plot_vary_max_error_vldb(df, args)
     elif args.only == "alpha":
-        plot_vary_alpha(df, args)
+        # plot_vary_alpha(df, args)
         plot_vary_alpha_vldb(df, args)
     elif args.only == "beta":
-        plot_vary_beta(df, args)
+        # plot_vary_beta(df, args)
         plot_vary_beta_vldb(df, args)
     elif args.only == "num_agg":
         vary_num_agg_tsk(df, "machineryralf", args)

@@ -1067,9 +1067,9 @@ def plot_vary_policy(df: pd.DataFrame, args: EvalArgs):
         if policy == "optimizer" and alpha == 0.05 and qinf == "biathlon":
             return "Biathlon-Default"
         elif policy == "optimizerexpinit" and alpha == 0.01 and qinf == "biathlon":
-            return "Biathlon-ExponetialStep"
+            return "Biathlon-ExponentialStep"
         elif policy == "uniformexp" and alpha == 0.01 and qinf == "biathlon":
-            return "Simple-ExponetialStep"
+            return "Simple-ExponentialStep"
         else:
             return f"{policy}-{alpha}-{qinf}"
     selected_df['policy'] = selected_df.apply(policy_rename, axis=1)

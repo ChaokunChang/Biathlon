@@ -57,8 +57,8 @@ class R2W1F3Args(Tap):
     oracle_type: str = "exact"
     metric: str = "acc"
 
-    save_dir: str = "/home/ckchang/ApproxInfer/revision/cache/results/2.1.3"
-    fig_dir: str = "/home/ckchang/ApproxInfer/revision/cache/figs/2.1.3"
+    save_dir: str = "/home/ckchang/ApproxInfer/thesis-revision/cache/results/2.1.3"
+    fig_dir: str = "/home/ckchang/ApproxInfer/thesis-revision/cache/figs/2.1.3"
     nocache: bool = False
 
     auto_rid: bool = False
@@ -545,7 +545,7 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
     nres = len(res_list)
     # ncols = 4
     # nrows = (nres // ncols) + (nres % ncols > 0)
-    ncols, nrows = 7, 1
+    ncols, nrows = 4, 2
     fig, axes = plt.subplots(nrows, ncols, figsize=(3 * ncols, 3 * nrows))
     axes = axes.flatten()
     # sns.set(font_scale=1.1)
@@ -583,7 +583,7 @@ def plot_final_error_dist(args: R2W1F3Args, res_list: List[dict]):
         ax.set_title(f"{task_name}", fontsize=14)
 
     plt.tight_layout()
-    plt.subplots_adjust(wspace=.3)
+    # plt.subplots_adjust(wspace=.3)
     fig_dir = args.fig_dir
     os.makedirs(fig_dir, exist_ok=True)
     if args.error_to == "apx":

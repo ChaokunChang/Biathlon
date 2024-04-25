@@ -463,6 +463,36 @@ def get_2_n_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     return fig, axes.flatten()
 
 
+def get_n_2_fig(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
+    sns.set_theme(style="whitegrid")
+    ntasks = len(TASKS)
+    if ntasks % 2 == 0:
+        nrows = ntasks // 2
+    else:
+        nrows = (ntasks + 1) // 2
+    width = 5 * 2
+    height = 5 * nrows
+    fig, axes = plt.subplots(
+        figsize=(width * 1.5, height), nrows=nrows, ncols=2, sharex=False, sharey=False
+    )
+    return fig, axes.flatten()
+
+
+def get_n_2_fig_reg(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
+    sns.set_theme(style="whitegrid")
+    ntasks = len(REG_TASKS)
+    if ntasks % 2 == 0:
+        nrows = ntasks // 2
+    else:
+        nrows = (ntasks + 1) // 2
+    width = 5 * 2
+    height = 5 * nrows
+    fig, axes = plt.subplots(
+        figsize=(width * 1.5, height), nrows=nrows, ncols=2, sharex=False, sharey=False
+    )
+    return fig, axes.flatten()
+
+
 def get_1_n_fig_reg(args: EvalArgs) -> Tuple[plt.Figure, List[plt.Axes]]:
     sns.set_theme(style="whitegrid")
     ntasks = len(REG_TASKS)
@@ -1469,7 +1499,8 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
     # fig, axes = get_2_n_fig(args)
     # fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(30, 4.5), sharex=False, sharey=False)
     # axes = axes.flatten()
-    fig, axes = get_2_n_fig(args)
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = get_n_2_fig(args)
 
     for i, task_name in enumerate(TASKS):
         df_tmp = selected_df[selected_df["task_name"] == task_name]
@@ -1509,7 +1540,7 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         
         # if i >= len(axes) // 2:
         #     axes[i].set_xlabel("Confidence Level $\\tau$", fontsize=15)
-        if i in [0, len(axes) // 2]:
+        if i % 2 == 0:
             axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
         else:
             axes[i].yaxis.set_ticklabels([])
@@ -1517,7 +1548,7 @@ def plot_vary_min_conf_vldb(df: pd.DataFrame, args: EvalArgs):
         # axes[i].legend(loc="lower center")
 
         # twnx.set_ylim(YLIM_ACC)
-        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+        if i % 2 == 1:
             twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
         else:
             twnx.yaxis.set_ticklabels([])
@@ -1704,7 +1735,8 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    fig, axes = get_1_n_fig_reg(args)
+    # fig, axes = get_1_n_fig_reg(args)
+    fig, axes = get_n_2_fig_reg(args)
     # fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 5))
     # axes = axes.flatten()
 
@@ -1840,15 +1872,15 @@ def plot_vary_max_error_vldb(df: pd.DataFrame, args: EvalArgs):
         # if i == len(axes) - 1:
         #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
 
-        if i == 0:
+        if i % 2 == 0:
             axes[i].set_ylabel("Speedup", color="royalblue", fontsize=24)
-        if i != 0:
+        else:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
 
-        if i == len(REG_TASKS) - 1:
+        if i % 2 == 1:
             twnx.set_ylabel("Accuracy", color="tomato", fontsize=24)
-        if i != len(REG_TASKS) - 1:
+        else:
             twnx.yaxis.set_ticklabels([])
             twnx.set_yticks([])
 
@@ -2035,7 +2067,8 @@ def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    fig, axes = get_2_n_fig(args)
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = get_n_2_fig(args)
     # fig, axes = plt.subplots(nrows=2, ncols=len(TASKS) // 2 + (len(TASKS) % 2 == 1), figsize=(21, 3.5), sharex=False, sharey=False)
     # axes = axes.flatten()
 
@@ -2109,12 +2142,12 @@ def plot_vary_alpha_vldb(df: pd.DataFrame, args: EvalArgs):
 
         twnx.set_ylim(YLIM_ACC)
 
-        if i in [0, len(axes) // 2]:
+        if i % 2 == 0:
             axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
         else:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
-        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+        if i % 2 == 1:
             twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
         else:
             twnx.yaxis.set_ticklabels([])
@@ -2305,7 +2338,8 @@ def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
 
     pd.set_option("display.precision", 10)
 
-    fig, axes = get_2_n_fig(args)
+    # fig, axes = get_2_n_fig(args)
+    fig, axes = get_n_2_fig(args)
     # fig, axes = plt.subplots(nrows=1, ncols=len(TASKS), figsize=(21, 3.5), sharex=False, sharey=False)
     # axes = axes.flatten()
 
@@ -2377,12 +2411,12 @@ def plot_vary_beta_vldb(df: pd.DataFrame, args: EvalArgs):
         #     twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
         # # twnx.legend(loc="upper right")
 
-        if i in [0, len(axes) // 2]:
+        if i % 2 == 0:
             axes[i].set_ylabel("Speedup", color="royalblue", fontsize=15)
         else:
             axes[i].yaxis.set_ticklabels([])
             axes[i].set_yticks([])
-        if i in [-1 + len(axes) // 2, -1 + len(TASKS)]:
+        if i % 2 == 1:
             twnx.set_ylabel("Accuracy", color="tomato", fontsize=15)
         else:
             twnx.yaxis.set_ticklabels([])

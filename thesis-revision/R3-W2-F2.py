@@ -33,7 +33,7 @@ from apxinfer.simulation import utils as simutils
 
 
 class R3W2F2Args(simutils.SimulationArgs):
-    save_dir: str = "/home/ckchang/ApproxInfer/revision/cache"
+    save_dir: str = "/home/ckchang/ApproxInfer/thesis-revision/cache"
 
 
 def plot_multireqs(
@@ -156,7 +156,8 @@ def plot_multireqs_v1(
         ferrors_list.reshape(len(rid_list), len(p_list), nops), axis=0
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 3))
+    # fig, axes = plt.subplots(1, 2, figsize=(12, 3))
+    fig, axes = plt.subplots(2, 1, figsize=(12, 8))
     axes = axes.flatten()
 
     mask = np.ones_like(x_values)

@@ -43,7 +43,7 @@ class ExpArgs(Tap):
     pest_seed: int = 0
     pest_nsamples: int = 128
     qinf: str = "biathlon"
-    policy: str = "optimizer"
+    scheduler: str = "optimizer"
 
     ralf_budget: float = 1.0
     ralf_budgets: List[float] = None
@@ -57,6 +57,11 @@ class ExpArgs(Tap):
     nocache: bool = False
 
     try_execution: bool = False
+
+    test_alpha: int = 5
+    test_beta: int = 1
+    test_error: float = 0.0
+    test_conf: float = 0.95
 
     def process_args(self):
         assert self.exp is not None
@@ -78,7 +83,8 @@ class ExpArgs(Tap):
 
 
 def get_default_min_confs(args: ExpArgs):
-    return [0.95, 0.98]
+    # return [0.95, 0.98]
+    return [0.95]
 
 
 def get_min_confs(args: ExpArgs):
@@ -121,6 +127,31 @@ def get_scheduler_cfgs(args: ExpArgs, naggs: int):
         for alpha in quantiles[:-1]:
             cfgs.append((alpha, beta * naggs))
     return cfgs
+
+
+def get_policies(args: ExpArgs) -> List[dict]:
+    policies = []
+    schedulers = [
+        "optimizer",
+        "optimizerexpinit",
+        "optimizerexpbatch",
+        "uniform",
+        "uniformexpinit",
+        "uniformexpbatch",
+        "random",
+        "stepgradient",
+    ]
+    for scheduler in schedulers:
+        policies.append({"scheduler": scheduler, "qinf": "biathlon"})
+    qinfs = ["biathlon", "prevgradient", "yufei"]
+    for qinf in qinfs:
+        policies.append({"scheduler": "optimizer", "qinf": qinf})
+        policies.append({"scheduler": "stepgradient", "qinf": qinf})
+    policies.append({"scheduler": "optimizer", "qinf": "yufei", "pest": "MC"})
+    policies.append({"scheduler": "stepgradient", "qinf": "yufei", "pest": "MC"})
+    policies.append({"scheduler": "optimizer", "qinf": "prevgradient", "pest": "MC"})
+    policies.append({"scheduler": "stepgradient", "qinf": "prevgradient", "pest": "MC"})
+    return policies
 
 
 def list_to_option_str(values: list):
@@ -270,7 +301,7 @@ def get_biathlon_cmd(
     online_cmd = f"{shared_cmd} --stage online"
 
     pest_qinf_opts = f"--pest {args.pest} --pest_constraint error --pest_nsamples {args.pest_nsamples} --pest_seed {args.pest_seed} --qinf {args.qinf}"
-    scheduler_opts = f"--scheduler {args.policy} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
+    scheduler_opts = f"--scheduler {args.scheduler} --scheduler_init {scheduler_init} --scheduler_batch {scheduler_batch}"
     acc_opts = f"--max_error {max_error} --min_conf {min_conf}"
     bs_opts = f"--bs_type {args.bs_type} --bs_nresamples {args.bs_nresamples} --bs_nthreads {args.bs_nthreads}"
     if not args.bs_feature_correction:
@@ -307,7 +338,7 @@ def get_biathlon_path(
         f"ncfgs-{args.ncfgs}",
         f"pest-{pest_constraint}-{args.pest}-{args.pest_nsamples}-{args.pest_seed}",
         f"qinf-{args.qinf}",
-        f"scheduler-{args.policy}-{scheduler_init}-{scheduler_batch}",
+        f"scheduler-{args.scheduler}-{scheduler_init}-{scheduler_batch}",
     )
     if args.bs_type == "descrete":
         biathlon_path = os.path.join(
@@ -485,6 +516,16 @@ def run_pipeline(
             args.default_error,
             args.default_conf,
         )
+    elif args.phase == "test":
+        run_tempbiathlon(
+            args,
+            task_name,
+            model,
+            args.test_alpha,
+            args.test_beta * naggs,
+            args.test_error,
+            args.test_conf,
+        )
     elif args.phase == "warmup":
         run_biathlon(args, task_name, model, 1000, 1000 * naggs, 0.0, 1.1)
     elif args.phase == "profile":
@@ -502,12 +543,86 @@ def run_pipeline(
             args,
             task_name,
             model,
-            agg_qids,
             args.default_alpha,
             args.default_beta * naggs,
             args.default_error,
             args.default_conf,
         )
+    elif args.phase == "biathlon-default":
+        for sch_init, sch_batch in get_default_scheduler_cfgs(args, naggs):
+            for max_error in default_max_errors:
+                for min_conf in get_default_min_confs(args):
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
+    elif args.phase == "biathlon-confs":
+        for sch_init, sch_batch in get_default_scheduler_cfgs(args, naggs):
+            for max_error in default_max_errors:
+                for min_conf in get_min_confs(args):
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
+    elif args.phase == "biathlon-errors":
+        # vary max_error only
+        for sch_init, sch_batch in get_default_scheduler_cfgs(args, naggs):
+            for max_error in max_errors:
+                for min_conf in get_default_min_confs(args):
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
+    elif args.phase == "biathlon-alphas":
+        for sch_init in get_all_quantiles(args):
+            for sch_batch in get_default_betas(args):
+                for max_error in default_max_errors:
+                    for min_conf in get_default_min_confs(args):
+                        run_biathlon(
+                            args,
+                            task_name,
+                            model,
+                            sch_init,
+                            sch_batch,
+                            max_error,
+                            min_conf,
+                        )
+    elif args.phase == "biathlon-betas":
+        for sch_init in get_default_alphas(args):
+            for sch_batch in get_all_quantiles(args):
+                for max_error in default_max_errors:
+                    for min_conf in get_default_min_confs(args):
+                        run_biathlon(
+                            args,
+                            task_name,
+                            model,
+                            sch_init,
+                            sch_batch,
+                            max_error,
+                            min_conf,
+                        )
+    elif args.phase == "biathlon-alphasbetas":
+        for sch_init, sch_batch in get_scheduler_cfgs(args, naggs):
+            for max_error in default_max_errors:
+                for min_conf in get_default_min_confs(args):
+                    run_biathlon(
+                        args, task_name, model, sch_init, sch_batch, max_error, min_conf
+                    )
+    elif args.phase == "biathlon-policy":
+        for sch_init, sch_batch in get_default_scheduler_cfgs(args, naggs):
+            for max_error in default_max_errors:
+                for min_conf in get_default_min_confs(args):
+                    for policy in get_policies(args):
+                        dup_args = ExpArgs(args).parse_args()
+                        dup_args.scheduler = policy.get("scheduler", args.scheduler)
+                        dup_args.qinf = policy.get("qinf", args.qinf)
+                        dup_args.pest = policy.get("pest", args.pest)
+                        run_biathlon(
+                            dup_args,
+                            task_name,
+                            model,
+                            sch_init,
+                            sch_batch,
+                            max_error,
+                            min_conf,
+                        )
     elif args.phase == "biathlon":
         default_cfgs = get_default_scheduler_cfgs(args, naggs)
         cfgs = get_scheduler_cfgs(args, naggs)

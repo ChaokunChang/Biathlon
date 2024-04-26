@@ -17,6 +17,8 @@ from apxinfer.core.prediction import BiathlonPlusPredictionEstimator
 from apxinfer.core.qinfluence import XIPQInfEstimator, XIPQInfEstimatorByFInfs
 from apxinfer.core.qinfluence import XIPQInfEstimatorSobol, XIPQInfEstimatorSTIndex
 from apxinfer.core.qinfluence import BiathlonQInfEstimator
+from apxinfer.core.qinfluence import PrevGradientQInfEstimator
+from apxinfer.core.qinfluence import YufeiQInfEstimator
 from apxinfer.core.qcost import XIPQCostModel
 from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
@@ -987,6 +989,14 @@ def get_ppl(
         qinf_estimator = BiathlonQInfEstimator(
             pred_estimator=pred_estimator, verbose=verbose
         )
+    elif args.qinf == "prevgradient":
+        qinf_estimator = PrevGradientQInfEstimator(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
+    elif args.qinf == "yufei":
+        qinf_estimator = YufeiQInfEstimator(
+            pred_estimator=pred_estimator, verbose=verbose
+        )
     else:
         raise ValueError("Invalid qinf estimator")
 
@@ -1023,11 +1033,11 @@ def get_ppl(
         scheduler = XIPSchedulerGradient(**scheduler_args)
     elif args.scheduler == "stepgradient":
         scheduler = XIPSchedulerStepGradient(**scheduler_args)
-    elif args.scheduler == "uniformexp":
+    elif args.scheduler == "uniformexpinit":
         scheduler = XIPSchedulerUniformExpInit(**scheduler_args)
     elif args.scheduler == "uniformexpbatch":
         scheduler = XIPSchedulerUniformExpBatch(**scheduler_args)
-    elif args.scheduler == "optimizerexp":
+    elif args.scheduler == "optimizerexpbatch":
         scheduler = XIPSchedulerOptimizerExpBatch(**scheduler_args)
     elif args.scheduler == "optimizerexpinit":
         scheduler = XIPSchedulerOptimizerExpInit(**scheduler_args)

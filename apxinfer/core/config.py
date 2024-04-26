@@ -72,9 +72,9 @@ class OnlineArgs(OfflineArgs):
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol", "sobolT", "biathlon"] = (
-        "biathlon"  # query inference method
-    )
+    qinf: Literal[
+        "direct", "by_finf", "sobol", "sobolT", "biathlon", "prevgradient", "yufei"
+    ] = "biathlon"  # query inference method
 
     scheduler: Literal[
         "greedy",

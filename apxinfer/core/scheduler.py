@@ -422,8 +422,21 @@ class XIPSchedulerOptimizer(XIPSchedulerWQCost):
         nsteps = min(np.sum(valid_nsteps), nsteps)
 
         # priorities = self.get_query_priority(fvec, pred, delta_qsamples)
-        assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
-        qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        # assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
+        try:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model, self.fextractor, fvec, pred
+            )
+        except Exception as e:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model,
+                self.fextractor,
+                fvec,
+                pred,
+                request,
+                qcfgs,
+                qsample_grans=self.sample_grans,
+            )
         priorities = qinf_est["qinfs"]
 
         if np.any(priorities < 0.0):
@@ -480,8 +493,22 @@ class XIPSchedulerStepGradient(XIPSchedulerWQCost):
         nsteps = min(np.sum(valid_nsteps), nsteps)
 
         # priorities = self.get_query_priority(fvec, pred, delta_qsamples)
-        assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
-        qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        # assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
+        # qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        try:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model, self.fextractor, fvec, pred
+            )
+        except Exception as e:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model,
+                self.fextractor,
+                fvec,
+                pred,
+                request,
+                qcfgs,
+                qsample_grans=self.sample_grans,
+            )
         priorities = qinf_est["qinfs"]
 
         if np.any(priorities < 0.0):
@@ -560,8 +587,22 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
         nsteps = min(np.sum(valid_nsteps), nsteps)
 
         # priorities = self.get_query_priority(fvec, pred, delta_qsamples)
-        assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
-        qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        # assert isinstance(self.qinf_estimator, XIPQInfEstimatorSobol)
+        # qinf_est = self.qinf_estimator.estimate(self.model, self.fextractor, fvec, pred)
+        try:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model, self.fextractor, fvec, pred
+            )
+        except Exception as e:
+            qinf_est = self.qinf_estimator.estimate(
+                self.model,
+                self.fextractor,
+                fvec,
+                pred,
+                request,
+                qcfgs,
+                qsample_grans=self.sample_grans,
+            )
         priorities = qinf_est["qinfs"]
 
         if np.any(priorities < 0.0):

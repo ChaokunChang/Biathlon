@@ -1338,5 +1338,33 @@ if __name__ == "__main__":
         run_studentqno(args, qno)
     elif args.exp.startswith("performance"):
         run_performance(args, task_name=args.exp)
+    elif args.exp == "Trip-Fare":
+        run_tripsralfv3(args)
+    elif args.exp == "Tick-Price":
+        run_tickralfv2(args)
+    elif args.exp == "Battery":
+        run_batteryv2(args)
+    elif args.exp == "Turbofan":
+        run_turbofan(args)
+    elif args.exp == "Fraud-Detection":
+        run_tdfraud(args, task_name="tdfraudralf2d")
+    elif args.exp == "Bearing-Imbalance":
+        run_machineryralf(args)
+    elif args.exp == "Student-QA":
+        run_studentqnov2(args, task_name="studentqnov2subset")
+    elif args.exp == "Trip-Fare-Median":
+        run_tripsralfv3median(args)
+    elif args.exp == "Tick-Price-Median":
+        run_tickralfv2median(args)
+    elif args.exp == "Battery-Median":
+        run_batteryv2median(args)
+    elif args.exp == "Turbofan-Median":
+        run_turbofanmedian(args)
+    elif args.exp == "Fraud-Detection-Median":
+        run_tdfraud(args, task_name="tdfraudralf2dv2median")
+    elif args.exp == "Bearing-Imbalance-Median":
+        run_machineryralfmedian(args)
+    elif args.exp == "Student-QA-Median":
+        run_studentqnov2(args, task_name="studentqnov2subsetmedian")
     else:
         raise ValueError(f"invalid exp {args.exp}")

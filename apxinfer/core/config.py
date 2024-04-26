@@ -85,10 +85,10 @@ class OnlineArgs(OfflineArgs):
         "optimizer",
         "gradient",
         "stepgradient",
-        "uniformexp",
+        "uniformexpinit",
         "uniformexpbatch",
-        "optimizerexp",
         "optimizerexpinit",
+        "optimizerexpbatch",
     ] = "optimizer"  # scheduler
     scheduler_init: int = 5
     scheduler_batch: int = 1

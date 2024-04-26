@@ -22,8 +22,14 @@ from apxinfer.core.scheduler import XIPSchedulerGreedy, XIPSchedulerOptimizer
 from apxinfer.core.scheduler import XIPSchedulerWQCost, XIPSchedulerRandom
 from apxinfer.core.scheduler import XIPSchedulerUniform, XIPSchedulerBalancedQCost
 from apxinfer.core.scheduler import XIPSchedulerGradient, XIPSchedulerStepGradient
-from apxinfer.core.scheduler import XIPSchedulerUniformExp, XIPSchedulerUniformExpBatch
-from apxinfer.core.scheduler import XIPSchedulerOptimizerExp, XIPSchedulerOptimizerExpInit
+from apxinfer.core.scheduler import (
+    XIPSchedulerUniformExpInit,
+    XIPSchedulerUniformExpBatch,
+)
+from apxinfer.core.scheduler import (
+    XIPSchedulerOptimizerExpBatch,
+    XIPSchedulerOptimizerExpInit,
+)
 from apxinfer.core.pipeline import XIPPipeline, XIPPipelineSettings
 
 from apxinfer.core.offline import OfflineExecutor
@@ -1018,11 +1024,11 @@ def get_ppl(
     elif args.scheduler == "stepgradient":
         scheduler = XIPSchedulerStepGradient(**scheduler_args)
     elif args.scheduler == "uniformexp":
-        scheduler = XIPSchedulerUniformExp(**scheduler_args)
+        scheduler = XIPSchedulerUniformExpInit(**scheduler_args)
     elif args.scheduler == "uniformexpbatch":
         scheduler = XIPSchedulerUniformExpBatch(**scheduler_args)
     elif args.scheduler == "optimizerexp":
-        scheduler = XIPSchedulerOptimizerExp(**scheduler_args)
+        scheduler = XIPSchedulerOptimizerExpBatch(**scheduler_args)
     elif args.scheduler == "optimizerexpinit":
         scheduler = XIPSchedulerOptimizerExpInit(**scheduler_args)
     else:

@@ -616,7 +616,7 @@ class XIPSchedulerGradient(XIPSchedulerWQCost):
         return next_qcfgs
 
 
-class XIPSchedulerUniformExp(XIPSchedulerWQCost):
+class XIPSchedulerUniformExpInit(XIPSchedulerWQCost):
     def get_next_qcfgs(
         self,
         request: XIPRequest,
@@ -662,14 +662,16 @@ class XIPSchedulerUniformExpBatch(XIPSchedulerWQCost):
         for qid in range(len(next_qcfgs)):
             if not is_same_float(next_qcfgs[qid]["qsample"], 1.0):
                 next_qcfgs[qid]["qcfg_id"] += 1
-                next_qsamples = next_qcfgs[qid]["qsample"] + nsteps * self.sample_grans[qid]
+                next_qsamples = (
+                    next_qcfgs[qid]["qsample"] + nsteps * self.sample_grans[qid]
+                )
                 next_qsamples = min(next_qsamples, self.max_qsamples[qid])
                 next_qcfgs[qid]["qsample"] = next_qsamples
         self.logger.debug(f"next cfgs: {[cfg['qsample'] for cfg in next_qcfgs]}")
         return next_qcfgs
 
 
-class XIPSchedulerOptimizerExp(XIPSchedulerOptimizer):
+class XIPSchedulerOptimizerExpBatch(XIPSchedulerOptimizer):
     def get_step_size(self) -> int:
         scale = 2 ** len(self.history)
         nsteps = self.batch_size * scale

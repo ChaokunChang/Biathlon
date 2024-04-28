@@ -623,6 +623,22 @@ def run_pipeline(
                             max_error,
                             min_conf,
                         )
+    elif args.phase == "biathlon-bs_type":
+        for sch_init, sch_batch in get_default_scheduler_cfgs(args, naggs):
+            for max_error in default_max_errors:
+                for min_conf in get_default_min_confs(args):
+                    for bs_type in ['fstd', 'descrete', 'allbs']:
+                        dup_args = ExpArgs(args).parse_args()
+                        dup_args.bs_type = bs_type
+                        run_biathlon(
+                            dup_args,
+                            task_name,
+                            model,
+                            sch_init,
+                            sch_batch,
+                            max_error,
+                            min_conf,
+                        )
     elif args.phase == "biathlon":
         default_cfgs = get_default_scheduler_cfgs(args, naggs)
         cfgs = get_scheduler_cfgs(args, naggs)

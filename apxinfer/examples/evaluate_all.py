@@ -863,8 +863,6 @@ def run_tripsralfv2median(args: ExpArgs):
     """
     task_name = "tripsralfv2median"
     agg_qids = "1 2"
-    # default_max_errors = [1.4]
-    # max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
     default_max_errors = [1.5]
     max_errors = [0.1875, 0.375, 0.75, 1.5, 3.0, 6.0, 9.0, 12.0, 15.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -877,7 +875,6 @@ def run_tripsralfv2simmedian(args: ExpArgs):
     """
     task_name = "tripsralfv2simmedian"
     agg_qids = "1 2"
-    # default_max_errors = [0.7, 1.4, 2.8]
     default_max_errors = [1.4]
     max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -890,7 +887,6 @@ def run_tripsralfv3median(args: ExpArgs):
     """
     task_name = "tripsralfv3median"
     agg_qids = "1 2"
-    # default_max_errors = [0.7, 1.4, 2.8]
     default_max_errors = [1.4]
     max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -903,7 +899,6 @@ def run_tripsralfv3simmedian(args: ExpArgs):
     """
     task_name = "tripsralfv3simmedian"
     agg_qids = "1 2"
-    # default_max_errors = [0.7, 1.4, 2.8]
     default_max_errors = [1.4]
     max_errors = [0.175, 0.35, 0.7, 1.0, 1.4, 2.8, 5.6, 11.2, 22.4]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
@@ -978,7 +973,7 @@ def run_batteryv2(args: ExpArgs):
     """
     task_name = "batteryv2"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [93.35, 186.7]
+    default_max_errors = [186.7]
     max_errors = [
         30.0,
         46.675,
@@ -1013,7 +1008,7 @@ def run_batteryv2median(args: ExpArgs):
     """
     task_name = "batteryv2median"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [93.35, 186.7]
+    default_max_errors = [186.7]
     max_errors = [
         30.0,
         46.675,
@@ -1045,7 +1040,7 @@ def run_batteryv2simmedian(args: ExpArgs):
     """
     task_name = "batteryv2simmedian"
     agg_qids = "0 1 2 3 4"
-    default_max_errors = [93.35, 186.7]
+    default_max_errors = [186.7]
     max_errors = [
         30.0,
         46.675,
@@ -1188,7 +1183,7 @@ def run_tickralfv2(args: ExpArgs):
     """
     task_name = "tickralfv2"
     agg_qids = "6"
-    default_max_errors = [0.02, 0.04, 0.06]
+    default_max_errors = [0.04]
     max_errors = [0.005, 0.01, 0.02, 0.04, 0.08, 0.12, 0.16, 0.32, 500.0, 10000000000.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -1200,7 +1195,7 @@ def run_tickralfv2median(args: ExpArgs):
     """
     task_name = "tickralfv2median"
     agg_qids = "6"
-    default_max_errors = [0.02, 0.04, 0.06]
+    default_max_errors = [0.04]
     max_errors = [0.005, 0.01, 0.02, 0.04, 0.06, 0.12, 500.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -1212,7 +1207,7 @@ def run_tickralfv2simmedian(args: ExpArgs):
     """
     task_name = "tickralfv2simmedian"
     agg_qids = "6"
-    default_max_errors = [0.02, 0.04, 0.06]
+    default_max_errors = [0.04]
     max_errors = [0.005, 0.01, 0.02, 0.04, 0.06, 0.12, 500.0]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 

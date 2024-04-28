@@ -1078,7 +1078,7 @@ def run_turbofan(args: ExpArgs):
     task_name = "turbofan"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [2.44, 4.88]
+    default_max_errors = [4.88]
     max_errors = [0.61, 1.22, 2.44, 4.88, 9.76, 19.52, 39.04, 78.08]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -1091,7 +1091,7 @@ def run_turbofanmedian(args: ExpArgs):
     task_name = "turbofanmedian"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [2.44, 4.88]
+    default_max_errors = [4.88]
     max_errors = [0.61, 1.22, 2.44, 4.88, 9.76, 19.52, 39.04, 78.08]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 
@@ -1104,7 +1104,7 @@ def run_turbofansimmedian(args: ExpArgs):
     task_name = "turbofansimmedian"
     naggs = 9
     agg_qids = list_to_option_str([i for i in range(naggs)])
-    default_max_errors = [2.44, 4.88]
+    default_max_errors = [4.88]
     max_errors = [0.61, 1.22, 2.44, 4.88, 9.76, 19.52, 39.04, 78.08]
     run_pipeline(args, task_name, agg_qids, default_max_errors, max_errors)
 

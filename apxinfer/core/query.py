@@ -262,7 +262,7 @@ class XIPQueryProcessor:
         req_id = request["req_id"]
         if self._dcache.get("cached_req", None) == req_id:
             cached_nparts = self._dcache.get("cached_nparts", 0)
-            assert cached_nparts <= to_pid
+            # assert cached_nparts <= to_pid
             from_pid = cached_nparts
         else:
             self._dcache["cached_req"] = req_id
@@ -325,8 +325,16 @@ class XIPQueryProcessor:
                 self._dcache["cached_rrd"] = np.concatenate(
                     [self._dcache["cached_rrd"], new_rrd], axis=0
                 )
-        self._dcache["cached_nparts"] = to_pid
-        return self._dcache["cached_rrd"]
+        if self._dcache["cached_nparts"] <= to_pid:
+            self._dcache["cached_nparts"] = to_pid
+            return self._dcache["cached_rrd"]
+        else:
+            if self._dcache["cached_rrd"] is not None:
+                frac = to_pid * 1.0 / self._dcache["cached_nparts"]
+                num = round(frac * self._dcache["cached_rrd"].shape[0])
+                return self._dcache["cached_rrd"][:num]
+            else:
+                return self._dcache["cached_rrd"]
 
     def load_rrdata_ks(self, request: XIPRequest, qcfg: XIPQueryConfig) -> np.ndarray:
         qcond = self.get_query_condition(request)

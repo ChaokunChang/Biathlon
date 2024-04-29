@@ -20,7 +20,7 @@ class BaseXIPArgs(Tap):
     # AFC and AMI settings
     err_min_support: int = 30
     bs_nthreads: int = 1  # nthreads for bootstrapping
-    bs_type: Literal["descrete", "fstd"] = "fstd"
+    bs_type: Literal["descrete", "fstd", "allbs"] = "fstd"
     bs_nresamples: int = 100
     bs_feature_correction: bool = True
     bs_bias_correction: bool = True
@@ -72,9 +72,9 @@ class OnlineArgs(OfflineArgs):
     pest_seed: int = 0
     pest_point: bool = False  # whether using pred(apxf) as response
 
-    qinf: Literal["direct", "by_finf", "sobol", "sobolT", "biathlon"] = (
-        "biathlon"  # query inference method
-    )
+    qinf: Literal[
+        "direct", "by_finf", "sobol", "sobolT", "biathlon", "prevgradient", "yufei"
+    ] = "biathlon"  # query inference method
 
     scheduler: Literal[
         "greedy",
@@ -85,10 +85,10 @@ class OnlineArgs(OfflineArgs):
         "optimizer",
         "gradient",
         "stepgradient",
-        "uniformexp",
+        "uniformexpinit",
         "uniformexpbatch",
-        "optimizerexp",
         "optimizerexpinit",
+        "optimizerexpbatch",
     ] = "optimizer"  # scheduler
     scheduler_init: int = 5
     scheduler_batch: int = 1
@@ -183,10 +183,10 @@ class DIRHelper:
                 online_dir,
                 f"scheduler-{args.scheduler}-{args.scheduler_init}-{args.scheduler_batch}",
             )
-            if args.bs_type == "descrete":
+            if args.bs_type != "fstd":
                 online_dir = os.path.join(
                     online_dir,
-                    f"bs-descrete-{args.bs_nresamples}-{args.bs_nthreads}-{args.bs_feature_correction}-{args.bs_bias_correction}-{args.bs_for_var_std}",
+                    f"bs-{args.bs_type}-{args.bs_nresamples}-{args.bs_nthreads}-{args.bs_feature_correction}-{args.bs_bias_correction}-{args.bs_for_var_std}",
                 )
         os.makedirs(online_dir, exist_ok=True)
         return online_dir

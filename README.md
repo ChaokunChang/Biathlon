@@ -19,11 +19,11 @@ Approximate Machine Learning Inference with Approximate Query Processing
 ### Reproduce results of real pipelines
 ```bash
 cd apxinfer/examples
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase setup  # setup the database, train the model, run offline for profiling and analysis
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase baseline  # run the pipeline in exact-manner
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase ralf --ralf_budget 1.0  # run RALF with sepcified budget
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase biathlon --default_only  ## run Biathlon with default configuration only
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase biathlon  ## run Biathlon with all configurations (for plotting)
+python evaluate_all.py --interpreter ****/home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase setup  # setup the database, train the model, run offline for profiling and analysis
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase baseline  # run the pipeline in exact-manner
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase ralf --ralf_budget 1.0  # run RALF with sepcified budget
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase biathlon --default_only  ## run Biathlon with default configuration only
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare --model lgbm --seed 0 --phase biathlon  ## run Biathlon with all configurations (for plotting)
 ```
 
 Note:
@@ -43,9 +43,9 @@ Note:
 We replaced the Average operators in real pipelines with Median Operators, to reproduce them, just add `-Median` after the pipeline name. For example, to reproduce the results for the Trip-Fare pipeline with Median operators, run the following command:
 ```bash
 cd apxinfer/examples
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase setup
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase baseline 
-python evaluate_all.py --intepreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase biathlon --default_only
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase setup
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase baseline 
+python evaluate_all.py --interpreter /home/ckchang/anaconda3/envs/apx/bin/python --exp Trip-Fare-Median --model lgbm --seed 0 --phase biathlon --default_only
 ```
 
 ### Collect results

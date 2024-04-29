@@ -274,13 +274,13 @@ class XIPFeatureErrorEstimator:
             fests = 1e9 * np.ones_like(features)
         else:
             estimator = getattr(self, agg, None)
-            if estimator is not None:
+            if (estimator is not None) and (self.bs_type not in ["allbs"]):
                 fests = estimator(samples, p, tsize)
             else:
                 self.logger.debug(f"Bootstrapping for {agg} aggregation")
                 bs_estimations = self.bootstrap(samples, p, tsize, agg)
                 fests = np.std(bs_estimations, axis=0, ddof=1)
-                if self.bs_type == "descrete":
+                if self.bs_type in ["descrete", "allbs"]:
                     fests = []
                     for i in range(bs_estimations.shape[1]):
                         fests.append(bs_estimations[:, i].tolist())

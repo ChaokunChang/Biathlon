@@ -1,5 +1,5 @@
-# ApproxInfer
-Approximate Machine Learning Inference with Approximate Query Processing
+# Biathlon
+Harnessing Model Resilience for Accelerating ML Inference Pipelines
 
 ## Reproduce the results in the paper
 
